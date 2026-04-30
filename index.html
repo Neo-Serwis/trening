@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>Trening</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f0f; --bg2:#1a1a1a; --bg3:#252525; --card:#1e1e1e;
+  --border:#2e2e2e; --accent:#e63946; --blue:#457b9d; --yellow:#e9c46a;
+  --text:#f0f0f0; --text2:#aaa; --text3:#555;
+  --green-bg:#1a3a2a; --green:#52b788;
+  --input:#1c1c1c; --radius:10px;
+}
+html,body{
+  height:100%; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  font-size:15px; overflow:hidden; -webkit-tap-highlight-color:transparent;
+  -webkit-font-smoothing:antialiased;
+}
+#app{height:100%;display:flex;flex-direction:column}
+
+/* HEADER */
+header{
+  height:54px; background:var(--bg2); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 6px; flex-shrink:0;
+}
+header h1{
+  flex:1; text-align:center; font-size:16px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 4px;
+}
+.hbtn{
+  background:none; border:none; color:var(--text); font-size:22px;
+  width:44px; height:44px; display:flex; align-items:center;
+  justify-content:center; cursor:pointer; border-radius:8px; flex-shrink:0;
+}
+.hbtn:active{background:var(--bg3)}
+.hbtn.hidden{visibility:hidden;pointer-events:none}
+
+/* BOTTOM NAV */
+#bnav{
+  display:flex; background:var(--bg2);
+  border-top:1px solid var(--border); flex-shrink:0;
+}
+#bnav.hidden{display:none}
+.nbtn{
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:7px 0; background:none; border:none;
+  color:var(--text3); cursor:pointer; font-size:10px; gap:2px;
+}
+.nbtn-ico{font-size:22px;line-height:1}
+.nbtn.active{color:var(--accent)}
+.nbtn:active{background:var(--bg3)}
+
+/* VIEWS */
+.view{
+  display:none; flex:1; min-height:0;
+  overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px;
+}
+.view.active{display:block}
+
+/* WEEK BAR */
+.week-bar{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:11px 12px; margin-bottom:14px;
+}
+.week-bar strong{font-size:17px;min-width:115px;text-align:center}
+.wbtn{
+  background:var(--bg3); border:1px solid var(--border); color:var(--text);
+  font-size:18px; width:38px; height:38px; border-radius:8px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.wbtn:active{background:var(--border)}
+
+/* DAY CARDS */
+.day-card{
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); padding:14px; margin-bottom:9px;
+  cursor:pointer; display:flex; align-items:center;
+  justify-content:space-between; gap:10px;
+}
+.day-card:active{background:var(--bg3)}
+.day-card-name{font-size:15px;font-weight:600;margin-bottom:3px}
+.day-card-sub{font-size:12px;color:var(--text2)}
+.day-card-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600}
+.badge-done{background:var(--green-bg);color:var(--green)}
+.badge-empty{background:var(--bg3);color:var(--text3)}
+.dc-arrow{color:var(--text3);font-size:15px}
+.dc-0{border-left:3px solid var(--accent)}
+.dc-1{border-left:3px solid var(--blue)}
+.dc-2{border-left:3px solid var(--yellow)}
+.dc-3{border-left:3px solid #a8dadc}
+.dc-4{border-left:3px solid #95d5b2}
+
+/* EXERCISE CARD */
+.ex-card{
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); margin-bottom:12px; overflow:hidden;
+}
+.ex-head{
+  display:flex; align-items:center; gap:8px;
+  padding:11px 12px; border-bottom:1px solid var(--border);
+}
+.ex-num{color:var(--accent);font-weight:700;font-size:13px;min-width:20px}
+.ex-name{flex:1;font-weight:600;font-size:14px;line-height:1.35}
+.btn-yt{
+  background:#c4000a; border:none; color:#fff; font-size:11px;
+  font-weight:700; padding:5px 9px; border-radius:6px; cursor:pointer;
+  white-space:nowrap; flex-shrink:0; text-decoration:none;
+  display:inline-flex; align-items:center; gap:3px;
+}
+.btn-yt:active{opacity:.8}
+
+/* EXERCISE META */
+.ex-meta{
+  display:flex; border-bottom:1px solid var(--border); background:var(--bg2);
+}
+.em{
+  flex:1; padding:7px 10px; border-right:1px solid var(--border);
+  display:flex; flex-direction:column; gap:2px;
+}
+.em:last-child{border-right:none}
+.em-l{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.em-v{font-size:12px;font-weight:600;color:var(--text2)}
+
+/* SETS AREA */
+.sets-wrap{padding:10px 12px}
+.ref-label{
+  font-size:10px; color:var(--text3); text-transform:uppercase;
+  letter-spacing:.5px; margin-bottom:5px;
+}
+.curr-label{
+  font-size:10px; color:var(--accent); text-transform:uppercase;
+  letter-spacing:.5px; margin-bottom:6px; margin-top:2px;
+}
+.ref-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px}
+.ref-chip{
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:5px; padding:3px 8px; font-size:12px; color:var(--text2);
+}
+.ref-chip.nd{color:var(--text3);font-style:italic}
+.set-hdr{
+  display:grid; grid-template-columns:26px 1fr 1fr;
+  gap:7px; margin-bottom:4px;
+}
+.set-hdr span{
+  text-align:center; font-size:10px;
+  color:var(--text3); text-transform:uppercase;
+}
+.set-row{
+  display:grid; grid-template-columns:26px 1fr 1fr;
+  gap:7px; margin-bottom:7px; align-items:center;
+}
+.set-lbl{font-size:12px;color:var(--text3);font-weight:600;text-align:center}
+.sinput{
+  background:var(--input); border:1px solid var(--border); border-radius:8px;
+  color:var(--text); font-size:15px; padding:9px 6px; width:100%;
+  text-align:center; -webkit-appearance:none; appearance:none;
+}
+.sinput:focus{outline:none;border-color:var(--accent)}
+.sinput::placeholder{color:var(--text3);font-size:11px}
+
+/* SAVE BUTTON */
+.btn-save{
+  background:var(--accent); border:none; color:#fff; font-size:16px;
+  font-weight:700; padding:15px; border-radius:var(--radius);
+  width:100%; cursor:pointer; margin-top:6px; margin-bottom:24px;
+}
+.btn-save:active{opacity:.85}
+
+/* HISTORY */
+.hist-item{
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); margin-bottom:10px; overflow:hidden;
+}
+.hist-hdr{
+  padding:11px 13px; background:var(--bg2); font-size:13px;
+  font-weight:600; display:flex; justify-content:space-between;
+  align-items:center; cursor:pointer; user-select:none;
+}
+.hist-hdr-sub{color:var(--text3);font-size:12px;font-weight:400}
+.hist-body{padding:10px 13px;display:none}
+.hist-body.open{display:block}
+.hist-ex{
+  margin-bottom:9px; padding-bottom:9px;
+  border-bottom:1px solid var(--border);
+}
+.hist-ex:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.hist-ex-name{font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text2)}
+.hist-chips{display:flex;flex-wrap:wrap;gap:4px}
+.hist-chip{
+  background:var(--bg3); border-radius:5px;
+  padding:3px 7px; font-size:12px; color:var(--text2);
+}
+
+/* SETTINGS */
+.sct{
+  background:var(--card); border:1px solid var(--border);
+  border-radius:var(--radius); margin-bottom:14px; overflow:hidden;
+}
+.sct-title{
+  padding:8px 13px; background:var(--bg2); font-size:11px;
+  color:var(--text3); text-transform:uppercase; letter-spacing:.5px; font-weight:600;
+}
+.sbtn{
+  display:flex; align-items:center; gap:12px; padding:13px;
+  border:none; background:none; color:var(--text); width:100%;
+  text-align:left; cursor:pointer; border-bottom:1px solid var(--border);
+}
+.sbtn:last-child{border-bottom:none}
+.sbtn:active{background:var(--bg3)}
+.sbtn-ico{font-size:20px;width:26px;text-align:center;flex-shrink:0}
+.sbtn-txt{flex:1}
+.sbtn-name{font-size:14px}
+.sbtn-desc{font-size:11px;color:var(--text3);margin-top:1px}
+.sinfo{padding:10px 13px;font-size:12px;color:var(--text3);line-height:1.6}
+
+/* TOAST */
+#toast{
+  position:fixed; bottom:76px; left:50%;
+  transform:translateX(-50%) translateY(60px);
+  background:#2e2e2e; border:1px solid var(--border); color:var(--text);
+  padding:9px 18px; border-radius:20px; font-size:13px;
+  transition:transform .3s ease; z-index:999;
+  white-space:nowrap; pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-ico{font-size:46px;margin-bottom:14px}
+.empty h2{font-size:17px;margin-bottom:8px;color:var(--text)}
+.empty p{font-size:13px;color:var(--text3);line-height:1.6}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <button class="hbtn hidden" id="btn-back" onclick="navBack()">←</button>
+    <h1 id="page-title">Trening</h1>
+    <button class="hbtn" onclick="showView('settings')">⚙️</button>
+  </header>
+
+  <!-- HOME -->
+  <div id="view-home" class="view active">
+    <div class="week-bar">
+      <button class="wbtn" onclick="changeWeek(-1)">‹</button>
+      <strong id="week-label">Tydzień 1</strong>
+      <button class="wbtn" onclick="changeWeek(1)">›</button>
+    </div>
+    <div id="day-list"></div>
+  </div>
+
+  <!-- WORKOUT -->
+  <div id="view-workout" class="view">
+    <div id="ex-list"></div>
+    <button class="btn-save" onclick="saveWorkout()">💾 Zapisz trening</button>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="view-history" class="view">
+    <div id="hist-list"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="view-settings" class="view">
+    <div class="sct">
+      <div class="sct-title">Plan treningowy</div>
+      <button class="sbtn" onclick="document.getElementById('file-plan').click()">
+        <span class="sbtn-ico">📥</span>
+        <div class="sbtn-txt">
+          <div class="sbtn-name">Wgraj plan (plan.json)</div>
+          <div class="sbtn-desc">Zastępuje aktualny plan ćwiczeń</div>
+        </div>
+      </button>
+      <button class="sbtn" onclick="exportPlan()">
+        <span class="sbtn-ico">📤</span>
+        <div class="sbtn-txt">
+          <div class="sbtn-name">Pobierz plan jako JSON</div>
+          <div class="sbtn-desc">Backup aktualnego planu</div>
+        </div>
+      </button>
+    </div>
+    <div class="sct">
+      <div class="sct-title">Wyniki treningów</div>
+      <button class="sbtn" onclick="exportLogs()">
+        <span class="sbtn-ico">💾</span>
+        <div class="sbtn-txt">
+          <div class="sbtn-name">Eksportuj wyniki</div>
+          <div class="sbtn-desc">Pobierz wszystkie dane treningowe jako JSON</div>
+        </div>
+      </button>
+      <button class="sbtn" onclick="document.getElementById('file-logs').click()">
+        <span class="sbtn-ico">📂</span>
+        <div class="sbtn-txt">
+          <div class="sbtn-name">Importuj wyniki</div>
+          <div class="sbtn-desc">Wgraj wcześniej zapisane dane</div>
+        </div>
+      </button>
+    </div>
+    <div class="sct">
+      <div class="sct-title">Informacje</div>
+      <div class="sinfo" id="app-info">Wersja 1.0 · Dane zapisane lokalnie w przeglądarce</div>
+    </div>
+  </div>
+
+  <nav id="bnav">
+    <button class="nbtn active" id="nav-home" onclick="showView('home')">
+      <span class="nbtn-ico">🏋️</span>
+      <span>Trening</span>
+    </button>
+    <button class="nbtn" id="nav-history" onclick="showView('history')">
+      <span class="nbtn-ico">📊</span>
+      <span>Historia</span>
+    </button>
+    <button class="nbtn" id="nav-settings" onclick="showView('settings')">
+      <span class="nbtn-ico">⚙️</span>
+      <span>Ustawienia</span>
+    </button>
+  </nav>
+
+</div>
+
+<input type="file" id="file-plan" accept=".json" style="display:none"
+       onchange="handlePlanFile(event)">
+<input type="file" id="file-logs" accept=".json" style="display:none"
+       onchange="handleLogsFile(event)">
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+// POCZĄTEK BLOKU 2/4 — STATE + DANE
+// ════════════════════════════════════════
+
+// ── STATE ──────────────────────────────
+let currentWeek  = 1;
+let currentDayId = null;
+let plan         = null;   // { days: [...] }
+let logs         = {};     // { "w5_push1": { "e1": [{w,r},...] } }
+
+// ── LOCALSTORAGE KEYS ───────────────────
+const LS_PLAN = 'trening_plan';
+const LS_LOGS = 'trening_logs';
+const LS_WEEK = 'trening_week';
+
+// ── PLAN ────────────────────────────────
+function loadPlan() {
+  try   { plan = JSON.parse(localStorage.getItem(LS_PLAN)) || null; }
+  catch { plan = null; }
+}
+function savePlan() {
+  localStorage.setItem(LS_PLAN, JSON.stringify(plan));
+}
+
+// ── LOGI ────────────────────────────────
+function loadLogs() {
+  try   { logs = JSON.parse(localStorage.getItem(LS_LOGS)) || {}; }
+  catch { logs = {}; }
+}
+function saveLogs() {
+  localStorage.setItem(LS_LOGS, JSON.stringify(logs));
+}
+
+// ── TYDZIEŃ ─────────────────────────────
+function loadWeek() {
+  currentWeek = parseInt(localStorage.getItem(LS_WEEK)) || 1;
+}
+function saveWeek() {
+  localStorage.setItem(LS_WEEK, String(currentWeek));
+}
+function changeWeek(delta) {
+  if (currentWeek + delta < 1) return;
+  currentWeek += delta;
+  saveWeek();
+  renderHome();
+}
+
+// ── LOG HELPERS ─────────────────────────
+function logKey(week, dayId)     { return `w${week}_${dayId}`; }
+function getLog(week, dayId)     { return logs[logKey(week, dayId)] || {}; }
+function getPrevSets(dayId, exId){ return getLog(currentWeek - 1, dayId)[exId] || null; }
+function getCurrentSets(dayId, exId){ return getLog(currentWeek, dayId)[exId] || null; }
+function isDayDone(week, dayId)  { return Object.keys(getLog(week, dayId)).length > 0; }
+
+// ── ZAPIS TRENINGU ───────────────────────
+function saveWorkout() {
+  if (!plan || !currentDayId) return;
+  const day = plan.days.find(d => d.id === currentDayId);
+  if (!day) return;
+
+  const key = logKey(currentWeek, currentDayId);
+  if (!logs[key]) logs[key] = {};
+
+  day.exercises.forEach(ex => {
+    const sets = [];
+    for (let i = 0; i < ex.setsCount; i++) {
+      const wEl = document.getElementById(`w_${ex.id}_${i}`);
+      const rEl = document.getElementById(`r_${ex.id}_${i}`);
+      sets.push({
+        w: wEl ? wEl.value.trim() : '',
+        r: rEl ? rEl.value.trim() : ''
+      });
+    }
+    if (sets.some(s => s.w || s.r)) {
+      logs[key][ex.id] = sets;
+    }
+  });
+
+  saveLogs();
+  toast('✅ Zapisano!');
+  setTimeout(() => showView('home'), 900);
+}
+
+// ── TOAST ────────────────────────────────
+let _toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── NAWIGACJA ────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view')
+          .forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+
+  document.querySelectorAll('.nbtn')
+          .forEach(b => b.classList.remove('active'));
+  const nb = document.getElementById('nav-' + name);
+  if (nb) nb.classList.add('active');
+
+  const btnBack = document.getElementById('btn-back');
+  const bnav    = document.getElementById('bnav');
+
+  if (name === 'workout') {
+    btnBack.classList.remove('hidden');
+    bnav.classList.add('hidden');
+  } else {
+    btnBack.classList.add('hidden');
+    bnav.classList.remove('hidden');
+  }
+
+  const dayName = plan?.days.find(d => d.id === currentDayId)?.name || 'Trening';
+  const titles  = { home:'Trening', history:'Historia',
+                    settings:'Ustawienia', workout: dayName };
+  document.getElementById('page-title').textContent = titles[name] || '';
+
+  if (name === 'history') renderHistory();
+  if (name === 'home')    renderHome();
+}
+
+function navBack()       { showView('home'); }
+function openDay(dayId)  { currentDayId = dayId; showView('workout'); renderWorkout(); }
+
+// ── INIT ─────────────────────────────────
+function init() {
+  loadPlan();
+  loadLogs();
+  loadWeek();
+  renderHome();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+window.addEventListener('load', init);
+
+// ════════════════════════════════════════
+// KONIEC BLOKU 2/4
+// tutaj bezpośrednio wklej BLOK 3/4
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+// POCZĄTEK BLOKU 3/4 — RENDEROWANIE
+// (wklej bezpośrednio po KOŃCU BLOKU 2/4)
+// ════════════════════════════════════════
+
+// ── WIDOK GŁÓWNY (HOME) ─────────────────
+function renderHome() {
+  document.getElementById('week-label').textContent = `Tydzień ${currentWeek}`;
+  const container = document.getElementById('day-list');
+
+  if (!plan || !plan.days || plan.days.length === 0) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="empty-ico">📋</div>
+        <h2>Brak planu</h2>
+        <p>Wgraj plik <strong>plan.json</strong><br>w zakładce Ustawienia ⚙️</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = plan.days.map((day, i) => {
+    const done = isDayDone(currentWeek, day.id);
+    return `
+      <div class="day-card dc-${i}" onclick="openDay('${day.id}')">
+        <div>
+          <div class="day-card-name">${day.name}</div>
+          <div class="day-card-sub">${day.exercises.length} ćwiczeń</div>
+        </div>
+        <div class="day-card-right">
+          <span class="badge ${done ? 'badge-done' : 'badge-empty'}">
+            ${done ? '✓ Zrobione' : 'Do zrobienia'}
+          </span>
+          <span class="dc-arrow">›</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── WIDOK TRENINGU (WORKOUT) ────────────
+function renderWorkout() {
+  if (!plan || !currentDayId) return;
+  const day = plan.days.find(d => d.id === currentDayId);
+  if (!day) return;
+
+  const container = document.getElementById('ex-list');
+
+  container.innerHTML = day.exercises.map((ex, idx) => {
+
+    // --- poprzedni tydzień (tylko do podglądu) ---
+    const prevSets = getPrevSets(currentDayId, ex.id);
+    let prevHTML = '';
+
+    if (currentWeek > 1) {
+      if (prevSets && prevSets.length > 0) {
+        const chips = prevSets.map((s, i) => {
+          const w = s.w || '—';
+          const r = s.r || '—';
+          return `<span class="ref-chip">S${i+1}: ${w} kg × ${r}</span>`;
+        }).join('');
+        prevHTML = `
+          <div class="ref-label">↑ Tydzień ${currentWeek - 1}</div>
+          <div class="ref-chips">${chips}</div>`;
+      } else {
+        prevHTML = `
+          <div class="ref-label">↑ Tydzień ${currentWeek - 1}</div>
+          <div class="ref-chips">
+            <span class="ref-chip nd">brak danych</span>
+          </div>`;
+      }
+    }
+
+    // --- bieżący tydzień — inputy (prefill jeśli już zapisane) ---
+    const currSets = getCurrentSets(currentDayId, ex.id);
+
+    let inputsHTML = `
+      <div class="curr-label">Tydzień ${currentWeek} — wpisz wyniki</div>
+      <div class="set-hdr">
+        <span></span>
+        <span>Ciężar kg</span>
+        <span>Powt.</span>
+      </div>`;
+
+    for (let i = 0; i < ex.setsCount; i++) {
+      const cw = currSets && currSets[i] ? currSets[i].w : '';
+      const cr = currSets && currSets[i] ? currSets[i].r : '';
+      inputsHTML += `
+        <div class="set-row">
+          <span class="set-lbl">S${i + 1}</span>
+          <input class="sinput"
+                 type="text"
+                 inputmode="decimal"
+                 id="w_${ex.id}_${i}"
+                 value="${cw}"
+                 placeholder="np. 30">
+          <input class="sinput"
+                 type="text"
+                 inputmode="numeric"
+                 id="r_${ex.id}_${i}"
+                 value="${cr}"
+                 placeholder="np. 8">
+        </div>`;
+    }
+
+    // --- przycisk YouTube ---
+    const ytBtn = ex.youtube
+      ? `<a class="btn-yt" href="${ex.youtube}" target="_blank">▶ YT</a>`
+      : '';
+
+    // --- notatka przy nazwie ---
+    const noteSpan = ex.notes
+      ? `<span style="color:var(--text3);font-weight:400;font-size:12px">
+           &nbsp;(${ex.notes})</span>`
+      : '';
+
+    return `
+      <div class="ex-card">
+        <div class="ex-head">
+          <span class="ex-num">${idx + 1}.</span>
+          <span class="ex-name">${ex.name}${noteSpan}</span>
+          ${ytBtn}
+        </div>
+        <div class="ex-meta">
+          <div class="em">
+            <span class="em-l">Serie / Powt.</span>
+            <span class="em-v">${ex.scheme}</span>
+          </div>
+          <div class="em">
+            <span class="em-l">TUT</span>
+            <span class="em-v">${ex.tut || '—'}</span>
+          </div>
+        </div>
+        <div class="sets-wrap">
+          ${prevHTML}
+          ${inputsHTML}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── WIDOK HISTORII ──────────────────────
+function renderHistory() {
+  const container = document.getElementById('hist-list');
+
+  if (Object.keys(logs).length === 0) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="empty-ico">📊</div>
+        <h2>Brak historii</h2>
+        <p>Zapisz pierwszy trening,<br>a pojawi się tutaj</p>
+      </div>`;
+    return;
+  }
+
+  // Sortuj: najnowszy tydzień na górze
+  const keys = Object.keys(logs).sort((a, b) => {
+    const [wA] = parseLogKey(a);
+    const [wB] = parseLogKey(b);
+    return wB - wA;
+  });
+
+  container.innerHTML = keys.map(key => {
+    const [week, dayId] = parseLogKey(key);
+    const dayName = plan?.days.find(d => d.id === dayId)?.name || dayId;
+    const dayExercises = plan?.days.find(d => d.id === dayId)?.exercises || [];
+    const dayLog = logs[key];
+
+    const exItems = Object.entries(dayLog).map(([exId, sets]) => {
+      const exObj = dayExercises.find(e => e.id === exId);
+      const exName = exObj ? exObj.name : exId;
+
+      const chips = sets
+        .map((s, i) => {
+          if (!s.w && !s.r) return '';
+          return `<span class="hist-chip">S${i+1}: ${s.w||'—'} kg × ${s.r||'—'}</span>`;
+        })
+        .filter(Boolean)
+        .join('');
+
+      return `
+        <div class="hist-ex">
+          <div class="hist-ex-name">${exName}</div>
+          <div class="hist-chips">
+            ${chips || '<span style="color:var(--text3);font-size:12px">brak danych</span>'}
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="hist-item">
+        <div class="hist-hdr" onclick="toggleHist(this)">
+          <span>Tydzień ${week} &mdash; ${dayName}</span>
+          <span class="hist-hdr-sub">▼</span>
+        </div>
+        <div class="hist-body">
+          ${exItems || '<div style="color:var(--text3);font-size:13px">Brak zapisanych danych</div>'}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── HELPERS ─────────────────────────────
+
+// Parsuje klucz "w5_push1" → [5, "push1"]
+function parseLogKey(key) {
+  const m = key.match(/^w(\d+)_(.+)$/);
+  return m ? [parseInt(m[1]), m[2]] : [0, key];
+}
+
+// Rozwiń / zwiń historię
+function toggleHist(hdr) {
+  const body = hdr.nextElementSibling;
+  const open = body.classList.toggle('open');
+  hdr.querySelector('.hist-hdr-sub').textContent = open ? '▲' : '▼';
+}
+
+// ════════════════════════════════════════
+// KONIEC BLOKU 3/4
+// tutaj bezpośrednio wklej BLOK 4/4
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+// POCZĄTEK BLOKU 4/4 — DATY + EKSPORT/IMPORT
+// (wklej bezpośrednio po KOŃCU BLOKU 3/4)
+// ════════════════════════════════════════
+
+// ── PATCH: dodaje datę przy zapisie ────
+// Nadpisuje saveWorkout z Bloku 2 — nie ruszaj Bloku 2
+const _origSaveWorkout = saveWorkout;
+saveWorkout = function() {
+  if (currentDayId) {
+    const key = logKey(currentWeek, currentDayId);
+    if (!logs[key]) logs[key] = {};
+    logs[key]._date = new Date().toLocaleDateString('pl-PL');
+  }
+  _origSaveWorkout();
+};
+
+// ── HISTORIA Z DATAMI ───────────────────
+// Nadpisuje renderHistory z Bloku 3 — dodaje daty
+function renderHistory() {
+  const container = document.getElementById('hist-list');
+
+  if (Object.keys(logs).length === 0) {
+    container.innerHTML = `
+      <div class="empty">
+        <div class="empty-ico">📊</div>
+        <h2>Brak historii</h2>
+        <p>Zapisz pierwszy trening,<br>a pojawi się tutaj</p>
+      </div>`;
+    return;
+  }
+
+  const keys = Object.keys(logs).sort((a, b) => {
+    const [wA] = parseLogKey(a);
+    const [wB] = parseLogKey(b);
+    return wB - wA;
+  });
+
+  container.innerHTML = keys.map(key => {
+    const [week, dayId] = parseLogKey(key);
+    const dayName      = plan?.days.find(d => d.id === dayId)?.name || dayId;
+    const dayExercises = plan?.days.find(d => d.id === dayId)?.exercises || [];
+    const dayLog       = logs[key];
+    const date         = dayLog._date || '';
+
+    const exItems = Object.entries(dayLog)
+      .filter(([k]) => k !== '_date')
+      .map(([exId, sets]) => {
+        const exObj  = dayExercises.find(e => e.id === exId);
+        const exName = exObj ? exObj.name : exId;
+        const chips  = sets
+          .map((s, i) => {
+            if (!s.w && !s.r) return '';
+            return `<span class="hist-chip">S${i+1}: ${s.w||'—'} kg × ${s.r||'—'}</span>`;
+          })
+          .filter(Boolean).join('');
+
+        return `
+          <div class="hist-ex">
+            <div class="hist-ex-name">${exName}</div>
+            <div class="hist-chips">
+              ${chips || '<span style="color:var(--text3);font-size:12px">brak danych</span>'}
+            </div>
+          </div>`;
+      }).join('');
+
+    return `
+      <div class="hist-item">
+        <div class="hist-hdr" onclick="toggleHist(this)">
+          <span>Tydz. ${week} — ${dayName}</span>
+          <span class="hist-hdr-sub">${date} ▼</span>
+        </div>
+        <div class="hist-body">
+          ${exItems || '<div style="color:var(--text3);font-size:13px">Brak danych</div>'}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── DOWNLOAD HELPER ─────────────────────
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── EKSPORT ─────────────────────────────
+function exportPlan() {
+  if (!plan) { toast('⚠️ Brak planu do eksportu'); return; }
+  downloadJSON(plan, 'plan.json');
+  toast('📤 Plan pobrany');
+}
+
+function exportLogs() {
+  if (Object.keys(logs).length === 0) {
+    toast('⚠️ Brak danych do eksportu'); return;
+  }
+  const d = new Date().toISOString().split('T')[0];
+  downloadJSON(logs, `trening_wyniki_${d}.json`);
+  toast('💾 Dane pobrane');
+}
+
+// ── IMPORT ──────────────────────────────
+function handlePlanFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.days || !Array.isArray(parsed.days)) {
+        toast('❌ Zły format — brak pola "days"'); return;
+      }
+      plan = parsed;
+      savePlan();
+      renderHome();
+      toast('✅ Plan załadowany!');
+    } catch { toast('❌ Błąd odczytu JSON'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function handleLogsFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+        toast('❌ Zły format pliku'); return;
+      }
+      logs = { ...logs, ...parsed };
+      saveLogs();
+      toast('✅ Dane zaimportowane!');
+    } catch { toast('❌ Błąd odczytu JSON'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ════════════════════════════════════════
+// KONIEC BLOKU 4/4
+// ════════════════════════════════════════

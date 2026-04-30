@@ -1,0 +1,49 @@
+{
+  "days": [
+    {
+      "id": "push1",
+      "name": "PUSH 1 (Poniedziałek)",
+      "exercises": [
+        { "id":"e1", "name":"Cyclist Smith SQ",                    "notes":"od 0:50", "youtube":"", "scheme":"4×5–8",                              "tut":"2111", "setsCount":4 },
+        { "id":"e2", "name":"Butterfly",                           "notes":"",        "youtube":"", "scheme":"4×8–10",                             "tut":"2010", "setsCount":4 },
+        { "id":"e3", "name":"Incline Dumbbell chest press 30°",    "notes":"",        "youtube":"", "scheme":"2×5–8 + Back Off -25%",              "tut":"2111", "setsCount":3 },
+        { "id":"e4", "name":"Incline smith chest press 45°",       "notes":"",        "youtube":"", "scheme":"2×6–9 + Back Off -25%",              "tut":"2111", "setsCount":3 },
+        { "id":"e5", "name":"Smith shoulder press behind neck",    "notes":"",        "youtube":"", "scheme":"2×5–8",                              "tut":"2111", "setsCount":2 },
+        { "id":"e6", "name":"Wznosy na bok z hantlami",            "notes":"",        "youtube":"", "scheme":"EX-DROP 1/20s/1/0s/-25%/20s/2/25%/20s/3", "tut":"", "setsCount":4 },
+        { "id":"e7", "name":"Rope pushdown",                       "notes":"",        "youtube":"", "scheme":"1×5–8 + Back Off -25%",              "tut":"",     "setsCount":2 },
+        { "id":"e8", "name":"Incline skull crushers",              "notes":"",        "youtube":"", "scheme":"2×5–8",                              "tut":"2011", "setsCount":2 },
+        { "id":"e9", "name":"Klasyczne spięcia brzucha z obciążeniem", "notes":"",   "youtube":"", "scheme":"1×12–10",                            "tut":"2010", "setsCount":1 }
+      ]
+    },
+    {
+      "id": "pull",
+      "name": "PULL (Środa)",
+      "exercises": [
+        { "id":"e1", "name":"Facepulls",                              "notes":"", "youtube":"", "scheme":"3×12–15",              "tut":"2010", "setsCount":3 },
+        { "id":"e2", "name":"Pull ups with weights",                  "notes":"", "youtube":"", "scheme":"1×5–8 + Back Off -25%","tut":"2011", "setsCount":2 },
+        { "id":"e3", "name":"Dumbbell row (górna opcja)",             "notes":"", "youtube":"", "scheme":"1×5–8 + Back Off -25%","tut":"2011", "setsCount":2 },
+        { "id":"e4", "name":"Dumbbell row (dolna opcja)",             "notes":"", "youtube":"", "scheme":"1×5–8 + Back Off -25%","tut":"2011", "setsCount":2 },
+        { "id":"e5", "name":"Kaas row",                               "notes":"", "youtube":"", "scheme":"2×5–8",                "tut":"2011", "setsCount":2 },
+        { "id":"e6", "name":"Uginanie nóg na maszynie siedząc/leżąc","notes":"", "youtube":"", "scheme":"2×5–8 + Back Off -25%","tut":"2010", "setsCount":3 },
+        { "id":"e7", "name":"Incline biceps curl",                    "notes":"", "youtube":"", "scheme":"1×5–8 + Back Off -25%","tut":"2010", "setsCount":2 },
+        { "id":"e8", "name":"Incline preacher curl",                  "notes":"", "youtube":"", "scheme":"1×7–7",                "tut":"",     "setsCount":1 },
+        { "id":"e9", "name":"Decline leg raises",                     "notes":"", "youtube":"", "scheme":"3×12–15",              "tut":"",     "setsCount":3 }
+      ]
+    },
+    {
+      "id": "push2",
+      "name": "PUSH 2 (Czwartek/Piątek)",
+      "exercises": [
+        { "id":"e1", "name":"Bulgarian smith SQ",                  "notes":"", "youtube":"", "scheme":"2×8–10",                              "tut":"2111", "setsCount":2 },
+        { "id":"e2", "name":"Wyprosty na maszynie siadąc",         "notes":"", "youtube":"", "scheme":"1×5–8 + Back Off -25%",              "tut":"2010", "setsCount":2 },
+        { "id":"e3", "name":"Seated Smith Shoulder Press",         "notes":"", "youtube":"", "scheme":"2×5–8",                              "tut":"2111", "setsCount":2 },
+        { "id":"e4", "name":"Facepulls",                           "notes":"", "youtube":"", "scheme":"3×8–10",                             "tut":"",     "setsCount":3 },
+        { "id":"e5", "name":"Wznosy na bok z hantlami",            "notes":"", "youtube":"", "scheme":"EX-DROP 1/20s/1/0s/-25%/20s/2/25%/20s/3", "tut":"", "setsCount":4 },
+        { "id":"e6", "name":"Dead Stop Flat smith press",          "notes":"", "youtube":"", "scheme":"3×5–8",                              "tut":"2111", "setsCount":3 },
+        { "id":"e7", "name":"Incline dead stop smith press 30°",   "notes":"", "youtube":"", "scheme":"1×5–8 + Back Off -25%",              "tut":"",     "setsCount":2 },
+        { "id":"e8", "name":"Low Pulley Overhead Extensions",      "notes":"", "youtube":"", "scheme":"2×8–10",                             "tut":"2010", "setsCount":2 },
+        { "id":"e9", "name":"Dipsy na poręczach z obciążeniem",    "notes":"", "youtube":"", "scheme":"1×5–8 + Back Off -25%",              "tut":"",     "setsCount":2 }
+      ]
+    }
+  ]
+}

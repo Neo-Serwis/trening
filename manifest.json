@@ -1,0 +1,10 @@
+{
+  "name": "Trening",
+  "short_name": "Trening",
+  "description": "Dziennik treningowy",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "orientation": "portrait-primary"
+}
