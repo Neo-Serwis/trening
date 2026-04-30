@@ -247,7 +247,7 @@ function renderHistory(){
   c.innerHTML=keys.map(function(key){
     var pk=parseLogKey(key);var week=pk[0];var dayId=pk[1];
     var dayName=(plan&&plan.days?(plan.days.find(function(d){return d.id===dayId;})||{}).name||dayId:dayId);
-    var exs=(plan&&plan.days?(plan.days.find(function(d){return d.id===dayId;})||{}).exercises||[]):[]; 
+    var exs=(plan&&plan.days?(plan.days.find(function(d){return d.id===dayId;})||{}).exercises||[]:[]); 
     var dl=logs[key];var date=dl._date||'';
     var items=Object.keys(dl).filter(function(k){return k!=='_date';}).map(function(exId){
       var nm=((exs.find(function(e){return e.id===exId;})||{}).name)||exId;
@@ -308,7 +308,15 @@ function handleLogsFile(e){
 }
 
 function init(){
-  loadPlan();loadLogs();loadWeek();renderHome();
+  loadPlan();loadLogs();loadWeek();
+  if(!plan){
+    fetch('./plan.json')
+      .then(function(r){return r.json();})
+      .then(function(p){if(p&&p.days){plan=p;savePlan();}renderHome();})
+      .catch(function(){renderHome();});
+  } else {
+    renderHome();
+  }
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 }
 window.addEventListener('load',init);
