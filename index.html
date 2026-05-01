@@ -10,7 +10,13 @@
 <title>Trening</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#252525;--card:#1e1e1e;--border:#2e2e2e;--accent:#e63946;--blue:#457b9d;--yellow:#e9c46a;--text:#f0f0f0;--text2:#aaa;--text3:#555;--green-bg:#1a3a2a;--green:#52b788;--input:#1c1c1c;--radius:10px;}
+:root{
+  --bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#252525;--card:#1e1e1e;
+  --border:#2e2e2e;--accent:#e63946;--blue:#457b9d;--yellow:#e9c46a;
+  --text:#f0f0f0;--text2:#aaa;--text3:#555;
+  --green-bg:#1a3a2a;--green:#52b788;
+  --input:#1c1c1c;--radius:10px;
+}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
 #app{height:100%;display:flex;flex-direction:column}
 header{height:54px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 6px;flex-shrink:0;}
@@ -63,7 +69,6 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(60px);background:#2e2e2e;border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:20px;font-size:13px;transition:transform .3s ease;z-index:999;white-space:nowrap;pointer-events:none;}
 #toast.show{transform:translateX(-50%) translateY(0)}
 .empty{text-align:center;padding:40px 20px;color:var(--text2)}.empty-ico{font-size:46px;margin-bottom:14px}.empty h2{font-size:17px;margin-bottom:8px;color:var(--text)}.empty p{font-size:13px;color:var(--text3);line-height:1.6}
-::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 </style>
 </head>
 <body>
@@ -73,6 +78,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     <h1 id="page-title">Trening</h1>
     <button class="hbtn" onclick="showView('settings')">⚙️</button>
   </header>
+
   <div id="view-home" class="view active">
     <div class="week-bar">
       <button class="wbtn" onclick="changeWeek(-1)">‹</button>
@@ -81,11 +87,16 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div id="day-list"></div>
   </div>
+
   <div id="view-workout" class="view">
     <div id="ex-list"></div>
-    <button class="btn-save" onclick="saveWorkout()">💾 Zapisz trening</button>
+    <button class="btn-save" onclick="saveWorkout(false)">💾 Zapisz trening</button>
   </div>
-  <div id="view-history" class="view"><div id="hist-list"></div></div>
+
+  <div id="view-history" class="view">
+    <div id="hist-list"></div>
+  </div>
+
   <div id="view-settings" class="view">
     <div class="sct">
       <div class="sct-title">Plan treningowy</div>
@@ -95,231 +106,409 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </button>
       <button class="sbtn" onclick="exportPlan()">
         <span class="sbtn-ico">📤</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Pobierz plan jako JSON</div><div class="sbtn-desc">Backup aktualnego planu</div></div>
+        <div class="sbtn-txt"><div class="sbtn-name">Pobierz plan (JSON)</div><div class="sbtn-desc">Backup aktualnego planu</div></div>
       </button>
     </div>
     <div class="sct">
       <div class="sct-title">Wyniki treningów</div>
       <button class="sbtn" onclick="exportLogs()">
         <span class="sbtn-ico">💾</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Eksportuj wyniki</div><div class="sbtn-desc">Pobierz wszystkie dane treningowe</div></div>
+        <div class="sbtn-txt"><div class="sbtn-name">Eksportuj wyniki (JSON)</div><div class="sbtn-desc">Pełny backup danych treningowych</div></div>
       </button>
       <button class="sbtn" onclick="document.getElementById('file-logs').click()">
         <span class="sbtn-ico">📂</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Importuj wyniki</div><div class="sbtn-desc">Wgraj wcześniej zapisane dane</div></div>
+        <div class="sbtn-txt"><div class="sbtn-name">Importuj wyniki (JSON)</div><div class="sbtn-desc">Wgraj wcześniej zapisane dane</div></div>
+      </button>
+      <button class="sbtn" onclick="exportCSV()">
+        <span class="sbtn-ico">📊</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Eksportuj CSV</div><div class="sbtn-desc">Otwórz w Excel lub Google Sheets</div></div>
+      </button>
+      <button class="sbtn" onclick="exportHTMLReport()">
+        <span class="sbtn-ico">📄</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Raport HTML → PDF</div><div class="sbtn-desc">Otwórz w przeglądarce → Drukuj → Zapisz PDF</div></div>
       </button>
     </div>
-    <div class="sct"><div class="sct-title">Informacje</div><div class="sinfo">Wersja 1.0 · Dane w localStorage przeglądarki</div></div>
+    <div class="sct">
+      <div class="sct-title">Informacje</div>
+      <div class="sinfo">Wersja 1.1 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+    </div>
   </div>
+
   <nav id="bnav">
     <button class="nbtn active" id="nav-home" onclick="showView('home')"><span class="nbtn-ico">🏋️</span><span>Trening</span></button>
     <button class="nbtn" id="nav-history" onclick="showView('history')"><span class="nbtn-ico">📊</span><span>Historia</span></button>
     <button class="nbtn" id="nav-settings" onclick="showView('settings')"><span class="nbtn-ico">⚙️</span><span>Ustawienia</span></button>
   </nav>
 </div>
+
 <input type="file" id="file-plan" accept=".json" style="display:none" onchange="handlePlanFile(event)">
 <input type="file" id="file-logs" accept=".json" style="display:none" onchange="handleLogsFile(event)">
 <div id="toast"></div>
+
 <script>
-let currentWeek=1,currentDayId=null,plan=null,logs={};
-const LS_PLAN='trening_plan',LS_LOGS='trening_logs',LS_WEEK='trening_week';
+var currentWeek = 1;
+var currentDayId = null;
+var currentView = 'home';
+var plan = null;
+var logs = {};
+var _fromPopstate = false;
 
-function loadPlan(){try{plan=JSON.parse(localStorage.getItem(LS_PLAN))||null;}catch(e){plan=null;}}
-function savePlan(){localStorage.setItem(LS_PLAN,JSON.stringify(plan));}
-function loadLogs(){try{logs=JSON.parse(localStorage.getItem(LS_LOGS))||{};}catch(e){logs={};}}
-function saveLogs(){localStorage.setItem(LS_LOGS,JSON.stringify(logs));}
-function loadWeek(){currentWeek=parseInt(localStorage.getItem(LS_WEEK))||1;}
-function saveWeek(){localStorage.setItem(LS_WEEK,String(currentWeek));}
-function changeWeek(delta){if(currentWeek+delta<1)return;currentWeek+=delta;saveWeek();renderHome();}
-function logKey(w,d){return'w'+w+'_'+d;}
-function getLog(w,d){return logs[logKey(w,d)]||{};}
-function getPrevSets(d,e){return getLog(currentWeek-1,d)[e]||null;}
-function getCurrentSets(d,e){return getLog(currentWeek,d)[e]||null;}
-function isDayDone(w,d){return Object.keys(getLog(w,d)).filter(function(k){return k!=='_date';}).length>0;}
+var LS_PLAN = 'trening_plan';
+var LS_LOGS  = 'trening_logs';
+var LS_WEEK  = 'trening_week';
 
-function saveWorkout(){
-  if(!plan||!currentDayId)return;
-  var day=plan.days.find(function(d){return d.id===currentDayId;});
-  if(!day)return;
-  var key=logKey(currentWeek,currentDayId);
-  if(!logs[key])logs[key]={};
-  logs[key]._date=new Date().toLocaleDateString('pl-PL');
-  day.exercises.forEach(function(ex){
-    var sets=[];
-    for(var i=0;i<ex.setsCount;i++){
-      var w=document.getElementById('w_'+ex.id+'_'+i);
-      var r=document.getElementById('r_'+ex.id+'_'+i);
-      sets.push({w:w?w.value.trim():'',r:r?r.value.trim():''});
+function loadPlan() {
+  try { plan = JSON.parse(localStorage.getItem(LS_PLAN)) || null; }
+  catch(e) { plan = null; }
+}
+function savePlan() { localStorage.setItem(LS_PLAN, JSON.stringify(plan)); }
+function loadLogs() {
+  try { logs = JSON.parse(localStorage.getItem(LS_LOGS)) || {}; }
+  catch(e) { logs = {}; }
+}
+function saveLogs() { localStorage.setItem(LS_LOGS, JSON.stringify(logs)); }
+function loadWeek() { currentWeek = parseInt(localStorage.getItem(LS_WEEK)) || 1; }
+function saveWeek() { localStorage.setItem(LS_WEEK, String(currentWeek)); }
+
+function changeWeek(delta) {
+  if (currentWeek + delta < 1) return;
+  currentWeek += delta;
+  saveWeek();
+  renderHome();
+}
+
+function logKey(w, d) { return 'w' + w + '_' + d; }
+function getLog(w, d) { return logs[logKey(w, d)] || {}; }
+function getPrevSets(d, e) { return getLog(currentWeek - 1, d)[e] || null; }
+function getCurrentSets(d, e) { return getLog(currentWeek, d)[e] || null; }
+function isDayDone(w, d) {
+  return Object.keys(getLog(w, d)).filter(function(k) { return k !== '_date'; }).length > 0;
+}
+
+function saveWorkout(silent) {
+  if (!plan || !currentDayId) return;
+  var day = plan.days.find(function(d) { return d.id === currentDayId; });
+  if (!day) return;
+  var key = logKey(currentWeek, currentDayId);
+  if (!logs[key]) logs[key] = {};
+  logs[key]._date = new Date().toLocaleDateString('pl-PL');
+  day.exercises.forEach(function(ex) {
+    var sets = [];
+    for (var i = 0; i < ex.setsCount; i++) {
+      var wEl = document.getElementById('w_' + ex.id + '_' + i);
+      var rEl = document.getElementById('r_' + ex.id + '_' + i);
+      sets.push({ w: wEl ? wEl.value.trim() : '', r: rEl ? rEl.value.trim() : '' });
     }
-    if(sets.some(function(s){return s.w||s.r;}))logs[key][ex.id]=sets;
+    if (sets.some(function(s) { return s.w || s.r; })) {
+      logs[key][ex.id] = sets;
+    }
   });
-  saveLogs();toast('✅ Zapisano!');setTimeout(function(){showView('home');},900);
+  saveLogs();
+  if (!silent) {
+    toast('✅ Zapisano!');
+    setTimeout(function() { showView('home'); }, 900);
+  }
 }
 
-var _tt=null;
-function toast(msg){
-  var el=document.getElementById('toast');
-  el.textContent=msg;el.classList.add('show');
-  clearTimeout(_tt);_tt=setTimeout(function(){el.classList.remove('show');},2500);
+var _tt = null;
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(function() { el.classList.remove('show'); }, 2500);
 }
 
-function showView(name){
-  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
-  document.getElementById('view-'+name).classList.add('active');
-  document.querySelectorAll('.nbtn').forEach(function(b){b.classList.remove('active');});
-  var nb=document.getElementById('nav-'+name);if(nb)nb.classList.add('active');
-  var bb=document.getElementById('btn-back');
-  var bn=document.getElementById('bnav');
-  if(name==='workout'){bb.classList.remove('hidden');bn.classList.add('hidden');}
-  else{bb.classList.add('hidden');bn.classList.remove('hidden');}
-  var dn=plan&&plan.days?((plan.days.find(function(d){return d.id===currentDayId;})||{}).name||'Trening'):'Trening';
-  var titles={home:'Trening',history:'Historia',settings:'Ustawienia',workout:dn};
-  document.getElementById('page-title').textContent=titles[name]||'';
-  if(name==='history')renderHistory();
-  if(name==='home')renderHome();
+function showView(name) {
+  currentView = name;
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nbtn').forEach(function(b) { b.classList.remove('active'); });
+  var nb = document.getElementById('nav-' + name);
+  if (nb) nb.classList.add('active');
+  var bb = document.getElementById('btn-back');
+  var bn = document.getElementById('bnav');
+  if (name === 'workout') {
+    bb.classList.remove('hidden');
+    bn.classList.add('hidden');
+    if (!_fromPopstate) {
+      history.pushState({ view: 'workout' }, '');
+    }
+  } else {
+    bb.classList.add('hidden');
+    bn.classList.remove('hidden');
+  }
+  var dn = 'Trening';
+  if (plan && plan.days && currentDayId) {
+    var dayObj = plan.days.find(function(d) { return d.id === currentDayId; });
+    if (dayObj) dn = dayObj.name;
+  }
+  var titles = { home: 'Trening', history: 'Historia', settings: 'Ustawienia', workout: dn };
+  document.getElementById('page-title').textContent = titles[name] || '';
+  if (name === 'history') renderHistory();
+  if (name === 'home') renderHome();
 }
-function navBack(){showView('home');}
-function openDay(id){currentDayId=id;showView('workout');renderWorkout();}
 
-function renderHome(){
-  document.getElementById('week-label').textContent='Tydzień '+currentWeek;
-  var c=document.getElementById('day-list');
-  if(!plan||!plan.days||!plan.days.length){
-    c.innerHTML='<div class="empty"><div class="empty-ico">📋</div><h2>Brak planu</h2><p>Kliknij ⚙️ → Wgraj plan (plan.json)</p></div>';
+function navBack() { history.back(); }
+function openDay(id) { currentDayId = id; showView('workout'); renderWorkout(); }
+
+window.addEventListener('popstate', function(e) {
+  if (_fromPopstate) return;
+  if (currentView === 'workout') {
+    saveWorkout(true);
+    _fromPopstate = true;
+    showView('home');
+    toast('✅ Zapisano!');
+    setTimeout(function() { _fromPopstate = false; }, 100);
+  }
+});
+
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden && currentView === 'workout') {
+    saveWorkout(true);
+  }
+});
+
+function renderHome() {
+  document.getElementById('week-label').textContent = 'Tydzień ' + currentWeek;
+  var c = document.getElementById('day-list');
+  if (!plan || !plan.days || !plan.days.length) {
+    c.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><h2>Brak planu</h2><p>Kliknij ⚙️ → Wgraj plan (plan.json)</p></div>';
     return;
   }
-  c.innerHTML=plan.days.map(function(day,i){
-    var done=isDayDone(currentWeek,day.id);
-    return '<div class="day-card dc-'+i+'" onclick="openDay(\''+day.id+'\')">'
-      +'<div><div class="day-card-name">'+day.name+'</div>'
-      +'<div class="day-card-sub">'+day.exercises.length+' ćwiczeń</div></div>'
-      +'<div class="day-card-right">'
-      +'<span class="badge '+(done?'badge-done':'badge-empty')+'">'+(done?'✓ Zrobione':'Do zrobienia')+'</span>'
-      +'<span class="dc-arrow">›</span></div></div>';
+  c.innerHTML = plan.days.map(function(day, i) {
+    var done = isDayDone(currentWeek, day.id);
+    return '<div class="day-card dc-' + i + '" onclick="openDay(\'' + day.id + '\')">'
+      + '<div><div class="day-card-name">' + day.name + '</div>'
+      + '<div class="day-card-sub">' + day.exercises.length + ' ćwiczeń</div></div>'
+      + '<div class="day-card-right">'
+      + '<span class="badge ' + (done ? 'badge-done' : 'badge-empty') + '">' + (done ? '✓ Zrobione' : 'Do zrobienia') + '</span>'
+      + '<span class="dc-arrow">›</span></div></div>';
   }).join('');
 }
 
-function renderWorkout(){
-  if(!plan||!currentDayId)return;
-  var day=plan.days.find(function(d){return d.id===currentDayId;});
-  if(!day)return;
-  var c=document.getElementById('ex-list');
-  c.innerHTML=day.exercises.map(function(ex,idx){
-    var prev=getPrevSets(currentDayId,ex.id);
-    var curr=getCurrentSets(currentDayId,ex.id);
-    var prevHTML='';
-    if(currentWeek>1){
-      if(prev&&prev.length){
-        var chips=prev.map(function(s,i){return'<span class="ref-chip">S'+(i+1)+': '+(s.w||'—')+' kg × '+(s.r||'—')+'</span>';}).join('');
-        prevHTML='<div class="ref-label">↑ Tydzień '+(currentWeek-1)+'</div><div class="ref-chips">'+chips+'</div>';
-      }else{
-        prevHTML='<div class="ref-label">↑ Tydzień '+(currentWeek-1)+'</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
+function renderWorkout() {
+  if (!plan || !currentDayId) return;
+  var day = plan.days.find(function(d) { return d.id === currentDayId; });
+  if (!day) return;
+  var c = document.getElementById('ex-list');
+  c.innerHTML = day.exercises.map(function(ex, idx) {
+    var prev = getPrevSets(currentDayId, ex.id);
+    var curr = getCurrentSets(currentDayId, ex.id);
+    var prevHTML = '';
+    if (currentWeek > 1) {
+      if (prev && prev.length) {
+        var chips = prev.map(function(s, i) {
+          return '<span class="ref-chip">S' + (i + 1) + ': ' + (s.w || '—') + ' kg × ' + (s.r || '—') + '</span>';
+        }).join('');
+        prevHTML = '<div class="ref-label">↑ Tydzień ' + (currentWeek - 1) + '</div><div class="ref-chips">' + chips + '</div>';
+      } else {
+        prevHTML = '<div class="ref-label">↑ Tydzień ' + (currentWeek - 1) + '</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
       }
     }
-    var inp='<div class="curr-label">Tydzień '+currentWeek+' — wpisz wyniki</div>'
-      +'<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span></div>';
-    for(var i=0;i<ex.setsCount;i++){
-      var cw=curr&&curr[i]?curr[i].w:'';
-      var cr=curr&&curr[i]?curr[i].r:'';
-      inp+='<div class="set-row"><span class="set-lbl">S'+(i+1)+'</span>'
-        +'<input class="sinput" type="text" inputmode="decimal" id="w_'+ex.id+'_'+i+'" value="'+cw+'" placeholder="np. 30">'
-        +'<input class="sinput" type="text" inputmode="numeric" id="r_'+ex.id+'_'+i+'" value="'+cr+'" placeholder="np. 8">'
-        +'</div>';
+    var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki</div>'
+      + '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span></div>';
+    for (var i = 0; i < ex.setsCount; i++) {
+      var cw = curr && curr[i] ? curr[i].w : '';
+      var cr = curr && curr[i] ? curr[i].r : '';
+      inp += '<div class="set-row"><span class="set-lbl">S' + (i + 1) + '</span>'
+        + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30">'
+        + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8">'
+        + '</div>';
     }
-    var yt=ex.youtube?'<a class="btn-yt" href="'+ex.youtube+'" target="_blank">▶ YT</a>':'';
-    var nt=ex.notes?'<span style="color:var(--text3);font-weight:400;font-size:12px"> ('+ex.notes+')</span>':'';
+    var yt = ex.youtube ? '<a class="btn-yt" href="' + ex.youtube + '" target="_blank">▶ YT</a>' : '';
+    var nt = ex.notes ? '<span style="color:var(--text3);font-weight:400;font-size:12px"> (' + ex.notes + ')</span>' : '';
     return '<div class="ex-card">'
-      +'<div class="ex-head"><span class="ex-num">'+(idx+1)+'.</span><span class="ex-name">'+ex.name+nt+'</span>'+yt+'</div>'
-      +'<div class="ex-meta"><div class="em"><span class="em-l">Serie / Powt.</span><span class="em-v">'+ex.scheme+'</span></div>'
-      +'<div class="em"><span class="em-l">TUT</span><span class="em-v">'+(ex.tut||'—')+'</span></div></div>'
-      +'<div class="sets-wrap">'+prevHTML+inp+'</div></div>';
+      + '<div class="ex-head"><span class="ex-num">' + (idx + 1) + '.</span><span class="ex-name">' + ex.name + nt + '</span>' + yt + '</div>'
+      + '<div class="ex-meta">'
+      + '<div class="em"><span class="em-l">Serie / Powt.</span><span class="em-v">' + ex.scheme + '</span></div>'
+      + '<div class="em"><span class="em-l">TUT</span><span class="em-v">' + (ex.tut || '—') + '</span></div>'
+      + '</div>'
+      + '<div class="sets-wrap">' + prevHTML + inp + '</div></div>';
   }).join('');
 }
 
-function renderHistory(){
-  var c=document.getElementById('hist-list');
-  var keys=Object.keys(logs);
-  if(!keys.length){
-    c.innerHTML='<div class="empty"><div class="empty-ico">📊</div><h2>Brak historii</h2><p>Zapisz pierwszy trening,<br>a pojawi się tutaj</p></div>';
+function renderHistory() {
+  var c = document.getElementById('hist-list');
+  var keys = Object.keys(logs);
+  if (!keys.length) {
+    c.innerHTML = '<div class="empty"><div class="empty-ico">📊</div><h2>Brak historii</h2><p>Zapisz pierwszy trening,<br>a pojawi się tutaj</p></div>';
     return;
   }
-  keys.sort(function(a,b){return parseLogKey(b)[0]-parseLogKey(a)[0];});
-  c.innerHTML=keys.map(function(key){
-    var pk=parseLogKey(key);var week=pk[0];var dayId=pk[1];
-    var dayName=(plan&&plan.days?(plan.days.find(function(d){return d.id===dayId;})||{}).name||dayId:dayId);
-    var exs=(plan&&plan.days?(plan.days.find(function(d){return d.id===dayId;})||{}).exercises||[]:[]); 
-    var dl=logs[key];var date=dl._date||'';
-    var items=Object.keys(dl).filter(function(k){return k!=='_date';}).map(function(exId){
-      var nm=((exs.find(function(e){return e.id===exId;})||{}).name)||exId;
-      var sets=dl[exId];
-      var chips=sets.map(function(s,i){return(s.w||s.r)?'<span class="hist-chip">S'+(i+1)+': '+(s.w||'—')+' kg×'+(s.r||'—')+'</span>':'';}).filter(Boolean).join('');
-      return'<div class="hist-ex"><div class="hist-ex-name">'+nm+'</div><div class="hist-chips">'+(chips||'<span style="color:var(--text3);font-size:12px">brak</span>')+'</div></div>';
+  keys.sort(function(a, b) { return parseLogKey(b)[0] - parseLogKey(a)[0]; });
+  c.innerHTML = keys.map(function(key) {
+    var pk = parseLogKey(key);
+    var week = pk[0];
+    var dayId = pk[1];
+    var dayName = dayId;
+    var dayExs = [];
+    if (plan && plan.days) {
+      var found = plan.days.find(function(d) { return d.id === dayId; });
+      if (found) { dayName = found.name || dayId; dayExs = found.exercises || []; }
+    }
+    var dl = logs[key];
+    var date = dl._date || '';
+    var items = Object.keys(dl).filter(function(k) { return k !== '_date'; }).map(function(exId) {
+      var exObj = dayExs.find(function(e) { return e.id === exId; });
+      var nm = exObj ? exObj.name : exId;
+      var sets = dl[exId];
+      var chips = sets.map(function(s, i) {
+        return (s.w || s.r) ? '<span class="hist-chip">S' + (i + 1) + ': ' + (s.w || '—') + ' kg×' + (s.r || '—') + '</span>' : '';
+      }).filter(Boolean).join('');
+      return '<div class="hist-ex"><div class="hist-ex-name">' + nm + '</div>'
+        + '<div class="hist-chips">' + (chips || '<span style="color:var(--text3);font-size:12px">brak</span>') + '</div></div>';
     }).join('');
-    return'<div class="hist-item"><div class="hist-hdr" onclick="toggleHist(this)">'
-      +'<span>Tydz.'+week+' — '+dayName+'</span>'
-      +'<span class="hist-hdr-sub" data-date="'+date+'">'+(date?date+' ':'')+'▼</span>'
-      +'</div><div class="hist-body">'+items+'</div></div>';
+    return '<div class="hist-item">'
+      + '<div class="hist-hdr" onclick="toggleHist(this)">'
+      + '<span>Tydz.' + week + ' — ' + dayName + '</span>'
+      + '<span class="hist-hdr-sub" data-date="' + date + '">' + (date ? date + ' ' : '') + '▼</span>'
+      + '</div><div class="hist-body">' + items + '</div></div>';
   }).join('');
 }
 
-function parseLogKey(k){var m=k.match(/^w(\d+)_(.+)$/);return m?[parseInt(m[1]),m[2]]:[0,k];}
-function toggleHist(hdr){
-  var body=hdr.nextElementSibling;
-  var open=body.classList.toggle('open');
-  var sub=hdr.querySelector('.hist-hdr-sub');
-  var d=sub.getAttribute('data-date')||'';
-  sub.textContent=(d?d+' ':'')+(open?'▲':'▼');
+function parseLogKey(k) {
+  var m = k.match(/^w(\d+)_(.+)$/);
+  return m ? [parseInt(m[1]), m[2]] : [0, k];
 }
 
-function downloadJSON(data,fn){
-  var b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  var u=URL.createObjectURL(b);var a=document.createElement('a');
-  a.href=u;a.download=fn;document.body.appendChild(a);a.click();
-  document.body.removeChild(a);URL.revokeObjectURL(u);
-}
-function exportPlan(){if(!plan){toast('⚠️ Brak planu');return;}downloadJSON(plan,'plan.json');toast('📤 Plan pobrany');}
-function exportLogs(){
-  if(!Object.keys(logs).length){toast('⚠️ Brak danych');return;}
-  downloadJSON(logs,'trening_'+new Date().toISOString().split('T')[0]+'.json');toast('💾 Dane pobrane');
-}
-function handlePlanFile(e){
-  var f=e.target.files[0];if(!f)return;
-  var r=new FileReader();
-  r.onload=function(ev){
-    try{
-      var p=JSON.parse(ev.target.result);
-      if(!p.days||!Array.isArray(p.days)){toast('❌ Zły format JSON');return;}
-      plan=p;savePlan();renderHome();toast('✅ Plan załadowany!');
-    }catch(err){toast('❌ Błąd odczytu JSON');}
-  };
-  r.readAsText(f);e.target.value='';
-}
-function handleLogsFile(e){
-  var f=e.target.files[0];if(!f)return;
-  var r=new FileReader();
-  r.onload=function(ev){
-    try{
-      var p=JSON.parse(ev.target.result);
-      if(typeof p!=='object'||Array.isArray(p)){toast('❌ Zły format');return;}
-      Object.assign(logs,p);saveLogs();toast('✅ Dane zaimportowane!');
-    }catch(err){toast('❌ Błąd odczytu JSON');}
-  };
-  r.readAsText(f);e.target.value='';
+function toggleHist(hdr) {
+  var body = hdr.nextElementSibling;
+  var open = body.classList.toggle('open');
+  var sub = hdr.querySelector('.hist-hdr-sub');
+  var d = sub.getAttribute('data-date') || '';
+  sub.textContent = (d ? d + ' ' : '') + (open ? '▲' : '▼');
 }
 
-function init(){
-  loadPlan();loadLogs();loadWeek();
-  if(!plan){
+function downloadFile(content, filename, type) {
+  var blob = new Blob([content], { type: type });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function exportPlan() {
+  if (!plan) { toast('⚠️ Brak planu'); return; }
+  downloadFile(JSON.stringify(plan, null, 2), 'plan.json', 'application/json');
+  toast('📤 Plan pobrany');
+}
+
+function exportLogs() {
+  if (!Object.keys(logs).length) { toast('⚠️ Brak danych'); return; }
+  var d = new Date().toISOString().split('T')[0];
+  downloadFile(JSON.stringify(logs, null, 2), 'trening_' + d + '.json', 'application/json');
+  toast('💾 Dane pobrane');
+}
+
+function exportCSV() {
+  if (!Object.keys(logs).length) { toast('⚠️ Brak danych'); return; }
+  var rows = 'Data;Tydzień;Dzień;Ćwiczenie;Seria;Ciężar (kg);Powtórzenia\n';
+  var keys = Object.keys(logs).sort(function(a, b) { return parseLogKey(a)[0] - parseLogKey(b)[0]; });
+  keys.forEach(function(key) {
+    var pk = parseLogKey(key);
+    var week = pk[0]; var dayId = pk[1];
+    var dayName = dayId; var dayExs = [];
+    if (plan && plan.days) {
+      var found = plan.days.find(function(d) { return d.id === dayId; });
+      if (found) { dayName = found.name || dayId; dayExs = found.exercises || []; }
+    }
+    var dl = logs[key]; var date = dl._date || '';
+    Object.keys(dl).filter(function(k) { return k !== '_date'; }).forEach(function(exId) {
+      var exObj = dayExs.find(function(e) { return e.id === exId; });
+      var exName = exObj ? exObj.name : exId;
+      dl[exId].forEach(function(s, i) {
+        rows += [date, week, dayName, exName, 'S' + (i + 1), s.w || '', s.r || ''].join(';') + '\n';
+      });
+    });
+  });
+  var d = new Date().toISOString().split('T')[0];
+  downloadFile('\uFEFF' + rows, 'trening_' + d + '.csv', 'text/csv;charset=utf-8;');
+  toast('📊 CSV pobrany');
+}
+
+function exportHTMLReport() {
+  if (!Object.keys(logs).length) { toast('⚠️ Brak danych'); return; }
+  var keys = Object.keys(logs).sort(function(a, b) { return parseLogKey(b)[0] - parseLogKey(a)[0]; });
+  var tableRows = '';
+  keys.forEach(function(key) {
+    var pk = parseLogKey(key);
+    var week = pk[0]; var dayId = pk[1];
+    var dayName = dayId; var dayExs = [];
+    if (plan && plan.days) {
+      var found = plan.days.find(function(d) { return d.id === dayId; });
+      if (found) { dayName = found.name || dayId; dayExs = found.exercises || []; }
+    }
+    var dl = logs[key]; var date = dl._date || '';
+    Object.keys(dl).filter(function(k) { return k !== '_date'; }).forEach(function(exId) {
+      var exObj = dayExs.find(function(e) { return e.id === exId; });
+      var exName = exObj ? exObj.name : exId;
+      dl[exId].forEach(function(s, i) {
+        tableRows += '<tr><td>' + date + '</td><td>' + week + '</td><td>' + dayName + '</td><td>' + exName + '</td>'
+          + '<td>S' + (i + 1) + '</td><td>' + (s.w || '—') + '</td><td>' + (s.r || '—') + '</td></tr>';
+      });
+    });
+  });
+  var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>Raport treningowy</title>'
+    + '<style>body{font-family:Arial,sans-serif;padding:24px;color:#1a1a1a;max-width:960px;margin:0 auto}'
+    + 'h1{color:#e63946;margin-bottom:6px;font-size:22px}p.sub{color:#888;font-size:13px;margin-bottom:20px}'
+    + 'table{border-collapse:collapse;width:100%;font-size:13px}'
+    + 'th{background:#e63946;color:#fff;padding:9px 12px;text-align:left;font-size:12px}'
+    + 'td{padding:7px 12px;border-bottom:1px solid #eee}tr:nth-child(even) td{background:#f9f9f9}'
+    + 'p.tip{margin-top:18px;font-size:11px;color:#bbb}@media print{p.tip{display:none}}'
+    + '</style></head><body>'
+    + '<h1>Dziennik treningowy</h1>'
+    + '<p class="sub">Wygenerowano: ' + new Date().toLocaleDateString('pl-PL') + '</p>'
+    + '<table><thead><tr><th>Data</th><th>Tydzień</th><th>Dzień</th><th>Ćwiczenie</th><th>Seria</th><th>Ciężar kg</th><th>Powt.</th></tr></thead>'
+    + '<tbody>' + tableRows + '</tbody></table>'
+    + '<p class="tip">Aby zapisać jako PDF: Ctrl+P → Zapisz jako PDF</p>'
+    + '</body></html>';
+  var d = new Date().toISOString().split('T')[0];
+  downloadFile(html, 'trening_raport_' + d + '.html', 'text/html;charset=utf-8;');
+  toast('📄 Raport pobrany');
+}
+
+function handlePlanFile(e) {
+  var f = e.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(ev) {
+    try {
+      var p = JSON.parse(ev.target.result);
+      if (!p.days || !Array.isArray(p.days)) { toast('❌ Zły format JSON'); return; }
+      plan = p; savePlan(); renderHome(); toast('✅ Plan załadowany!');
+    } catch(err) { toast('❌ Błąd odczytu JSON'); }
+  };
+  r.readAsText(f); e.target.value = '';
+}
+
+function handleLogsFile(e) {
+  var f = e.target.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(ev) {
+    try {
+      var p = JSON.parse(ev.target.result);
+      if (typeof p !== 'object' || Array.isArray(p)) { toast('❌ Zły format'); return; }
+      Object.assign(logs, p); saveLogs(); toast('✅ Dane zaimportowane!');
+    } catch(err) { toast('❌ Błąd odczytu JSON'); }
+  };
+  r.readAsText(f); e.target.value = '';
+}
+
+function init() {
+  loadPlan(); loadLogs(); loadWeek();
+  if (!plan) {
     fetch('./plan.json')
-      .then(function(r){return r.json();})
-      .then(function(p){if(p&&p.days){plan=p;savePlan();}renderHome();})
-      .catch(function(){renderHome();});
+      .then(function(r) { return r.json(); })
+      .then(function(p) { if (p && p.days) { plan = p; savePlan(); } renderHome(); })
+      .catch(function() { renderHome(); });
   } else {
     renderHome();
   }
-  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function() {});
+  }
 }
-window.addEventListener('load',init);
+window.addEventListener('load', init);
 </script>
 </body>
 </html>
