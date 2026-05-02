@@ -515,7 +515,10 @@ window.addEventListener('popstate', function() {
     saveWorkout(true);
     showView('home');
     toast('✅ Zapisano!');
-  } else if (currentView === 'settings' || currentView === 'editor' || currentView === 'history' || currentView === 'progress') {
+  } else if (currentView === 'editor') {
+    // edytor otwiera się z ustawień — cofnij do ustawień
+    showView('settings');
+  } else if (currentView === 'settings' || currentView === 'history' || currentView === 'progress') {
     showView('home');
   }
   // Na home — pozwól wyjść z apki normalnie
