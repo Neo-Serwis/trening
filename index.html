@@ -511,12 +511,18 @@ function showEditorView() { showView('editor'); }
 window.addEventListener('popstate', function() {
   if (_saveGuard) return;
   _saveGuard = true;
+  // Jeśli modal jest otwarty — zamknij go (równoznaczne z Anuluj)
+  var modal = document.getElementById('modal-overlay');
+  if (modal.classList.contains('show')) {
+    closeModal();
+    setTimeout(function() { _saveGuard = false; }, 300);
+    return;
+  }
   if (currentView === 'workout') {
     saveWorkout(true);
     showView('home');
     toast('✅ Zapisano!');
   } else if (currentView === 'editor') {
-    // edytor otwiera się z ustawień — cofnij do ustawień
     showView('settings');
   } else if (currentView === 'settings' || currentView === 'history' || currentView === 'progress') {
     showView('home');
@@ -1121,8 +1127,14 @@ function modalSave() {
   savePlan(); closeModal(); renderEditor(); toast('✅ Zapisano');
 }
 
-function openModal()  { document.getElementById('modal-overlay').classList.add('show'); }
-function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); _modalCtx = null; }
+function openModal()  {
+  document.getElementById('modal-overlay').classList.add('show');
+  history.pushState({ view: 'modal' }, '');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+  _modalCtx = null;
+}
 function modalClose(e){ if (e.target === document.getElementById('modal-overlay')) closeModal(); }
 
 // ═══════════════════════════════════════════════
