@@ -192,20 +192,30 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .meas-date-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .meas-date-input{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:9px 10px;flex:1;-webkit-appearance:none;appearance:none;}
 .meas-date-input:focus{outline:none;border-color:var(--accent)}
-.meas-section-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;border-top:1px solid var(--border);padding-top:8px;}
+.meas-section-hdr{display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px;border-top:1px solid var(--border);padding-top:10px;}
+.meas-section-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
+.meas-section-lbl.notop{border-top:none;padding-top:0;margin-top:0;}
+.btn-meas-manage{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text3);font-size:11px;padding:3px 9px;cursor:pointer;}
+.btn-meas-manage:active{background:var(--border)}
 .meas-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;}
 .meas-item-hdr{padding:11px 13px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;}
 .meas-item-date{font-size:14px;font-weight:700;color:var(--text);}
 .meas-item-sub{font-size:12px;color:var(--text3);}
 .meas-item-body{display:none;padding:10px 13px;}.meas-item-body.open{display:block}
-.meas-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
-.meas-chip{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text2);display:flex;flex-direction:column;align-items:center;gap:1px;}
-.meas-chip-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;}
-.meas-chip-val{font-size:14px;font-weight:700;color:var(--text);}
+.meas-group-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 5px;}
+.meas-group-lbl:first-child{margin-top:0}
+.meas-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;}
+.meas-chip{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text2);display:flex;flex-direction:column;align-items:center;gap:1px;min-width:64px;}
+.meas-chip-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;text-align:center;}
+.meas-chip-val{font-size:14px;font-weight:700;color:var(--text);text-align:center;}
 .meas-chip.highlight .meas-chip-val{color:var(--accent);}
 .meas-del-btn{background:none;border:none;color:#c44;font-size:16px;cursor:pointer;padding:2px 6px;}
-.meas-diff{font-size:11px;margin-top:6px;padding:6px 10px;background:var(--bg2);border-radius:6px;color:var(--text3);line-height:1.8;}
-.diff-pos{color:#e63946;}.diff-neg{color:#52b788;}
+.diff-pos{color:#e63946;font-size:11px;}.diff-neg{color:#52b788;font-size:11px;}
+/* Zarządzanie polami obwodów */
+.meas-field-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.meas-field-row:last-child{border-bottom:none}
+.meas-field-name{flex:1;font-size:13px;color:var(--text2);}
+.meas-field-unit{font-size:11px;color:var(--text3);min-width:28px;}
 
 /* UKRYJ SCROLLBAR */
 *{scrollbar-width:none;-ms-overflow-style:none;}
@@ -233,9 +243,16 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
   <!-- WORKOUT -->
   <div id="view-workout" class="view">
     <div id="ex-list"></div>
-    <div style="display:flex;gap:10px;margin-bottom:24px;margin-top:6px">
-      <button class="btn-save" style="margin:0" onclick="saveWorkout(false)">💾 Zapisz trening</button>
-      <button class="btn-save" style="margin:0;background:var(--bg3);color:var(--text2);border:1px solid var(--border);flex:0 0 auto;padding:15px 18px" onclick="clearWorkout()">🗑</button>
+    <!-- Notatka ogólna do sesji -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
+      <button class="note-toggle" onclick="toggleNote(this)">📋 Notatka ogólna do treningu</button>
+      <div class="note-body" id="session-note-body">
+        <textarea class="note-input" id="session-note" placeholder="np. samopoczucie, uwagi ogólne, plan na następny raz..."></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:24px;margin-top:6px;align-items:stretch">
+      <button class="btn-save" style="margin:0;flex:1" onclick="saveWorkout(false)">💾 Zapisz trening</button>
+      <button onclick="clearWorkout()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text3);font-size:18px;width:44px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;">🗑</button>
     </div>
   </div>
 
@@ -307,6 +324,10 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <span class="sbtn-ico">📄</span>
         <div class="sbtn-txt"><div class="sbtn-name">Raport PDF dla trenera</div><div class="sbtn-desc">Otwórz w przeglądarce → Drukuj → Zapisz PDF</div></div>
       </button>
+      <button class="sbtn" onclick="exportMeasCSV()">
+        <span class="sbtn-ico">📏</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Eksportuj pomiary CSV</div><div class="sbtn-desc">Pomiary tygodniowe do Excel / Sheets</div></div>
+      </button>
     </div>
     <div class="sct">
       <div class="sct-title">Timer odpoczynku</div>
@@ -336,6 +357,16 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </div>
     </div>
     <div class="sct">
+      <div class="sct-title">Pomiary — wykres obwodów</div>
+      <div class="stoggle" style="border-bottom:none">
+        <div class="stoggle-txt"><div class="stoggle-name">Tryb wykresu</div><div class="stoggle-desc">Jedno pole lub wszystkie na raz</div></div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button id="circ-mode-single" onclick="setCircChartMode('single')" style="background:var(--accent);border:1px solid var(--accent);border-radius:6px;color:#fff;font-size:11px;padding:5px 10px;cursor:pointer;">Jedno</button>
+          <button id="circ-mode-all" onclick="setCircChartMode('all')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:5px 10px;cursor:pointer;">Wszystkie</button>
+        </div>
+      </div>
+    </div>
+    <div class="sct">
       <div class="sct-title">Wygląd</div>
       <div class="stoggle" style="border-bottom:none">
         <div class="stoggle-txt"><div class="stoggle-name">Jasny motyw</div><div class="stoggle-desc">Lepszy w słońcu</div></div>
@@ -351,35 +382,47 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.1 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.3 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
   <!-- POMIARY -->
   <div id="view-measurements" class="view">
-    <!-- Formularz dodawania pomiaru -->
+    <!-- Formularz nowego pomiaru -->
     <div class="meas-form">
       <div class="meas-form-title">➕ Nowy pomiar</div>
+
+      <!-- Data -->
       <div class="meas-date-row">
         <input class="meas-date-input" type="text" id="meas-date" placeholder="DD.MM.RRRR" maxlength="10">
         <button class="btn-primary" style="flex:0 0 auto;padding:9px 16px;font-size:13px" onclick="measToday()">Dziś</button>
       </div>
-      <div class="meas-section-lbl" style="border-top:none;padding-top:0;margin-top:0">Obwód (cm)</div>
+
+      <!-- Masa ciała -->
+      <div class="meas-section-lbl notop" style="margin-top:0">Masa ciała</div>
       <div class="meas-grid">
-        <div class="meas-field"><div class="meas-label">Biceps</div><input class="meas-input" type="text" inputmode="decimal" id="mf-biceps" placeholder="np. 38"></div>
-        <div class="meas-field"><div class="meas-label">Klatka</div><input class="meas-input" type="text" inputmode="decimal" id="mf-klatka" placeholder="np. 100"></div>
-        <div class="meas-field"><div class="meas-label">Talia</div><input class="meas-input" type="text" inputmode="decimal" id="mf-talia" placeholder="np. 79"></div>
-        <div class="meas-field"><div class="meas-label">Pod pępkiem</div><input class="meas-input" type="text" inputmode="decimal" id="mf-podpepkiem" placeholder="np. 88"></div>
-        <div class="meas-field"><div class="meas-label">Udo</div><input class="meas-input" type="text" inputmode="decimal" id="mf-udo" placeholder="np. 56"></div>
-        <div class="meas-field"><div class="meas-label">Waga (kg)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-waga" placeholder="np. 81.3"></div>
+        <div class="meas-field"><div class="meas-label">Masa ciała (kg)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-waga" placeholder="np. 81.3"></div>
+        <div class="meas-field"><div class="meas-label">Tkanka tłuszczowa (%)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-bf" placeholder="np. 18.5"></div>
       </div>
-      <div class="meas-section-lbl">Zdrowie</div>
+
+      <!-- Parametry zdrowotne -->
+      <div class="meas-section-hdr">
+        <span class="meas-section-lbl">Parametry zdrowotne</span>
+      </div>
       <div class="meas-grid">
-        <div class="meas-field"><div class="meas-label">Cukier (mg/dL)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-cukier" placeholder="np. 82"></div>
-        <div class="meas-field"><div class="meas-label">Puls (bpm)</div><input class="meas-input" type="text" inputmode="numeric" id="mf-puls" placeholder="np. 73"></div>
-        <div class="meas-field full"><div class="meas-label">Ciśnienie</div><input class="meas-input" type="text" inputmode="text" id="mf-cisnienie" placeholder="np. 115/71"></div>
+        <div class="meas-field"><div class="meas-label">Glikemia na czczo (mg/dL)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-cukier" placeholder="np. 82"></div>
+        <div class="meas-field"><div class="meas-label">Tętno spoczynkowe (bpm)</div><input class="meas-input" type="text" inputmode="numeric" id="mf-puls" placeholder="np. 73"></div>
+        <div class="meas-field full"><div class="meas-label">Ciśnienie tętnicze (mmHg)</div><input class="meas-input" type="text" inputmode="text" id="mf-cisnienie" placeholder="np. 115/71"></div>
       </div>
-      <button class="btn-save" style="margin-top:10px;margin-bottom:0" onclick="measSave()">💾 Zapisz pomiar</button>
+
+      <!-- Obwód ciała -->
+      <div class="meas-section-hdr">
+        <span class="meas-section-lbl">Obwód ciała (cm)</span>
+        <button class="btn-meas-manage" onclick="measManageFields()">+ Zarządzaj polami</button>
+      </div>
+      <div class="meas-grid" id="meas-custom-fields"><!-- generowane przez renderMeasForm() --></div>
+
+      <button class="btn-save" style="margin-top:12px;margin-bottom:0" onclick="measSave()">💾 Zapisz pomiar</button>
     </div>
     <!-- Lista pomiarów -->
     <div id="meas-list"></div>
@@ -430,14 +473,14 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.1';
+var APP_VERSION = '3.3';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
 var prevView = 'home';
 var plan = null;
 var logs = {};
-var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false };
+var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single' };
 var _saveGuard = false;
 var _wakeLock = null;
 var _timerInterval = null;
@@ -484,6 +527,26 @@ function applySettings() {
   document.getElementById('tog-light').checked   = settings.light;
   document.getElementById('timer-secs').value    = settings.timerSecs;
   if (settings.light) document.body.classList.add('light');
+  // Tryb wykresu obwodów
+  var mode = settings.circChartMode || 'single';
+  var btnS = document.getElementById('circ-mode-single');
+  var btnA = document.getElementById('circ-mode-all');
+  if (btnS && btnA) {
+    btnS.style.background = mode === 'single' ? 'var(--accent)' : 'var(--bg3)';
+    btnS.style.borderColor = mode === 'single' ? 'var(--accent)' : 'var(--border)';
+    btnS.style.color = mode === 'single' ? '#fff' : 'var(--text2)';
+    btnA.style.background = mode === 'all' ? 'var(--accent)' : 'var(--bg3)';
+    btnA.style.borderColor = mode === 'all' ? 'var(--accent)' : 'var(--border)';
+    btnA.style.color = mode === 'all' ? '#fff' : 'var(--text2)';
+  }
+}
+
+function setCircChartMode(mode) {
+  saveSetting('circChartMode', mode);
+  applySettings();
+  // Jeśli jesteśmy na Pomiarach — odśwież
+  if (currentView === 'measurements') renderMeasurements();
+  toast(mode === 'single' ? '📊 Wykres: jedno pole' : '📊 Wykres: wszystkie pola');
 }
 
 function toggleTheme(on) {
@@ -718,6 +781,14 @@ function saveWorkout(silent) {
   // Zapisuj datę tylko jeśli jeszcze nie ma (pierwsza sesja tego dnia)
   if (!logs[key]._date) logs[key]._date = new Date().toLocaleDateString('pl-PL');
 
+  // Notatka ogólna do sesji
+  var snEl = document.getElementById('session-note');
+  if (snEl) {
+    var snVal = snEl.value.trim();
+    if (snVal) logs[key]._note = snVal;
+    else delete logs[key]._note;
+  }
+
   day.exercises.forEach(function(ex) {
     var sets = [];
     if (ex.schemeType === 'exdrop') {
@@ -820,6 +891,15 @@ function renderWorkout() {
   var c = document.getElementById('ex-list');
   var key = logKey(currentWeek, currentDayId);
   var dl = logs[key] || {};
+
+  // Wczytaj notatkę ogólną do pola
+  var snEl = document.getElementById('session-note');
+  var snBody = document.getElementById('session-note-body');
+  if (snEl) {
+    snEl.value = dl._note || '';
+    if (dl._note && snBody) snBody.classList.add('open');
+    else if (snBody) snBody.classList.remove('open');
+  }
 
   c.innerHTML = day.exercises.map(function(ex, idx) {
     var prev = getPrevSets(currentDayId, ex.id);
@@ -979,7 +1059,42 @@ function updateBOLive(exId, setsCount, backoffPct) {
 // POMIARY
 // ═══════════════════════════════════════════════
 
-// Wypełnij datę dzisiejszą w formularzu
+// Domyślne pola obwodów — użytkownik może dodawać/usuwać/zmieniać nazwy
+// Format: { id, label, goodDown } — goodDown=true → spadek = zielony
+var DEFAULT_CIRC_FIELDS = [
+  { id:'biceps',     label:'Biceps',           goodDown:false },
+  { id:'klatka',     label:'Obwód klatki',     goodDown:false },
+  { id:'talia',      label:'Talia',             goodDown:true  },
+  { id:'podpepkiem', label:'Pas',               goodDown:true  },
+  { id:'udo',        label:'Udo',               goodDown:true  }
+];
+
+// Wczytaj pola obwodów z localStorage lub użyj domyślnych
+function loadCircFields() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('trening_meas_fields'));
+    if (saved && Array.isArray(saved) && saved.length) return saved;
+  } catch(e) {}
+  return DEFAULT_CIRC_FIELDS.slice();
+}
+function saveCircFields(fields) {
+  localStorage.setItem('trening_meas_fields', JSON.stringify(fields));
+}
+
+// Renderuj dynamiczne pola obwodów w formularzu
+function renderMeasForm() {
+  var fields = loadCircFields();
+  var c = document.getElementById('meas-custom-fields');
+  if (!c) return;
+  c.innerHTML = fields.map(function(f) {
+    return '<div class="meas-field">'
+      + '<div class="meas-label">' + esc(f.label) + '</div>'
+      + '<input class="meas-input" type="text" inputmode="decimal" id="mf-circ-' + f.id + '" placeholder="cm">'
+      + '</div>';
+  }).join('');
+}
+
+// Wypełnij datę dzisiejszą
 function measToday() {
   document.getElementById('meas-date').value = new Date().toLocaleDateString('pl-PL');
 }
@@ -988,41 +1103,52 @@ function measToday() {
 function measSave() {
   var date = document.getElementById('meas-date').value.trim();
   if (!date) { toast('⚠️ Podaj datę pomiaru'); return; }
-  var entry = {
-    date:       date,
-    biceps:     document.getElementById('mf-biceps').value.trim(),
-    klatka:     document.getElementById('mf-klatka').value.trim(),
-    talia:      document.getElementById('mf-talia').value.trim(),
-    podpepkiem: document.getElementById('mf-podpepkiem').value.trim(),
-    udo:        document.getElementById('mf-udo').value.trim(),
-    waga:       document.getElementById('mf-waga').value.trim(),
-    cukier:     document.getElementById('mf-cukier').value.trim(),
-    cisnienie:  document.getElementById('mf-cisnienie').value.trim(),
-    puls:       document.getElementById('mf-puls').value.trim()
-  };
-  // Sprawdź czy jest choć jedna wartość
-  var hasData = Object.keys(entry).some(function(k) { return k !== 'date' && entry[k] !== ''; });
+
+  var entry = { date: date };
+
+  // Stałe pola
+  entry.waga      = document.getElementById('mf-waga').value.trim();
+  entry.bf        = document.getElementById('mf-bf').value.trim();
+  entry.cukier    = document.getElementById('mf-cukier').value.trim();
+  entry.puls      = document.getElementById('mf-puls').value.trim();
+  entry.cisnienie = document.getElementById('mf-cisnienie').value.trim();
+
+  // Dynamiczne pola obwodów
+  var fields = loadCircFields();
+  entry._circFields = fields.map(function(f) { return { id: f.id, label: f.label, goodDown: f.goodDown }; });
+  fields.forEach(function(f) {
+    var el = document.getElementById('mf-circ-' + f.id);
+    entry[f.id] = el ? el.value.trim() : '';
+  });
+
+  var hasData = Object.keys(entry).some(function(k) {
+    return k !== 'date' && k !== '_circFields' && entry[k] !== '';
+  });
   if (!hasData) { toast('⚠️ Wpisz choć jeden pomiar'); return; }
+
   // Dodaj lub nadpisz wpis z tą samą datą
-  var idx = measurements.findIndex(function(m) { return m.date === date; });
-  if (idx >= 0) {
-    measurements[idx] = entry;
-  } else {
-    measurements.push(entry);
-  }
-  // Sortuj malejąco po dacie
+  var idx = -1;
+  for (var i = 0; i < measurements.length; i++) { if (measurements[i].date === date) { idx = i; break; } }
+  if (idx >= 0) { measurements[idx] = entry; } else { measurements.push(entry); }
+
   measurements.sort(function(a, b) { return parseDatePL(b.date) - parseDatePL(a.date); });
   saveMeasurements();
+
   // Wyczyść formularz
-  ['mf-biceps','mf-klatka','mf-talia','mf-podpepkiem','mf-udo','mf-waga','mf-cukier','mf-cisnienie','mf-puls'].forEach(function(id) {
+  document.getElementById('meas-date').value = '';
+  ['mf-waga','mf-bf','mf-cukier','mf-puls','mf-cisnienie'].forEach(function(id) {
     document.getElementById(id).value = '';
   });
-  document.getElementById('meas-date').value = '';
+  fields.forEach(function(f) {
+    var el = document.getElementById('mf-circ-' + f.id);
+    if (el) el.value = '';
+  });
+
   renderMeasurements();
   toast('✅ Pomiar zapisany!');
 }
 
-// Usuń pomiar po indeksie
+// Usuń pomiar
 function measDelete(idx) {
   if (!confirm('Usunąć pomiar z ' + measurements[idx].date + '?')) return;
   measurements.splice(idx, 1);
@@ -1031,62 +1157,125 @@ function measDelete(idx) {
   toast('🗑 Pomiar usunięty');
 }
 
+// Zarządzaj polami obwodów — modal
+function measManageFields() {
+  var fields = loadCircFields();
+  _modalCtx = { type: 'measFields', fields: JSON.parse(JSON.stringify(fields)) };
+  document.getElementById('modal-title').textContent = 'Obwód ciała — pola pomiarowe';
+  renderManageFieldsModal();
+  openModal();
+}
+
+function renderManageFieldsModal() {
+  var fields = _modalCtx.fields;
+  var rows = fields.map(function(f, i) {
+    return '<div class="meas-field-row">'
+      + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
+      + '<select class="modal-select" style="width:90px;padding:6px 8px;font-size:12px" id="mff-dir-' + i + '">'
+      + '<option value="0"' + (!f.goodDown ? ' selected' : '') + '>↑ więcej</option>'
+      + '<option value="1"' + (f.goodDown ? ' selected' : '') + '>↓ mniej</option>'
+      + '</select>'
+      + '<button class="btn-del" onclick="measFieldDel(' + i + ')">🗑</button>'
+      + '</div>';
+  }).join('');
+  var addRow = '<div style="margin-top:10px;display:flex;gap:8px">'
+    + '<input class="modal-input" id="mff-new-name" placeholder="Nazwa nowego pola" style="flex:1">'
+    + '<button class="btn-primary" style="flex:0 0 auto;padding:8px 14px;font-size:13px" onclick="measFieldAdd()">+ Dodaj</button>'
+    + '</div>';
+  document.getElementById('modal-content').innerHTML =
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Nazwa pola · Kierunek (więcej/mniej = lepiej)</div>'
+    + (rows || '<div style="color:var(--text3);font-size:13px;padding:8px 0">Brak pól — dodaj poniżej</div>')
+    + addRow;
+}
+
+function measFieldDel(i) {
+  _modalCtx.fields.splice(i, 1);
+  renderManageFieldsModal();
+}
+
+function measFieldAdd() {
+  var nm = document.getElementById('mff-new-name').value.trim();
+  if (!nm) { toast('⚠️ Podaj nazwę'); return; }
+  var id = 'c_' + Date.now();
+  _modalCtx.fields.push({ id: id, label: nm, goodDown: false });
+  renderManageFieldsModal();
+}
+
 // Renderuj listę pomiarów
 function renderMeasurements() {
+  renderMeasForm(); // odśwież pola w formularzu
   var c = document.getElementById('meas-list');
   if (!measurements.length) {
     c.innerHTML = '<div class="empty"><div class="empty-ico">📏</div><h2>Brak pomiarów</h2><p>Dodaj pierwszy pomiar powyżej</p></div>';
     return;
   }
 
-  // Pola obwodów i zdrowia
-  var bodyFields = [
-    { key:'biceps',     label:'Biceps',      unit:'cm' },
-    { key:'klatka',     label:'Klatka',      unit:'cm' },
-    { key:'talia',      label:'Talia',       unit:'cm' },
-    { key:'podpepkiem', label:'Pod pępk.',   unit:'cm' },
-    { key:'udo',        label:'Udo',         unit:'cm' },
-    { key:'waga',       label:'Waga',        unit:'kg' }
-  ];
-  var healthFields = [
-    { key:'cukier',    label:'Cukier',    unit:'mg/dL' },
-    { key:'cisnienie', label:'Ciśnienie', unit:'' },
-    { key:'puls',      label:'Puls',      unit:'bpm' }
-  ];
+  // Wykres obwodów na górze listy
+  var chartHtml = renderCircChart();
+  var chartSection = chartHtml
+    ? '<div class="chart-wrap" style="margin-bottom:14px">' + chartHtml + '</div>'
+    : '';
 
-  c.innerHTML = measurements.map(function(m, i) {
-    // Poprzedni pomiar (następny w tablicy bo sortujemy malejąco)
+  var listHtml = measurements.map(function(m, i) {
     var prev = measurements[i + 1] || null;
 
-    // Chipy obwodów
-    var bodyChips = bodyFields.map(function(f) {
-      if (!m[f.key]) return '';
+    // Chip pomocniczy
+    function chip(label, val, unit, goodDown) {
+      if (!val) return '';
       var diffHtml = '';
-      if (prev && prev[f.key]) {
-        var d = parseFloat(m[f.key]) - parseFloat(prev[f.key]);
+      if (prev && prev[label.toLowerCase ? label : label]) {} // placeholder
+      return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + val + (unit ? ' ' + unit : '') + '</span></div>';
+    }
+
+    // Chip z diff
+    function chipDiff(label, val, prevVal, unit, goodDown) {
+      if (!val) return '';
+      var diffHtml = '';
+      if (prevVal) {
+        var d = parseFloat(val) - parseFloat(prevVal);
         if (!isNaN(d) && d !== 0) {
-          // Dla wagi, talii, pod pępkiem, uda: spadek = zielony (dobry)
-          // Dla bicepsa, klatki: wzrost = zielony
-          var isGoodDown = (f.key === 'waga' || f.key === 'talia' || f.key === 'podpepkiem' || f.key === 'udo');
-          var cls = (isGoodDown ? (d < 0 ? 'diff-neg' : 'diff-pos') : (d > 0 ? 'diff-neg' : 'diff-pos'));
-          diffHtml = ' <span class="' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
+          var cls = goodDown ? (d < 0 ? 'diff-neg' : 'diff-pos') : (d > 0 ? 'diff-neg' : 'diff-pos');
+          diffHtml = '<br><span class="' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
         }
       }
-      return '<div class="meas-chip"><span class="meas-chip-lbl">' + f.label + '</span><span class="meas-chip-val">' + m[f.key] + ' ' + f.unit + diffHtml + '</span></div>';
+      return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + val + (unit ? ' ' + unit : '') + diffHtml + '</span></div>';
+    }
+
+    // Sekcja: Masa ciała
+    var massChips = '';
+    massChips += chipDiff('Masa ciała', m.waga, prev && prev.waga, 'kg', true);
+    massChips += chipDiff('Tk. tłuszczowa', m.bf, prev && prev.bf, '%', true);
+
+    // Sekcja: Parametry zdrowotne
+    var healthChips = '';
+    healthChips += chipDiff('Glikemia', m.cukier, prev && prev.cukier, 'mg/dL', true);
+    healthChips += chip('Ciśnienie', m.cisnienie, 'mmHg', false);
+    healthChips += chipDiff('Tętno', m.puls, prev && prev.puls, 'bpm', true);
+
+    // Sekcja: Obwód ciała — użyj pól zapisanych w pomiarze (lub aktualnych)
+    var circFields = m._circFields || loadCircFields();
+    var circChips = circFields.map(function(f) {
+      return chipDiff(f.label, m[f.id], prev && prev[f.id], 'cm', f.goodDown);
     }).filter(Boolean).join('');
 
-    // Chipy zdrowia
-    var healthChips = healthFields.map(function(f) {
-      if (!m[f.key]) return '';
-      return '<div class="meas-chip"><span class="meas-chip-lbl">' + f.label + '</span><span class="meas-chip-val">' + m[f.key] + (f.unit ? ' ' + f.unit : '') + '</span></div>';
-    }).filter(Boolean).join('');
-
-    // Podsumowanie w nagłówku
+    // Nagłówek — podsumowanie
     var subParts = [];
     if (m.waga) subParts.push(m.waga + ' kg');
     if (m.cisnienie) subParts.push('♥ ' + m.cisnienie);
     if (m.puls) subParts.push(m.puls + ' bpm');
     var sub = subParts.join(' · ');
+
+    var bodyHtml = '';
+    if (massChips)   bodyHtml += '<div class="meas-group-lbl">Masa ciała</div><div class="meas-chips">' + massChips + '</div>';
+    if (healthChips) bodyHtml += '<div class="meas-group-lbl">Parametry zdrowotne</div><div class="meas-chips">' + healthChips + '</div>';
+    if (circChips)   bodyHtml += '<div class="meas-group-lbl">Obwód ciała</div><div class="meas-chips">' + circChips + '</div>';
+
+    // Notatka do pomiaru
+    var noteHtml = '<button class="note-toggle" onclick="measNoteToggle(this)">📝 Notatka</button>'
+      + '<div class="note-body' + (m._note ? ' open' : '') + '">'
+      + '<textarea class="note-input" id="meas-note-' + i + '" placeholder="np. po chorobie, przed zawodami...">' + esc(m._note || '') + '</textarea>'
+      + '<button onclick="measNoteSave(' + i + ')" style="margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:12px;padding:5px 12px;cursor:pointer;width:100%">✅ Zapisz notatkę</button>'
+      + '</div>';
 
     return '<div class="meas-item">'
       + '<div class="meas-item-hdr" onclick="toggleMeasItem(this)">'
@@ -1095,11 +1284,10 @@ function renderMeasurements() {
       + '<button class="meas-del-btn" onclick="event.stopPropagation();measDelete(' + i + ')">🗑</button>'
       + '<span style="color:var(--text3);font-size:14px">▼</span>'
       + '</div></div>'
-      + '<div class="meas-item-body">'
-      + (bodyChips ? '<div class="meas-chips">' + bodyChips + '</div>' : '')
-      + (healthChips ? '<div class="meas-chips">' + healthChips + '</div>' : '')
-      + '</div></div>';
+      + '<div class="meas-item-body">' + bodyHtml + noteHtml + '</div></div>';
   }).join('');
+
+  c.innerHTML = chartSection + listHtml;
 }
 
 function toggleMeasItem(hdr) {
@@ -1107,6 +1295,141 @@ function toggleMeasItem(hdr) {
   body.classList.toggle('open');
   var arrow = hdr.querySelector('span[style]');
   if (arrow) arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
+}
+
+// Notatka do pomiaru
+function measNoteToggle(btn) {
+  var body = btn.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function measNoteSave(idx) {
+  var el = document.getElementById('meas-note-' + idx);
+  if (!el) return;
+  var val = el.value.trim();
+  if (val) measurements[idx]._note = val;
+  else delete measurements[idx]._note;
+  saveMeasurements();
+  toast('✅ Notatka zapisana');
+}
+
+// Wykres obwodów SVG
+function renderCircChart() {
+  var mode = settings.circChartMode || 'single';
+  var fields = loadCircFields();
+  if (!fields.length || !measurements.length) return '';
+
+  // Dane posortowane rosnąco (chronologicznie)
+  var sorted = measurements.slice().reverse();
+
+  if (mode === 'single') {
+    // Selector pola
+    var selId = 'circ-chart-field';
+    var selVal = (document.getElementById(selId) ? document.getElementById(selId).value : '') || fields[0].id;
+    var field = fields.find(function(f) { return f.id === selVal; }) || fields[0];
+    var vals = sorted.map(function(m) { return parseFloat(m[field.id]) || null; });
+    var labels = sorted.map(function(m) { return m.date.split('.').slice(0,2).join('.'); });
+    return renderSingleCircChart(field.label, vals, labels, selId, fields, selVal);
+  } else {
+    // Wszystkie pola na jednym wykresie
+    return renderAllCircChart(fields, sorted);
+  }
+}
+
+function renderSingleCircChart(label, vals, labels, selId, fields, selVal) {
+  var validVals = vals.filter(function(v) { return v !== null; });
+  if (!validVals.length) return '<div class="chart-empty">Brak danych dla tego pola</div>';
+  var maxVal = Math.max.apply(null, validVals);
+  var minVal = Math.min.apply(null, validVals);
+  var range = maxVal - minVal || 1;
+  var W = 320; var H = 130; var PAD = 28; var BAR_W = Math.max(6, Math.floor((W - PAD*2) / vals.length) - 3);
+
+  var sel = '<select onchange="renderMeasurements()" id="' + selId + '" style="background:var(--input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:5px 8px;width:100%;margin-bottom:8px;-webkit-appearance:none">'
+    + fields.map(function(f) { return '<option value="' + f.id + '"' + (f.id===selVal?' selected':'') + '>' + esc(f.label) + '</option>'; }).join('')
+    + '</select>';
+
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;display:block;margin:0 auto">';
+  for (var li = 0; li <= 3; li++) {
+    var ly = PAD + (H - PAD*2) * li / 3;
+    svg += '<line x1="' + PAD + '" y1="' + ly + '" x2="' + (W-PAD) + '" y2="' + ly + '" stroke="var(--border)" stroke-width="1"/>';
+  }
+  vals.forEach(function(v, i) {
+    if (v === null) return;
+    var barH = Math.max(4, ((v - minVal) / range) * (H - PAD*2 - 16));
+    var x = PAD + i * ((W-PAD*2) / vals.length) + ((W-PAD*2) / vals.length - BAR_W) / 2;
+    var y = H - PAD - barH;
+    svg += '<rect x="' + x + '" y="' + y + '" width="' + BAR_W + '" height="' + barH + '" rx="3" fill="var(--blue)" opacity="0.85"/>';
+    svg += '<text x="' + (x+BAR_W/2) + '" y="' + (H-6) + '" text-anchor="middle" font-size="8" fill="var(--text3)">' + labels[i] + '</text>';
+    svg += '<text x="' + (x+BAR_W/2) + '" y="' + (y-3) + '" text-anchor="middle" font-size="9" fill="var(--text2)">' + v.toFixed(1) + '</text>';
+  });
+  svg += '</svg>';
+  return sel + svg;
+}
+
+function renderAllCircChart(fields, sorted) {
+  var colors = ['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#a8dadc','#95d5b2','#f4a261'];
+  var W = 320; var H = 150; var PAD = 28;
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;display:block;margin:0 auto">';
+  // Linie pomocnicze
+  for (var li = 0; li <= 3; li++) {
+    var ly = PAD + (H - PAD*2 - 20) * li / 3;
+    svg += '<line x1="' + PAD + '" y1="' + ly + '" x2="' + (W-PAD) + '" y2="' + ly + '" stroke="var(--border)" stroke-width="1"/>';
+  }
+  // Legenda
+  var legendY = H - 12;
+  fields.forEach(function(f, fi) {
+    var vals = sorted.map(function(m) { return parseFloat(m[f.id]) || null; });
+    var validVals = vals.filter(function(v) { return v !== null; });
+    if (!validVals.length) return;
+    var maxV = Math.max.apply(null, validVals);
+    var minV = Math.min.apply(null, validVals);
+    var rng = maxV - minV || 1;
+    var col = colors[fi % colors.length];
+    // Linia łącząca punkty
+    var pts = [];
+    vals.forEach(function(v, i) {
+      if (v === null) return;
+      var x = PAD + i * (W - PAD*2) / Math.max(vals.length-1, 1);
+      var y = PAD + (H - PAD*2 - 20) * (1 - (v - minV) / rng);
+      pts.push(x + ',' + y);
+      svg += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="' + col + '"/>';
+    });
+    if (pts.length > 1) svg += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + col + '" stroke-width="1.5" opacity="0.8"/>';
+    // Legenda
+    svg += '<rect x="' + (PAD + fi*44) + '" y="' + (legendY-6) + '" width="8" height="8" rx="2" fill="' + col + '"/>';
+    svg += '<text x="' + (PAD + fi*44 + 10) + '" y="' + legendY + '" font-size="8" fill="var(--text3)">' + esc(f.label.substring(0,5)) + '</text>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+// Eksport pomiarów CSV
+function exportMeasCSV() {
+  if (!measurements.length) { toast('⚠️ Brak pomiarów'); return; }
+  // Zbierz wszystkie unikalne pola obwodów
+  var allCircIds = []; var circLabelMap = {};
+  measurements.forEach(function(m) {
+    var cf = m._circFields || loadCircFields();
+    cf.forEach(function(f) {
+      if (allCircIds.indexOf(f.id) < 0) { allCircIds.push(f.id); circLabelMap[f.id] = f.label; }
+    });
+  });
+  // Nagłówek
+  var hdrs = ['Data','Masa ciała (kg)','Tk. tłuszczowa (%)','Glikemia (mg/dL)','Ciśnienie (mmHg)','Tętno (bpm)'];
+  allCircIds.forEach(function(id) { hdrs.push(circLabelMap[id] + ' (cm)'); });
+  hdrs.push('Notatka');
+  var rows = hdrs.join(';') + '\n';
+  measurements.forEach(function(m) {
+    var cells = [
+      csvEsc(m.date), m.waga||'', m.bf||'', m.cukier||'', m.cisnienie||'', m.puls||''
+    ];
+    allCircIds.forEach(function(id) { cells.push(m[id]||''); });
+    cells.push(csvEsc(m._note||''));
+    rows += cells.join(';') + '\n';
+  });
+  var d = new Date().toISOString().split('T')[0];
+  downloadFile('\uFEFF' + rows, 'pomiary_' + d + '.csv', 'text/csv;charset=utf-8;');
+  toast('📏 Pomiary CSV pobrane');
 }
 
 // ═══════════════════════════════════════════════
@@ -1162,6 +1485,11 @@ function renderHistory() {
     var dl = logs[key];
     var date = dl._date || '';
 
+    // Notatka ogólna sesji
+    var sessionNoteHtml = dl._note
+      ? '<div class="hist-note" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">📋 <strong>Notatka ogólna:</strong> ' + esc(dl._note) + '</div>'
+      : '';
+
     var items = Object.keys(dl).filter(function(k) {
       return k !== '_date' && k !== '_note' && k.indexOf('note_') !== 0;
     }).map(function(exId) {
@@ -1186,7 +1514,7 @@ function renderHistory() {
       + '<div class="hist-hdr" onclick="toggleHist(this)">'
       + '<span>Tydz.' + week + ' — ' + esc(dayName) + '</span>'
       + '<span class="hist-hdr-sub" data-date="' + date + '">' + (date ? date + ' ' : '') + '▼</span>'
-      + '</div><div class="hist-body">' + items + '</div></div>';
+      + '</div><div class="hist-body">' + sessionNoteHtml + items + '</div></div>';
   }).join('');
 }
 
@@ -1459,6 +1787,27 @@ function modalSave() {
   if (!_modalCtx) return;
   var ctx = _modalCtx;
 
+  // Zapis pól obwodów
+  if (ctx.type === 'measFields') {
+    var updated = [];
+    ctx.fields.forEach(function(f, i) {
+      var nameEl = document.getElementById('mff-name-' + i);
+      var dirEl  = document.getElementById('mff-dir-' + i);
+      if (nameEl) {
+        updated.push({
+          id:       f.id,
+          label:    nameEl.value.trim() || f.label,
+          goodDown: dirEl ? dirEl.value === '1' : f.goodDown
+        });
+      }
+    });
+    saveCircFields(updated);
+    closeModal();
+    renderMeasurements();
+    toast('✅ Pola zapisane');
+    return;
+  }
+
   if (ctx.type === 'day') {
     plan.days[ctx.di].name = document.getElementById('m-day-name').value.trim() || plan.days[ctx.di].name;
   } else if (ctx.type === 'newday') {
@@ -1654,6 +2003,7 @@ function exportHTMLReport() {
       if (found) { dayName = found.name; dayExs = found.exercises||[]; }
     }
     var dl = logs[key]; var date = dl._date||'';
+    var sessionNote = dl._note || '';
     var exRows = '';
     Object.keys(dl).filter(function(k){ return k!=='_date'&&k!=='_note'&&k.indexOf('note_')!==0; }).forEach(function(exId) {
       var exObj = dayExs.find(function(e){ return e.id===exId; });
@@ -1674,34 +2024,53 @@ function exportHTMLReport() {
         + '</td>' + setsHtml + '</tr>';
     });
     if (exRows) {
+      var sessionNoteRow = sessionNote
+        ? '<tr><td colspan="20" style="background:#f5f5f5;color:#555;font-style:italic;font-size:12px">📋 Notatka ogólna: ' + htmlEsc(sessionNote) + '</td></tr>'
+        : '';
       trainingSections += '<div class="section"><h2>Tydzień ' + week + ' — ' + htmlEsc(dayName) + ' <span class="date">' + date + '</span></h2>'
-        + '<table><tbody>' + exRows + '</tbody></table></div>';
+        + '<table><tbody>' + sessionNoteRow + exRows + '</tbody></table></div>';
     }
   });
 
   // ── SEKCJA 3: POMIARY ─────────────────────────────────────────────
   var measSection = '';
   if (measurements.length) {
+    // Zbierz wszystkie unikalne pola obwodów ze wszystkich pomiarów
+    var allCircIds = [];
+    var circLabelMap = {};
+    measurements.forEach(function(m) {
+      var cf = m._circFields || loadCircFields();
+      cf.forEach(function(f) {
+        if (allCircIds.indexOf(f.id) < 0) { allCircIds.push(f.id); circLabelMap[f.id] = f.label; }
+      });
+    });
+
     var measRows = measurements.map(function(m) {
       var cells = '';
-      if (m.biceps)     cells += '<td><small>Biceps</small><br><strong>' + m.biceps + ' cm</strong></td>';
-      if (m.klatka)     cells += '<td><small>Klatka</small><br><strong>' + m.klatka + ' cm</strong></td>';
-      if (m.talia)      cells += '<td><small>Talia</small><br><strong>' + m.talia + ' cm</strong></td>';
-      if (m.podpepkiem) cells += '<td><small>Pod pępk.</small><br><strong>' + m.podpepkiem + ' cm</strong></td>';
-      if (m.udo)        cells += '<td><small>Udo</small><br><strong>' + m.udo + ' cm</strong></td>';
-      if (m.waga)       cells += '<td><small>Waga</small><br><strong>' + m.waga + ' kg</strong></td>';
-      if (m.cukier)     cells += '<td><small>Cukier</small><br><strong>' + m.cukier + ' mg/dL</strong></td>';
-      if (m.cisnienie)  cells += '<td><small>Ciśnienie</small><br><strong>' + m.cisnienie + '</strong></td>';
-      if (m.puls)       cells += '<td><small>Puls</small><br><strong>' + m.puls + ' bpm</strong></td>';
+      // Masa ciała
+      if (m.waga)  cells += '<td><small>Masa ciała</small><br><strong>' + m.waga + ' kg</strong></td>';
+      if (m.bf)    cells += '<td><small>Tk. tłuszczowa</small><br><strong>' + m.bf + ' %</strong></td>';
+      // Parametry zdrowotne
+      if (m.cukier)    cells += '<td><small>Glikemia</small><br><strong>' + m.cukier + ' mg/dL</strong></td>';
+      if (m.cisnienie) cells += '<td><small>Ciśnienie</small><br><strong>' + m.cisnienie + ' mmHg</strong></td>';
+      if (m.puls)      cells += '<td><small>Tętno</small><br><strong>' + m.puls + ' bpm</strong></td>';
+      // Obwód ciała
+      allCircIds.forEach(function(id) {
+        if (m[id]) cells += '<td><small>' + htmlEsc(circLabelMap[id] || id) + '</small><br><strong>' + m[id] + ' cm</strong></td>';
+        else cells += '<td style="color:#ccc">—</td>';
+      });
       return '<tr><td style="font-weight:700;white-space:nowrap">' + htmlEsc(m.date) + '</td>' + cells + '</tr>';
     }).join('');
+
+    // Nagłówki tabeli
+    var measHdrs = '<th style="text-align:left;padding:8px 10px">Data</th>';
+    measHdrs += '<th style="padding:8px 6px">Masa ciała</th><th style="padding:8px 6px">Tk. tłuszczowa</th>';
+    measHdrs += '<th style="padding:8px 6px">Glikemia</th><th style="padding:8px 6px">Ciśnienie</th><th style="padding:8px 6px">Tętno</th>';
+    allCircIds.forEach(function(id) { measHdrs += '<th style="padding:8px 6px">' + htmlEsc(circLabelMap[id] || id) + '</th>'; });
+
     measSection = '<div class="section"><h2>📏 Pomiary tygodniowe</h2>'
       + '<table style="font-size:12px"><thead><tr style="background:#457b9d;color:#fff">'
-      + '<th style="text-align:left;padding:8px 10px">Data</th>'
-      + '<th style="padding:8px 6px">Biceps</th><th style="padding:8px 6px">Klatka</th>'
-      + '<th style="padding:8px 6px">Talia</th><th style="padding:8px 6px">Pod pępk.</th>'
-      + '<th style="padding:8px 6px">Udo</th><th style="padding:8px 6px">Waga</th>'
-      + '<th style="padding:8px 6px">Cukier</th><th style="padding:8px 6px">Ciśnienie</th><th style="padding:8px 6px">Puls</th>'
+      + measHdrs
       + '</tr></thead><tbody>' + measRows + '</tbody></table></div>';
   }
 
