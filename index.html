@@ -242,6 +242,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 
   <!-- WORKOUT -->
   <div id="view-workout" class="view">
+    <div id="workout-progress-bar" style="margin-bottom:10px;display:none"></div>
     <div id="ex-list"></div>
     <!-- Notatka ogólna do sesji -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
@@ -330,6 +331,17 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </button>
     </div>
     <div class="sct">
+      <div class="sct-title">Dane użytkownika</div>
+      <div class="sbtn" style="cursor:default">
+        <span class="sbtn-ico">📏</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Wzrost</div><div class="sbtn-desc">Potrzebny do obliczenia BMI</div></div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <input class="sinput-sm" type="number" id="user-height" value="" min="100" max="250" placeholder="cm" onchange="saveUserHeight(this.value)" style="width:70px">
+          <span style="font-size:12px;color:var(--text3)">cm</span>
+        </div>
+      </div>
+    </div>
+    <div class="sct">
       <div class="sct-title">Timer odpoczynku</div>
       <div class="stoggle">
         <div class="stoggle-txt"><div class="stoggle-name">Timer aktywny</div><div class="stoggle-desc">Przycisk ⏱ przy każdej serii</div></div>
@@ -357,6 +369,13 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </div>
     </div>
     <div class="sct">
+      <div class="sct-title">Pomiary</div>
+      <button class="sbtn" onclick="measManageFields()">
+        <span class="sbtn-ico">📏</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Edytuj pola obwodów</div><div class="sbtn-desc">Dodaj, usuń, zmień nazwy pól pomiarowych</div></div>
+      </button>
+    </div>
+    <div class="sct">
       <div class="sct-title">Pomiary — wykres obwodów</div>
       <div class="stoggle" style="border-bottom:none">
         <div class="stoggle-txt"><div class="stoggle-name">Tryb wykresu</div><div class="stoggle-desc">Jedno pole lub wszystkie na raz</div></div>
@@ -382,7 +401,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.3 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.4 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -401,8 +420,8 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       <!-- Masa ciała -->
       <div class="meas-section-lbl notop" style="margin-top:0">Masa ciała</div>
       <div class="meas-grid">
-        <div class="meas-field"><div class="meas-label">Masa ciała (kg)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-waga" placeholder="np. 81.3"></div>
-        <div class="meas-field"><div class="meas-label">Tkanka tłuszczowa (%)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-bf" placeholder="np. 18.5"></div>
+        <div class="meas-field"><div class="meas-label">Masa ciała (kg)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-waga" placeholder="np. 81.3" oninput="calcBMILive()"></div>
+        <div class="meas-field"><div class="meas-label">BMI (auto)</div><input class="meas-input" id="mf-bmi" readonly placeholder="—" style="color:var(--text2);cursor:default"></div>
       </div>
 
       <!-- Parametry zdrowotne -->
@@ -473,7 +492,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.3';
+var APP_VERSION = '3.4';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -495,7 +514,9 @@ var LS_LOGS = 'trening_logs';
 var LS_WEEK = 'trening_week';
 var LS_SETS = 'trening_settings';
 var LS_MEAS = 'trening_measurements';
-var measurements = []; // tablica obiektów { date, biceps, klatka, talia, podpepkiem, udo, waga, cukier, cisnienie, puls }
+var LS_USER = 'trening_user';
+var measurements = [];
+var userHeight = 0; // wzrost w cm, 0 = nie ustawiony
 
 // ═══════════════════════════════════════════════
 // STORAGE
@@ -505,6 +526,7 @@ function loadAll() {
   try { logs = JSON.parse(localStorage.getItem(LS_LOGS)) || {}; } catch(e) { logs = {}; }
   try { var s = JSON.parse(localStorage.getItem(LS_SETS)); if(s) Object.assign(settings, s); } catch(e) {}
   try { measurements = JSON.parse(localStorage.getItem(LS_MEAS)) || []; } catch(e) { measurements = []; }
+  try { var u = JSON.parse(localStorage.getItem(LS_USER)); if(u && u.height) userHeight = parseInt(u.height) || 0; } catch(e) {}
   currentWeek = parseInt(localStorage.getItem(LS_WEEK)) || 1;
 }
 function savePlan()  { localStorage.setItem(LS_PLAN, JSON.stringify(plan)); }
@@ -527,6 +549,9 @@ function applySettings() {
   document.getElementById('tog-light').checked   = settings.light;
   document.getElementById('timer-secs').value    = settings.timerSecs;
   if (settings.light) document.body.classList.add('light');
+  // Wzrost użytkownika
+  var hEl = document.getElementById('user-height');
+  if (hEl && userHeight > 0) hEl.value = userHeight;
   // Tryb wykresu obwodów
   var mode = settings.circChartMode || 'single';
   var btnS = document.getElementById('circ-mode-single');
@@ -552,6 +577,46 @@ function setCircChartMode(mode) {
 function toggleTheme(on) {
   document.body.classList.toggle('light', on);
   saveSetting('light', on);
+}
+
+// Zapis wzrostu użytkownika
+function saveUserHeight(val) {
+  var h = parseInt(val);
+  if (isNaN(h) || h < 100 || h > 250) return;
+  userHeight = h;
+  localStorage.setItem(LS_USER, JSON.stringify({ height: h }));
+  toast('✅ Wzrost zapisany: ' + h + ' cm');
+  // Odśwież BMI w formularzu jeśli jest waga
+  calcBMILive();
+}
+
+// Oblicz BMI
+function calcBMI(weightKg, heightCm) {
+  if (!weightKg || !heightCm || heightCm <= 0) return null;
+  var h = heightCm / 100;
+  return weightKg / (h * h);
+}
+
+// Kategoria BMI
+function getBMICategory(bmi) {
+  if (bmi < 18.5) return 'Niedowaga';
+  if (bmi < 25)   return 'Norma';
+  if (bmi < 30)   return 'Nadwaga';
+  return 'Otyłość';
+}
+
+// Live update pola BMI w formularzu pomiaru
+function calcBMILive() {
+  var wEl = document.getElementById('mf-waga');
+  var bEl = document.getElementById('mf-bmi');
+  if (!wEl || !bEl) return;
+  var w = parseFloat(wEl.value);
+  if (!userHeight || isNaN(w) || w <= 0) {
+    bEl.value = userHeight ? '—' : 'Ustaw wzrost w ⚙️';
+    return;
+  }
+  var bmi = calcBMI(w, userHeight);
+  bEl.value = bmi ? bmi.toFixed(1) + ' (' + getBMICategory(bmi) + ')' : '—';
 }
 
 // ═══════════════════════════════════════════════
@@ -811,6 +876,22 @@ function saveWorkout(silent) {
     else if (logs[key]['note_' + ex.id] !== undefined && nEl && !nEl.value.trim()) delete logs[key]['note_' + ex.id];
   });
 
+  // Sprawdź czy jest cokolwiek wpisane (seria lub notatka ogólna)
+  var hasAnyData = false;
+  day.exercises.forEach(function(ex) {
+    if (logs[key][ex.id]) hasAnyData = true;
+    if (logs[key]['note_' + ex.id]) hasAnyData = true;
+  });
+  if (logs[key]._note) hasAnyData = true;
+
+  if (!hasAnyData) {
+    // Nic nie wpisano — usuń pusty wpis jeśli powstał
+    delete logs[key];
+    saveLogs();
+    if (!silent) showView('home');
+    return;
+  }
+
   saveLogs();
   if (!silent) {
     toast('✅ Zapisano!');
@@ -899,6 +980,27 @@ function renderWorkout() {
     snEl.value = dl._note || '';
     if (dl._note && snBody) snBody.classList.add('open');
     else if (snBody) snBody.classList.remove('open');
+  }
+
+  // Pasek postępu treningu
+  var pb = document.getElementById('workout-progress-bar');
+  if (pb) {
+    var prog = dayProgress(currentWeek, currentDayId);
+    if (prog.total > 0) {
+      pb.style.display = 'block';
+      var pct = prog.pct;
+      var pctColor = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--bg3)';
+      var pctLabel = pct >= 100 ? '✓ Trening ukończony!' : pct + '% ukończono (' + prog.done + '/' + prog.total + ' serii)';
+      pb.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 13px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        + '<span style="font-size:12px;color:var(--text2)">' + pctLabel + '</span>'
+        + '</div>'
+        + '<div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">'
+        + '<div style="background:' + pctColor + ';height:100%;width:' + pct + '%;border-radius:4px;transition:width .3s"></div>'
+        + '</div></div>';
+    } else {
+      pb.style.display = 'none';
+    }
   }
 
   c.innerHTML = day.exercises.map(function(ex, idx) {
@@ -1108,7 +1210,9 @@ function measSave() {
 
   // Stałe pola
   entry.waga      = document.getElementById('mf-waga').value.trim();
-  entry.bf        = document.getElementById('mf-bf').value.trim();
+  // BMI obliczane automatycznie z wzrostu
+  var bmiVal = calcBMI(parseFloat(entry.waga), userHeight);
+  entry.bmi = bmiVal ? bmiVal.toFixed(1) : '';
   entry.cukier    = document.getElementById('mf-cukier').value.trim();
   entry.puls      = document.getElementById('mf-puls').value.trim();
   entry.cisnienie = document.getElementById('mf-cisnienie').value.trim();
@@ -1136,8 +1240,8 @@ function measSave() {
 
   // Wyczyść formularz
   document.getElementById('meas-date').value = '';
-  ['mf-waga','mf-bf','mf-cukier','mf-puls','mf-cisnienie'].forEach(function(id) {
-    document.getElementById(id).value = '';
+  ['mf-waga','mf-bmi','mf-cukier','mf-puls','mf-cisnienie'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
   });
   fields.forEach(function(f) {
     var el = document.getElementById('mf-circ-' + f.id);
@@ -1244,7 +1348,19 @@ function renderMeasurements() {
     // Sekcja: Masa ciała
     var massChips = '';
     massChips += chipDiff('Masa ciała', m.waga, prev && prev.waga, 'kg', true);
-    massChips += chipDiff('Tk. tłuszczowa', m.bf, prev && prev.bf, '%', true);
+    // BMI z kategorią
+    if (m.bmi) {
+      var bmiCat = getBMICategory(parseFloat(m.bmi));
+      var bmiDiff = '';
+      if (prev && prev.bmi) {
+        var bd = parseFloat(m.bmi) - parseFloat(prev.bmi);
+        if (!isNaN(bd) && bd !== 0) {
+          var bcls = bd < 0 ? 'diff-neg' : 'diff-pos';
+          bmiDiff = '<br><span class="' + bcls + '">' + (bd > 0 ? '+' : '') + bd.toFixed(1) + '</span>';
+        }
+      }
+      massChips += '<div class="meas-chip"><span class="meas-chip-lbl">BMI</span><span class="meas-chip-val">' + m.bmi + bmiDiff + '</span><span style="font-size:9px;color:var(--text3)">' + bmiCat + '</span></div>';
+    }
 
     // Sekcja: Parametry zdrowotne
     var healthChips = '';
@@ -1323,13 +1439,16 @@ function renderCircChart() {
   var sorted = measurements.slice().reverse();
 
   if (mode === 'single') {
-    // Selector pola
     var selId = 'circ-chart-field';
     var selVal = (document.getElementById(selId) ? document.getElementById(selId).value : '') || fields[0].id;
-    var field = fields.find(function(f) { return f.id === selVal; }) || fields[0];
-    var vals = sorted.map(function(m) { return parseFloat(m[field.id]) || null; });
+    // Dodaj BMI jako opcję jeśli są dane
+    var hasBMI = sorted.some(function(m) { return m.bmi; });
+    var allFields = fields.slice();
+    if (hasBMI) allFields.unshift({ id: '_bmi', label: 'BMI' });
+    var field = allFields.find(function(f) { return f.id === selVal; }) || allFields[0];
+    var vals = sorted.map(function(m) { return field.id === '_bmi' ? (parseFloat(m.bmi) || null) : (parseFloat(m[field.id]) || null); });
     var labels = sorted.map(function(m) { return m.date.split('.').slice(0,2).join('.'); });
-    return renderSingleCircChart(field.label, vals, labels, selId, fields, selVal);
+    return renderSingleCircChart(field.label, vals, labels, selId, allFields, selVal);
   } else {
     // Wszystkie pola na jednym wykresie
     return renderAllCircChart(fields, sorted);
@@ -1415,13 +1534,13 @@ function exportMeasCSV() {
     });
   });
   // Nagłówek
-  var hdrs = ['Data','Masa ciała (kg)','Tk. tłuszczowa (%)','Glikemia (mg/dL)','Ciśnienie (mmHg)','Tętno (bpm)'];
+  var hdrs = ['Data','Masa ciała (kg)','BMI','Glikemia (mg/dL)','Ciśnienie (mmHg)','Tętno (bpm)'];
   allCircIds.forEach(function(id) { hdrs.push(circLabelMap[id] + ' (cm)'); });
   hdrs.push('Notatka');
   var rows = hdrs.join(';') + '\n';
   measurements.forEach(function(m) {
     var cells = [
-      csvEsc(m.date), m.waga||'', m.bf||'', m.cukier||'', m.cisnienie||'', m.puls||''
+      csvEsc(m.date), m.waga||'', m.bmi||'', m.cukier||'', m.cisnienie||'', m.puls||''
     ];
     allCircIds.forEach(function(id) { cells.push(m[id]||''); });
     cells.push(csvEsc(m._note||''));
@@ -1893,7 +2012,8 @@ function resetApp() {
   localStorage.removeItem('trening_week');
   localStorage.removeItem('trening_settings');
   localStorage.removeItem('trening_measurements');
-  plan = null; logs = {}; currentWeek = 1; measurements = [];
+  localStorage.removeItem('trening_user');
+  plan = null; logs = {}; currentWeek = 1; measurements = []; userHeight = 0;
   settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false };
   applySettings();
   renderHome();
@@ -2049,7 +2169,7 @@ function exportHTMLReport() {
       var cells = '';
       // Masa ciała
       if (m.waga)  cells += '<td><small>Masa ciała</small><br><strong>' + m.waga + ' kg</strong></td>';
-      if (m.bf)    cells += '<td><small>Tk. tłuszczowa</small><br><strong>' + m.bf + ' %</strong></td>';
+      if (m.bmi)   cells += '<td><small>BMI</small><br><strong>' + m.bmi + '</strong><br><small style="color:#888">' + getBMICategory(parseFloat(m.bmi)) + '</small></td>';
       // Parametry zdrowotne
       if (m.cukier)    cells += '<td><small>Glikemia</small><br><strong>' + m.cukier + ' mg/dL</strong></td>';
       if (m.cisnienie) cells += '<td><small>Ciśnienie</small><br><strong>' + m.cisnienie + ' mmHg</strong></td>';
@@ -2064,7 +2184,7 @@ function exportHTMLReport() {
 
     // Nagłówki tabeli
     var measHdrs = '<th style="text-align:left;padding:8px 10px">Data</th>';
-    measHdrs += '<th style="padding:8px 6px">Masa ciała</th><th style="padding:8px 6px">Tk. tłuszczowa</th>';
+    measHdrs += '<th style="padding:8px 6px">Masa ciała</th><th style="padding:8px 6px">BMI</th>';
     measHdrs += '<th style="padding:8px 6px">Glikemia</th><th style="padding:8px 6px">Ciśnienie</th><th style="padding:8px 6px">Tętno</th>';
     allCircIds.forEach(function(id) { measHdrs += '<th style="padding:8px 6px">' + htmlEsc(circLabelMap[id] || id) + '</th>'; });
 
