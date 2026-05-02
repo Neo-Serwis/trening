@@ -179,6 +179,34 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 /* EMPTY */
 .empty{text-align:center;padding:40px 20px;color:var(--text2)}.empty-ico{font-size:46px;margin-bottom:14px}.empty h2{font-size:17px;margin-bottom:8px;color:var(--text)}.empty p{font-size:13px;color:var(--text3);line-height:1.6}
 
+/* POMIARY */
+.meas-form{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+.meas-form-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;}
+.meas-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.meas-field{display:flex;flex-direction:column;gap:4px;}
+.meas-field.full{grid-column:1/-1;}
+.meas-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
+.meas-input{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:9px 8px;width:100%;text-align:center;-webkit-appearance:none;appearance:none;}
+.meas-input:focus{outline:none;border-color:var(--accent)}
+.meas-input::placeholder{color:var(--text3);font-size:11px}
+.meas-date-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.meas-date-input{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:9px 10px;flex:1;-webkit-appearance:none;appearance:none;}
+.meas-date-input:focus{outline:none;border-color:var(--accent)}
+.meas-section-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;border-top:1px solid var(--border);padding-top:8px;}
+.meas-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;}
+.meas-item-hdr{padding:11px 13px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;}
+.meas-item-date{font-size:14px;font-weight:700;color:var(--text);}
+.meas-item-sub{font-size:12px;color:var(--text3);}
+.meas-item-body{display:none;padding:10px 13px;}.meas-item-body.open{display:block}
+.meas-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.meas-chip{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text2);display:flex;flex-direction:column;align-items:center;gap:1px;}
+.meas-chip-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;}
+.meas-chip-val{font-size:14px;font-weight:700;color:var(--text);}
+.meas-chip.highlight .meas-chip-val{color:var(--accent);}
+.meas-del-btn{background:none;border:none;color:#c44;font-size:16px;cursor:pointer;padding:2px 6px;}
+.meas-diff{font-size:11px;margin-top:6px;padding:6px 10px;background:var(--bg2);border-radius:6px;color:var(--text3);line-height:1.8;}
+.diff-pos{color:#e63946;}.diff-neg{color:#52b788;}
+
 /* UKRYJ SCROLLBAR */
 *{scrollbar-width:none;-ms-overflow-style:none;}
 *::-webkit-scrollbar{display:none;}
@@ -323,8 +351,38 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.0 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.1 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
+  </div>
+
+  <!-- POMIARY -->
+  <div id="view-measurements" class="view">
+    <!-- Formularz dodawania pomiaru -->
+    <div class="meas-form">
+      <div class="meas-form-title">➕ Nowy pomiar</div>
+      <div class="meas-date-row">
+        <input class="meas-date-input" type="text" id="meas-date" placeholder="DD.MM.RRRR" maxlength="10">
+        <button class="btn-primary" style="flex:0 0 auto;padding:9px 16px;font-size:13px" onclick="measToday()">Dziś</button>
+      </div>
+      <div class="meas-section-lbl" style="border-top:none;padding-top:0;margin-top:0">Obwód (cm)</div>
+      <div class="meas-grid">
+        <div class="meas-field"><div class="meas-label">Biceps</div><input class="meas-input" type="text" inputmode="decimal" id="mf-biceps" placeholder="np. 38"></div>
+        <div class="meas-field"><div class="meas-label">Klatka</div><input class="meas-input" type="text" inputmode="decimal" id="mf-klatka" placeholder="np. 100"></div>
+        <div class="meas-field"><div class="meas-label">Talia</div><input class="meas-input" type="text" inputmode="decimal" id="mf-talia" placeholder="np. 79"></div>
+        <div class="meas-field"><div class="meas-label">Pod pępkiem</div><input class="meas-input" type="text" inputmode="decimal" id="mf-podpepkiem" placeholder="np. 88"></div>
+        <div class="meas-field"><div class="meas-label">Udo</div><input class="meas-input" type="text" inputmode="decimal" id="mf-udo" placeholder="np. 56"></div>
+        <div class="meas-field"><div class="meas-label">Waga (kg)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-waga" placeholder="np. 81.3"></div>
+      </div>
+      <div class="meas-section-lbl">Zdrowie</div>
+      <div class="meas-grid">
+        <div class="meas-field"><div class="meas-label">Cukier (mg/dL)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-cukier" placeholder="np. 82"></div>
+        <div class="meas-field"><div class="meas-label">Puls (bpm)</div><input class="meas-input" type="text" inputmode="numeric" id="mf-puls" placeholder="np. 73"></div>
+        <div class="meas-field full"><div class="meas-label">Ciśnienie</div><input class="meas-input" type="text" inputmode="text" id="mf-cisnienie" placeholder="np. 115/71"></div>
+      </div>
+      <button class="btn-save" style="margin-top:10px;margin-bottom:0" onclick="measSave()">💾 Zapisz pomiar</button>
+    </div>
+    <!-- Lista pomiarów -->
+    <div id="meas-list"></div>
   </div>
 
   <!-- EDYTOR PLANU (subview) -->
@@ -339,6 +397,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     <button class="nbtn active" id="nav-home" onclick="showView('home')"><span class="nbtn-ico">🏋️</span><span>Trening</span></button>
     <button class="nbtn" id="nav-history" onclick="showView('history')"><span class="nbtn-ico">📊</span><span>Historia</span></button>
     <button class="nbtn" id="nav-progress" onclick="showView('progress')"><span class="nbtn-ico">📈</span><span>Progres</span></button>
+    <button class="nbtn" id="nav-measurements" onclick="showView('measurements')"><span class="nbtn-ico">📏</span><span>Pomiary</span></button>
   </nav>
 </div>
 
@@ -371,7 +430,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.0';
+var APP_VERSION = '3.1';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -392,6 +451,8 @@ var LS_PLAN = 'trening_plan';
 var LS_LOGS = 'trening_logs';
 var LS_WEEK = 'trening_week';
 var LS_SETS = 'trening_settings';
+var LS_MEAS = 'trening_measurements';
+var measurements = []; // tablica obiektów { date, biceps, klatka, talia, podpepkiem, udo, waga, cukier, cisnienie, puls }
 
 // ═══════════════════════════════════════════════
 // STORAGE
@@ -400,12 +461,14 @@ function loadAll() {
   try { plan = JSON.parse(localStorage.getItem(LS_PLAN)) || null; } catch(e) { plan = null; }
   try { logs = JSON.parse(localStorage.getItem(LS_LOGS)) || {}; } catch(e) { logs = {}; }
   try { var s = JSON.parse(localStorage.getItem(LS_SETS)); if(s) Object.assign(settings, s); } catch(e) {}
+  try { measurements = JSON.parse(localStorage.getItem(LS_MEAS)) || []; } catch(e) { measurements = []; }
   currentWeek = parseInt(localStorage.getItem(LS_WEEK)) || 1;
 }
 function savePlan()  { localStorage.setItem(LS_PLAN, JSON.stringify(plan)); }
 function saveLogs()  { localStorage.setItem(LS_LOGS, JSON.stringify(logs)); }
 function saveWeek()  { localStorage.setItem(LS_WEEK, String(currentWeek)); }
 function saveSettings() { localStorage.setItem(LS_SETS, JSON.stringify(settings)); }
+function saveMeasurements() { localStorage.setItem(LS_MEAS, JSON.stringify(measurements)); }
 
 function saveSetting(key, val) {
   settings[key] = val;
@@ -479,13 +542,14 @@ function showView(name) {
     var d = plan.days.find(function(x) { return x.id === currentDayId; });
     if (d) dn = d.name;
   }
-  var titles = { home:'Trening', history:'Historia', progress:'Progres', settings:'Ustawienia', workout:dn, editor:'Edytor planu' };
+  var titles = { home:'Trening', history:'Historia', progress:'Progres', settings:'Ustawienia', workout:dn, editor:'Edytor planu', measurements:'Pomiary' };
   document.getElementById('page-title').textContent = titles[name] || '';
 
-  if (name === 'history')  renderHistory();
-  if (name === 'home')     renderHome();
-  if (name === 'progress') { populateProgSelect(); renderProgress(); }
-  if (name === 'editor')   renderEditor();
+  if (name === 'history')      renderHistory();
+  if (name === 'home')         renderHome();
+  if (name === 'progress')     { populateProgSelect(); renderProgress(); }
+  if (name === 'editor')       renderEditor();
+  if (name === 'measurements') renderMeasurements();
 }
 
 function navBack() {
@@ -841,7 +905,7 @@ function renderWorkout() {
         var isBO = (ex.schemeType === 'backoff' && i === ex.setsCount - 1);
         var cw = curr && curr[i] ? curr[i].w : '';
         var cr = curr && curr[i] ? curr[i].r : '';
-        // Auto-propozycja back-off
+        // Auto-propozycja back-off przy renderze (z zapisanych danych)
         if (isBO && !cw && curr) {
           var lastW = 0;
           for (var j = 0; j < ex.setsCount - 1; j++) {
@@ -851,9 +915,14 @@ function renderWorkout() {
         }
         var lbl = isBO ? 'BO' : 'S' + (i+1);
         var lblStyle = isBO ? 'color:var(--yellow)' : '';
+        // Dla serii roboczych (nie BO) dodaj oninput aktualizujący pole BO na żywo
+        var onInputAttr = '';
+        if (ex.schemeType === 'backoff' && !isBO) {
+          onInputAttr = ' oninput="updateBOLive(\'' + ex.id + '\',' + ex.setsCount + ',' + backoffPct + ')"';
+        }
         inp += '<div class="set-row">'
           + '<span class="set-lbl" style="' + lblStyle + '">' + lbl + '</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30">'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + onInputAttr + '>'
           + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8">'
           + timerBtn
           + '</div>';
@@ -881,6 +950,163 @@ function renderWorkout() {
 function toggleNote(btn) {
   var body = btn.nextElementSibling;
   body.classList.toggle('open');
+}
+
+// Aktualizacja pola BO na żywo gdy użytkownik wpisuje ciężar w seriach roboczych
+function updateBOLive(exId, setsCount, backoffPct) {
+  var boIdx = setsCount - 1;
+  var boInput = document.getElementById('w_' + exId + '_' + boIdx);
+  if (!boInput) return;
+  // Jeśli BO już ma ręcznie wpisany ciężar — nie nadpisuj
+  // (uznajemy że jeśli wartość nie pasuje do auto-obliczeń, użytkownik edytował ręcznie)
+  var maxW = 0;
+  for (var j = 0; j < boIdx; j++) {
+    var el = document.getElementById('w_' + exId + '_' + j);
+    if (el) {
+      var v = parseFloat(el.value);
+      if (!isNaN(v) && v > maxW) maxW = v;
+    }
+  }
+  if (maxW > 0) {
+    var suggested = (Math.round(maxW * (1 - backoffPct / 100) * 2) / 2).toFixed(1);
+    boInput.value = suggested;
+  } else {
+    boInput.value = '';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// POMIARY
+// ═══════════════════════════════════════════════
+
+// Wypełnij datę dzisiejszą w formularzu
+function measToday() {
+  document.getElementById('meas-date').value = new Date().toLocaleDateString('pl-PL');
+}
+
+// Zapisz nowy pomiar
+function measSave() {
+  var date = document.getElementById('meas-date').value.trim();
+  if (!date) { toast('⚠️ Podaj datę pomiaru'); return; }
+  var entry = {
+    date:       date,
+    biceps:     document.getElementById('mf-biceps').value.trim(),
+    klatka:     document.getElementById('mf-klatka').value.trim(),
+    talia:      document.getElementById('mf-talia').value.trim(),
+    podpepkiem: document.getElementById('mf-podpepkiem').value.trim(),
+    udo:        document.getElementById('mf-udo').value.trim(),
+    waga:       document.getElementById('mf-waga').value.trim(),
+    cukier:     document.getElementById('mf-cukier').value.trim(),
+    cisnienie:  document.getElementById('mf-cisnienie').value.trim(),
+    puls:       document.getElementById('mf-puls').value.trim()
+  };
+  // Sprawdź czy jest choć jedna wartość
+  var hasData = Object.keys(entry).some(function(k) { return k !== 'date' && entry[k] !== ''; });
+  if (!hasData) { toast('⚠️ Wpisz choć jeden pomiar'); return; }
+  // Dodaj lub nadpisz wpis z tą samą datą
+  var idx = measurements.findIndex(function(m) { return m.date === date; });
+  if (idx >= 0) {
+    measurements[idx] = entry;
+  } else {
+    measurements.push(entry);
+  }
+  // Sortuj malejąco po dacie
+  measurements.sort(function(a, b) { return parseDatePL(b.date) - parseDatePL(a.date); });
+  saveMeasurements();
+  // Wyczyść formularz
+  ['mf-biceps','mf-klatka','mf-talia','mf-podpepkiem','mf-udo','mf-waga','mf-cukier','mf-cisnienie','mf-puls'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('meas-date').value = '';
+  renderMeasurements();
+  toast('✅ Pomiar zapisany!');
+}
+
+// Usuń pomiar po indeksie
+function measDelete(idx) {
+  if (!confirm('Usunąć pomiar z ' + measurements[idx].date + '?')) return;
+  measurements.splice(idx, 1);
+  saveMeasurements();
+  renderMeasurements();
+  toast('🗑 Pomiar usunięty');
+}
+
+// Renderuj listę pomiarów
+function renderMeasurements() {
+  var c = document.getElementById('meas-list');
+  if (!measurements.length) {
+    c.innerHTML = '<div class="empty"><div class="empty-ico">📏</div><h2>Brak pomiarów</h2><p>Dodaj pierwszy pomiar powyżej</p></div>';
+    return;
+  }
+
+  // Pola obwodów i zdrowia
+  var bodyFields = [
+    { key:'biceps',     label:'Biceps',      unit:'cm' },
+    { key:'klatka',     label:'Klatka',      unit:'cm' },
+    { key:'talia',      label:'Talia',       unit:'cm' },
+    { key:'podpepkiem', label:'Pod pępk.',   unit:'cm' },
+    { key:'udo',        label:'Udo',         unit:'cm' },
+    { key:'waga',       label:'Waga',        unit:'kg' }
+  ];
+  var healthFields = [
+    { key:'cukier',    label:'Cukier',    unit:'mg/dL' },
+    { key:'cisnienie', label:'Ciśnienie', unit:'' },
+    { key:'puls',      label:'Puls',      unit:'bpm' }
+  ];
+
+  c.innerHTML = measurements.map(function(m, i) {
+    // Poprzedni pomiar (następny w tablicy bo sortujemy malejąco)
+    var prev = measurements[i + 1] || null;
+
+    // Chipy obwodów
+    var bodyChips = bodyFields.map(function(f) {
+      if (!m[f.key]) return '';
+      var diffHtml = '';
+      if (prev && prev[f.key]) {
+        var d = parseFloat(m[f.key]) - parseFloat(prev[f.key]);
+        if (!isNaN(d) && d !== 0) {
+          // Dla wagi, talii, pod pępkiem, uda: spadek = zielony (dobry)
+          // Dla bicepsa, klatki: wzrost = zielony
+          var isGoodDown = (f.key === 'waga' || f.key === 'talia' || f.key === 'podpepkiem' || f.key === 'udo');
+          var cls = (isGoodDown ? (d < 0 ? 'diff-neg' : 'diff-pos') : (d > 0 ? 'diff-neg' : 'diff-pos'));
+          diffHtml = ' <span class="' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
+        }
+      }
+      return '<div class="meas-chip"><span class="meas-chip-lbl">' + f.label + '</span><span class="meas-chip-val">' + m[f.key] + ' ' + f.unit + diffHtml + '</span></div>';
+    }).filter(Boolean).join('');
+
+    // Chipy zdrowia
+    var healthChips = healthFields.map(function(f) {
+      if (!m[f.key]) return '';
+      return '<div class="meas-chip"><span class="meas-chip-lbl">' + f.label + '</span><span class="meas-chip-val">' + m[f.key] + (f.unit ? ' ' + f.unit : '') + '</span></div>';
+    }).filter(Boolean).join('');
+
+    // Podsumowanie w nagłówku
+    var subParts = [];
+    if (m.waga) subParts.push(m.waga + ' kg');
+    if (m.cisnienie) subParts.push('♥ ' + m.cisnienie);
+    if (m.puls) subParts.push(m.puls + ' bpm');
+    var sub = subParts.join(' · ');
+
+    return '<div class="meas-item">'
+      + '<div class="meas-item-hdr" onclick="toggleMeasItem(this)">'
+      + '<div><div class="meas-item-date">' + m.date + '</div>' + (sub ? '<div class="meas-item-sub">' + sub + '</div>' : '') + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<button class="meas-del-btn" onclick="event.stopPropagation();measDelete(' + i + ')">🗑</button>'
+      + '<span style="color:var(--text3);font-size:14px">▼</span>'
+      + '</div></div>'
+      + '<div class="meas-item-body">'
+      + (bodyChips ? '<div class="meas-chips">' + bodyChips + '</div>' : '')
+      + (healthChips ? '<div class="meas-chips">' + healthChips + '</div>' : '')
+      + '</div></div>';
+  }).join('');
+}
+
+function toggleMeasItem(hdr) {
+  var body = hdr.nextElementSibling;
+  body.classList.toggle('open');
+  var arrow = hdr.querySelector('span[style]');
+  if (arrow) arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
 }
 
 // ═══════════════════════════════════════════════
@@ -1290,7 +1516,7 @@ function downloadFile(content, filename, type) {
 }
 
 function createBackup() {
-  var data = { _version: APP_VERSION, _date: new Date().toLocaleDateString('pl-PL'), logs: logs };
+  var data = { _version: APP_VERSION, _date: new Date().toLocaleDateString('pl-PL'), logs: logs, measurements: measurements };
   var d = new Date().toISOString().split('T')[0];
   downloadFile(JSON.stringify(data, null, 2), 'backup_v' + APP_VERSION + '_' + d + '.json', 'application/json');
   toast('🔒 Backup pobrany');
@@ -1317,7 +1543,8 @@ function resetApp() {
   localStorage.removeItem('trening_logs');
   localStorage.removeItem('trening_week');
   localStorage.removeItem('trening_settings');
-  plan = null; logs = {}; currentWeek = 1;
+  localStorage.removeItem('trening_measurements');
+  plan = null; logs = {}; currentWeek = 1; measurements = [];
   settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false };
   applySettings();
   renderHome();
@@ -1351,9 +1578,74 @@ function exportCSV() {
 }
 
 function exportHTMLReport() {
-  if (!Object.keys(logs).length) { toast('⚠️ Brak danych'); return; }
+  if (!Object.keys(logs).length && !measurements.length) { toast('⚠️ Brak danych'); return; }
+
+  // ── SEKCJA 1: STATYSTYKI TRENINGOWE ──────────────────────────────
+  // Zbierz statystyki per ćwiczenie: max ciężar, łączna objętość, liczba sesji
+  var exStats = {}; // exKey (dayId|exId) → { name, sessions, maxW, totalVol }
+  Object.keys(logs).forEach(function(key) {
+    var pk = parseLogKey(key); var dayId = pk[1];
+    var dl = logs[key];
+    Object.keys(dl).filter(function(k) { return k !== '_date' && k !== '_note' && k.indexOf('note_') !== 0; }).forEach(function(exId) {
+      var exKey = dayId + '|' + exId;
+      if (!exStats[exKey]) {
+        var dayExs = [];
+        if (plan && plan.days) { var fd = plan.days.find(function(d) { return d.id === dayId; }); if (fd) dayExs = fd.exercises || []; }
+        var exObj = dayExs.find(function(e) { return e.id === exId; });
+        var dayObj = plan && plan.days ? plan.days.find(function(d) { return d.id === dayId; }) : null;
+        exStats[exKey] = { name: exObj ? exObj.name : exId, dayName: dayObj ? dayObj.name : dayId, sessions: 0, maxW: 0, totalVol: 0, scheme: exObj ? exObj.scheme : '' };
+      }
+      exStats[exKey].sessions++;
+      var sets = dl[exId];
+      var exObj2 = null;
+      if (plan && plan.days) { var fd2 = plan.days.find(function(d) { return d.id === dayId; }); if (fd2) exObj2 = fd2.exercises.find(function(e) { return e.id === exId; }); }
+      var sType = exObj2 ? exObj2.schemeType : 'standard';
+      var boIdx = (sType === 'backoff') ? sets.length - 1 : -1;
+      sets.forEach(function(s, si) {
+        if (si === boIdx) return;
+        var w = parseFloat(sType === 'exdrop' ? s.w : s.w) || 0;
+        var r = parseInt(s.r) || 0;
+        if (w > exStats[exKey].maxW) exStats[exKey].maxW = w;
+        exStats[exKey].totalVol += w * r;
+      });
+    });
+  });
+
+  // Grupuj statystyki po dniu
+  var statsByDay = {};
+  Object.keys(exStats).forEach(function(k) {
+    var dayId = k.split('|')[0];
+    if (!statsByDay[dayId]) statsByDay[dayId] = { dayName: exStats[k].dayName, exs: [] };
+    statsByDay[dayId].exs.push(exStats[k]);
+  });
+
+  var statsSection = '';
+  if (Object.keys(statsByDay).length) {
+    var statsRows = '';
+    Object.keys(statsByDay).forEach(function(dayId) {
+      var grp = statsByDay[dayId];
+      statsRows += '<tr style="background:#f0f0f0"><td colspan="4" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
+      grp.exs.forEach(function(ex) {
+        statsRows += '<tr>'
+          + '<td>' + htmlEsc(ex.name) + (ex.scheme ? '<br><small style="color:#888">' + htmlEsc(ex.scheme) + '</small>' : '') + '</td>'
+          + '<td style="text-align:center">' + ex.sessions + '</td>'
+          + '<td style="text-align:center;font-weight:700;color:#e63946">' + (ex.maxW > 0 ? ex.maxW.toFixed(1) + ' kg' : '—') + '</td>'
+          + '<td style="text-align:center">' + (ex.totalVol > 0 ? Math.round(ex.totalVol) + ' kg·r' : '—') + '</td>'
+          + '</tr>';
+      });
+    });
+    statsSection = '<div class="section"><h2>📊 Statystyki treningowe</h2>'
+      + '<table><thead><tr style="background:#e63946;color:#fff">'
+      + '<th style="text-align:left;padding:8px 10px">Ćwiczenie</th>'
+      + '<th style="text-align:center;padding:8px 10px">Sesje</th>'
+      + '<th style="text-align:center;padding:8px 10px">Max ciężar</th>'
+      + '<th style="text-align:center;padding:8px 10px">Łączna objętość</th>'
+      + '</tr></thead><tbody>' + statsRows + '</tbody></table></div>';
+  }
+
+  // ── SEKCJA 2: DZIENNIK TRENINGÓW ─────────────────────────────────
   var keys = Object.keys(logs).sort(function(a,b){ return parseLogKey(b)[0]-parseLogKey(a)[0]; });
-  var sections = '';
+  var trainingSections = '';
   keys.forEach(function(key) {
     var pk = parseLogKey(key); var week = pk[0]; var dayId = pk[1];
     var dayName = dayId; var dayExs = [];
@@ -1369,33 +1661,72 @@ function exportHTMLReport() {
       var scheme = exObj ? exObj.scheme : '';
       var tut = exObj ? exObj.tut : '';
       var note = dl['note_'+exId]||'';
+      var sType = exObj ? exObj.schemeType : 'standard';
+      var boIdx = (sType === 'backoff') ? dl[exId].length - 1 : -1;
       var setsHtml = dl[exId].map(function(s,i){
-        return '<td>S'+(i+1)+': '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
+        var lbl = (sType === 'backoff' && i === boIdx) ? 'BO' : 'S'+(i+1);
+        var style = (sType === 'backoff' && i === boIdx) ? ' style="color:#e9c46a"' : '';
+        return '<td' + style + '><strong>' + lbl + '</strong>: '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
       }).join('');
       exRows += '<tr><td><strong>' + htmlEsc(exName) + '</strong>'
         + (scheme ? '<br><small style="color:#888">' + htmlEsc(scheme) + (tut?' · TUT: '+tut:'') + '</small>' : '')
         + (note ? '<br><small style="color:#aaa;font-style:italic">📝 ' + htmlEsc(note) + '</small>' : '')
         + '</td>' + setsHtml + '</tr>';
     });
-    sections += '<div class="section"><h2>Tydzień ' + week + ' — ' + htmlEsc(dayName) + ' <span class="date">' + date + '</span></h2>'
-      + '<table><tbody>' + exRows + '</tbody></table></div>';
+    if (exRows) {
+      trainingSections += '<div class="section"><h2>Tydzień ' + week + ' — ' + htmlEsc(dayName) + ' <span class="date">' + date + '</span></h2>'
+        + '<table><tbody>' + exRows + '</tbody></table></div>';
+    }
   });
 
+  // ── SEKCJA 3: POMIARY ─────────────────────────────────────────────
+  var measSection = '';
+  if (measurements.length) {
+    var measRows = measurements.map(function(m) {
+      var cells = '';
+      if (m.biceps)     cells += '<td><small>Biceps</small><br><strong>' + m.biceps + ' cm</strong></td>';
+      if (m.klatka)     cells += '<td><small>Klatka</small><br><strong>' + m.klatka + ' cm</strong></td>';
+      if (m.talia)      cells += '<td><small>Talia</small><br><strong>' + m.talia + ' cm</strong></td>';
+      if (m.podpepkiem) cells += '<td><small>Pod pępk.</small><br><strong>' + m.podpepkiem + ' cm</strong></td>';
+      if (m.udo)        cells += '<td><small>Udo</small><br><strong>' + m.udo + ' cm</strong></td>';
+      if (m.waga)       cells += '<td><small>Waga</small><br><strong>' + m.waga + ' kg</strong></td>';
+      if (m.cukier)     cells += '<td><small>Cukier</small><br><strong>' + m.cukier + ' mg/dL</strong></td>';
+      if (m.cisnienie)  cells += '<td><small>Ciśnienie</small><br><strong>' + m.cisnienie + '</strong></td>';
+      if (m.puls)       cells += '<td><small>Puls</small><br><strong>' + m.puls + ' bpm</strong></td>';
+      return '<tr><td style="font-weight:700;white-space:nowrap">' + htmlEsc(m.date) + '</td>' + cells + '</tr>';
+    }).join('');
+    measSection = '<div class="section"><h2>📏 Pomiary tygodniowe</h2>'
+      + '<table style="font-size:12px"><thead><tr style="background:#457b9d;color:#fff">'
+      + '<th style="text-align:left;padding:8px 10px">Data</th>'
+      + '<th style="padding:8px 6px">Biceps</th><th style="padding:8px 6px">Klatka</th>'
+      + '<th style="padding:8px 6px">Talia</th><th style="padding:8px 6px">Pod pępk.</th>'
+      + '<th style="padding:8px 6px">Udo</th><th style="padding:8px 6px">Waga</th>'
+      + '<th style="padding:8px 6px">Cukier</th><th style="padding:8px 6px">Ciśnienie</th><th style="padding:8px 6px">Puls</th>'
+      + '</tr></thead><tbody>' + measRows + '</tbody></table></div>';
+  }
+
+  // ── SKLEJENIE HTML ────────────────────────────────────────────────
   var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>Raport treningowy</title>'
-    + '<style>body{font-family:Arial,sans-serif;padding:24px;color:#1a1a1a;max-width:900px;margin:0 auto}'
-    + 'h1{color:#e63946;font-size:24px;margin-bottom:4px}p.sub{color:#888;font-size:13px;margin-bottom:24px}'
-    + '.section{margin-bottom:28px;page-break-inside:avoid}'
-    + 'h2{font-size:15px;color:#333;margin-bottom:8px;border-bottom:2px solid #e63946;padding-bottom:4px}'
+    + '<style>'
+    + 'body{font-family:Arial,sans-serif;padding:24px;color:#1a1a1a;max-width:1000px;margin:0 auto}'
+    + 'h1{color:#e63946;font-size:24px;margin-bottom:4px}'
+    + 'p.sub{color:#888;font-size:13px;margin-bottom:28px}'
+    + '.section{margin-bottom:32px;page-break-inside:avoid}'
+    + 'h2{font-size:15px;color:#333;margin-bottom:10px;border-bottom:2px solid #e63946;padding-bottom:5px}'
     + '.date{font-size:12px;color:#aaa;font-weight:400}'
     + 'table{border-collapse:collapse;width:100%;font-size:13px}'
+    + 'th{padding:8px 10px;text-align:left}'
     + 'td{padding:7px 10px;border:1px solid #eee;vertical-align:top}'
     + 'tr:nth-child(even) td{background:#f9f9f9}'
-    + 'td:first-child{min-width:180px;font-weight:500}'
-    + 'p.tip{margin-top:18px;font-size:11px;color:#bbb}@media print{p.tip{display:none}}'
+    + 'td:first-child{min-width:160px}'
+    + 'p.tip{margin-top:18px;font-size:11px;color:#bbb}'
+    + '@media print{p.tip{display:none}}'
     + '</style></head><body>'
-    + '<h1>Dziennik treningowy</h1>'
+    + '<h1>🏋️ Dziennik treningowy</h1>'
     + '<p class="sub">Wygenerowano: ' + new Date().toLocaleDateString('pl-PL') + ' · Wersja apki: ' + APP_VERSION + '</p>'
-    + sections
+    + statsSection
+    + measSection
+    + trainingSections
     + '<p class="tip">Aby zapisać jako PDF: Ctrl+P → Zapisz jako PDF</p>'
     + '</body></html>';
 
@@ -1424,7 +1755,14 @@ function handleLogsFile(e) {
     try {
       var p = JSON.parse(ev.target.result);
       // Obsługa formatu backup (z polem logs) i zwykłego JSON
-      if (p.logs && typeof p.logs === 'object') p = p.logs;
+      if (p.logs && typeof p.logs === 'object') {
+        // Import pomiarów z backupu jeśli są
+        if (p.measurements && Array.isArray(p.measurements)) {
+          measurements = p.measurements;
+          saveMeasurements();
+        }
+        p = p.logs;
+      }
       if (typeof p !== 'object' || Array.isArray(p)) { toast('❌ Zły format'); return; }
       Object.assign(logs, p); saveLogs(); toast('✅ Dane zaimportowane!');
     } catch(err) { toast('❌ Błąd odczytu JSON'); }
