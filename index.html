@@ -173,8 +173,8 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .btn-secondary{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:15px;padding:13px;border-radius:var(--radius);cursor:pointer;}
 
 /* TOAST */
-#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(60px);background:#2e2e2e;border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:20px;font-size:13px;transition:transform .3s ease;z-index:999;white-space:nowrap;pointer-events:none;}
-#toast.show{transform:translateX(-50%) translateY(0)}
+#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(100px);background:#2e2e2e;border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:20px;font-size:13px;transition:transform .3s ease,opacity .3s ease;z-index:999;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;}
 
 /* EMPTY */
 .empty{text-align:center;padding:40px 20px;color:var(--text2)}.empty-ico{font-size:46px;margin-bottom:14px}.empty h2{font-size:17px;margin-bottom:8px;color:var(--text)}.empty p{font-size:13px;color:var(--text3);line-height:1.6}
@@ -464,12 +464,12 @@ function showView(name) {
     bn.classList.remove('hidden');
   }
 
-  if (name === 'workout') {
-    history.pushState({ view: 'workout' }, '');
-    handleWakeLock();
-  } else {
-    handleWakeLock();
+  // Każde przejście poza home dodaje wpis do historii przeglądarki
+  // dzięki temu Wstecz Android zawsze trafia do popstate zamiast wyjść z apki
+  if (name !== 'home') {
+    history.pushState({ view: name }, '');
   }
+  handleWakeLock();
 
   var dn = 'Trening';
   if (plan && plan.days && currentDayId) {
@@ -517,7 +517,6 @@ window.addEventListener('popstate', function() {
     toast('✅ Zapisano!');
   } else if (currentView === 'settings' || currentView === 'editor' || currentView === 'history' || currentView === 'progress') {
     showView('home');
-    history.pushState(null, '');
   }
   // Na home — pozwól wyjść z apki normalnie
   setTimeout(function() { _saveGuard = false; }, 300);
