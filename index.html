@@ -52,7 +52,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .day-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:9px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;}.day-card:active{background:var(--bg3)}
 .day-card-name{font-size:15px;font-weight:600;margin-bottom:3px}.day-card-sub{font-size:12px;color:var(--text2)}
 .day-card-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600}.badge-done{background:var(--green-bg);color:var(--green)}.badge-empty{background:var(--bg3);color:var(--text3)}
+.badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600}.badge-done{background:var(--green-bg);color:var(--green)}.badge-empty{background:var(--bg3);color:var(--text3)}.badge-prog{background:#1a2a3a;color:#7ab8d4;}
 .dc-arrow{color:var(--text3);font-size:15px}
 .dc-0{border-left:3px solid var(--accent)}.dc-1{border-left:3px solid var(--blue)}.dc-2{border-left:3px solid var(--yellow)}.dc-3{border-left:3px solid #a8dadc}.dc-4{border-left:3px solid #95d5b2}
 
@@ -205,7 +205,10 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
   <!-- WORKOUT -->
   <div id="view-workout" class="view">
     <div id="ex-list"></div>
-    <button class="btn-save" onclick="saveWorkout(false)">💾 Zapisz trening</button>
+    <div style="display:flex;gap:10px;margin-bottom:24px;margin-top:6px">
+      <button class="btn-save" style="margin:0" onclick="saveWorkout(false)">💾 Zapisz trening</button>
+      <button class="btn-save" style="margin:0;background:var(--bg3);color:var(--text2);border:1px solid var(--border);flex:0 0 auto;padding:15px 18px" onclick="clearWorkout()">🗑</button>
+    </div>
   </div>
 
   <!-- HISTORIA -->
@@ -559,6 +562,29 @@ function getPrevSets(d, e)   { return getLog(currentWeek - 1, d)[e] || null; }
 function getCurrentSets(d,e) { return getLog(currentWeek, d)[e] || null; }
 function isDayDone(w, d)     { return Object.keys(getLog(w,d)).filter(function(k){return k!=='_date'&&k!=='_note';}).length > 0; }
 
+// Procent ukończenia dnia — ile serii ma wpisane dane / ile łącznie
+function dayProgress(week, dayId) {
+  if (!plan) return { done: 0, total: 0, pct: 0 };
+  var day = plan.days.find(function(d) { return d.id === dayId; });
+  if (!day) return { done: 0, total: 0, pct: 0 };
+  var dl = getLog(week, dayId);
+  var total = 0; var done = 0;
+  day.exercises.forEach(function(ex) {
+    var sets = dl[ex.id] || [];
+    if (ex.schemeType === 'exdrop') {
+      // exdrop: liczymy per drop (seria robocza)
+      total += ex.setsCount;
+      sets.forEach(function(s) { if (s.w || s.r) done++; });
+    } else {
+      total += ex.setsCount;
+      for (var i = 0; i < ex.setsCount; i++) {
+        if (sets[i] && (sets[i].w || sets[i].r)) done++;
+      }
+    }
+  });
+  return { done: done, total: total, pct: total > 0 ? Math.round(done / total * 100) : 0 };
+}
+
 // Sprawdź PR dla ćwiczenia — czy dany ciężar to rekord
 function isPR(dayId, exId, weight) {
   if (!settings.pr) return false;
@@ -601,6 +627,24 @@ function getSuggestion(dayId, exId, scheme, schemeType) {
 // ═══════════════════════════════════════════════
 // ZAPIS TRENINGU
 // ═══════════════════════════════════════════════
+function clearWorkout() {
+  if (!currentDayId) return;
+  var day = plan && plan.days.find(function(d) { return d.id === currentDayId; });
+  if (!day) return;
+  if (!confirm('Wyczyścić wszystkie wpisane wartości dla "' + day.name + '" w tygodniu ' + currentWeek + '?')) return;
+  var key = logKey(currentWeek, currentDayId);
+  // Usuń tylko dane ćwiczeń, zostaw _date i notatki
+  if (logs[key]) {
+    day.exercises.forEach(function(ex) { delete logs[key][ex.id]; });
+    // Jeśli nic nie zostało — usuń cały klucz
+    var remaining = Object.keys(logs[key]).filter(function(k) { return k !== '_date'; });
+    if (!remaining.length) delete logs[key];
+  }
+  saveLogs();
+  renderWorkout();
+  toast('🗑 Wyczyszczono');
+}
+
 function saveWorkout(silent) {
   if (!plan || !currentDayId) return;
   var day = plan.days.find(function(d) { return d.id === currentDayId; });
@@ -612,10 +656,18 @@ function saveWorkout(silent) {
 
   day.exercises.forEach(function(ex) {
     var sets = [];
-    for (var i = 0; i < ex.setsCount; i++) {
-      var wEl = document.getElementById('w_' + ex.id + '_' + i);
-      var rEl = document.getElementById('r_' + ex.id + '_' + i);
-      sets.push({ w: wEl ? wEl.value.trim() : '', r: rEl ? rEl.value.trim() : '' });
+    if (ex.schemeType === 'exdrop') {
+      // Zapis exdrop — per drop z wszystkimi polami
+      for (var i = 0; i < ex.setsCount; i++) {
+        var g = function(sfx) { var el = document.getElementById('w_' + ex.id + '_' + i + '_' + sfx); return el ? el.value.trim() : ''; };
+        sets.push({ w:g('w'), r:g('r'), wd0:g('wd0'), rd0:g('rd0'), wd1:g('wd1'), rd1:g('rd1'), wd2:g('wd2'), rd2:g('rd2'), wd3:g('wd3'), rd3:g('rd3'), wd4:g('wd4'), rd4:g('rd4') });
+      }
+    } else {
+      for (var i = 0; i < ex.setsCount; i++) {
+        var wEl = document.getElementById('w_' + ex.id + '_' + i);
+        var rEl = document.getElementById('r_' + ex.id + '_' + i);
+        sets.push({ w: wEl ? wEl.value.trim() : '', r: rEl ? rEl.value.trim() : '' });
+      }
     }
     if (sets.some(function(s) { return s.w || s.r; })) logs[key][ex.id] = sets;
     // Notatka per ćwiczenie
@@ -676,12 +728,20 @@ function renderHome() {
     return;
   }
   c.innerHTML = plan.days.map(function(day, i) {
-    var done = isDayDone(currentWeek, day.id);
+    var prog = dayProgress(currentWeek, day.id);
+    var badgeCls, badgeTxt;
+    if (prog.total === 0 || prog.done === 0) {
+      badgeCls = 'badge-empty'; badgeTxt = 'Do zrobienia';
+    } else if (prog.pct >= 100) {
+      badgeCls = 'badge-done'; badgeTxt = '✓ 100%';
+    } else {
+      badgeCls = 'badge-prog'; badgeTxt = prog.pct + '% (' + prog.done + '/' + prog.total + ')';
+    }
     return '<div class="day-card dc-' + i + '" onclick="openDay(\'' + day.id + '\')">'
       + '<div><div class="day-card-name">' + day.name + '</div>'
       + '<div class="day-card-sub">' + day.exercises.length + ' ćwiczeń</div></div>'
       + '<div class="day-card-right">'
-      + '<span class="badge ' + (done ? 'badge-done' : 'badge-empty') + '">' + (done ? '✓ Zrobione' : 'Do zrobienia') + '</span>'
+      + '<span class="badge ' + badgeCls + '">' + badgeTxt + '</span>'
       + '<span class="dc-arrow">›</span></div></div>';
   }).join('');
 }
@@ -722,17 +782,82 @@ function renderWorkout() {
 
     // Inputy serii
     var timerBtn = settings.timer ? '<button class="btn-timer" onclick="timerStart(this)">⏱</button>' : '<span></span>';
-    var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki</div>'
-      + '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
-    for (var i = 0; i < ex.setsCount; i++) {
-      var cw = curr && curr[i] ? curr[i].w : '';
-      var cr = curr && curr[i] ? curr[i].r : '';
-      inp += '<div class="set-row">'
-        + '<span class="set-lbl">S' + (i+1) + '</span>'
-        + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30">'
-        + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8">'
-        + timerBtn
-        + '</div>';
+    var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki</div>';
+
+    if (ex.schemeType === 'exdrop') {
+      // EXTENDED DROP SET
+      inp += '<div class="set-hdr" style="grid-template-columns:auto 1fr 1fr 36px"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
+      for (var i = 0; i < ex.setsCount; i++) {
+        var cd = curr && curr[i] ? curr[i] : {};
+        var prevD = prev && prev[i] ? prev[i] : {};
+        inp += '<div style="background:var(--bg2);border-radius:8px;padding:8px;margin-bottom:8px">';
+        inp += '<div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Drop ' + (i+1) + '</div>';
+        // Seria robocza
+        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+          + '<span class="set-lbl" style="font-size:10px">Rob.</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_w" value="' + (cd.w||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_r" value="' + (cd.r||'') + '" placeholder="powt.">'
+          + timerBtn + '</div>';
+        // Dogrywka 1
+        inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">── 15-20s ──</div>';
+        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+          + '<span class="set-lbl" style="font-size:10px">Dog.1</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd0" value="' + (cd.wd0||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd0" value="' + (cd.rd0||'') + '" placeholder="powt.">'
+          + '<span></span></div>';
+        // Drop 1 (-25%)
+        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+          + '<span class="set-lbl" style="font-size:10px;color:var(--yellow)">-25%</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd1" value="' + (cd.wd1||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd1" value="' + (cd.rd1||'') + '" placeholder="powt.">'
+          + timerBtn + '</div>';
+        // Dogrywka 2
+        inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">── 15-20s ──</div>';
+        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+          + '<span class="set-lbl" style="font-size:10px">Dog.2</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd2" value="' + (cd.wd2||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd2" value="' + (cd.rd2||'') + '" placeholder="powt.">'
+          + '<span></span></div>';
+        // Drop 2 (-25% od drop1)
+        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+          + '<span class="set-lbl" style="font-size:10px;color:var(--yellow)">-25%</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd3" value="' + (cd.wd3||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd3" value="' + (cd.rd3||'') + '" placeholder="powt.">'
+          + timerBtn + '</div>';
+        // Dogrywka 3
+        inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">── 15-20s ──</div>';
+        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+          + '<span class="set-lbl" style="font-size:10px">Dog.3</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd4" value="' + (cd.wd4||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd4" value="' + (cd.rd4||'') + '" placeholder="powt.">'
+          + '<span></span></div>';
+        inp += '</div>';
+      }
+    } else {
+      // STANDARD / BACKOFF
+      var backoffPct = ex.backoffPct || 25;
+      inp += '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
+      for (var i = 0; i < ex.setsCount; i++) {
+        var isBO = (ex.schemeType === 'backoff' && i === ex.setsCount - 1);
+        var cw = curr && curr[i] ? curr[i].w : '';
+        var cr = curr && curr[i] ? curr[i].r : '';
+        // Auto-propozycja back-off
+        if (isBO && !cw && curr) {
+          var lastW = 0;
+          for (var j = 0; j < ex.setsCount - 1; j++) {
+            if (curr[j] && parseFloat(curr[j].w) > lastW) lastW = parseFloat(curr[j].w);
+          }
+          if (lastW > 0) cw = (Math.round(lastW * (1 - backoffPct/100) * 2) / 2).toFixed(1);
+        }
+        var lbl = isBO ? 'BO' : 'S' + (i+1);
+        var lblStyle = isBO ? 'color:var(--yellow)' : '';
+        inp += '<div class="set-row">'
+          + '<span class="set-lbl" style="' + lblStyle + '">' + lbl + '</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8">'
+          + timerBtn
+          + '</div>';
+      }
     }
 
     var yt = ex.youtube ? '<a class="btn-yt" href="' + ex.youtube + '" target="_blank">▶ YT</a>' : '';
@@ -909,9 +1034,24 @@ function renderProgress() {
     var date = dl._date ? parseDatePL(dl._date) : 0;
 
     var maxW = 0; var totalVol = 0; var totalReps = 0;
-    sets.forEach(function(s) {
-      var w = parseFloat(s.w) || 0;
-      var r = parseInt(s.r) || 0;
+    var exObj2 = null;
+    if (plan && plan.days) {
+      var dd = plan.days.find(function(d) { return d.id === dayId; });
+      if (dd) exObj2 = dd.exercises.find(function(e) { return e.id === exId; });
+    }
+    var sType = exObj2 ? exObj2.schemeType : 'standard';
+    var boIdx = (sType === 'backoff') ? sets.length - 1 : -1;
+    sets.forEach(function(s, si) {
+      if (si === boIdx) return; // ignoruj serię BO
+      var w, r;
+      if (sType === 'exdrop') {
+        // Liczymy tylko serię roboczą (pierwsze pole)
+        w = parseFloat(s.w) || 0;
+        r = parseInt(s.r) || 0;
+      } else {
+        w = parseFloat(s.w) || 0;
+        r = parseInt(s.r) || 0;
+      }
       if (w > maxW) maxW = w;
       totalVol += w * r;
       totalReps += r;
