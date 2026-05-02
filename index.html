@@ -405,7 +405,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.5 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.6 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -469,7 +469,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.5';
+var APP_VERSION = '3.6';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1157,13 +1157,13 @@ function updateBOLive(exId, setsCount, backoffPct) {
 // group circ   → sekcja "Obwód"
 var DEFAULT_MEAS_FIELDS = [
   { id:'waga',       label:'Waga',      group:'body',   active:true,  goodDown:true  },
-  { id:'cukier',     label:'Cukier',    group:'health', active:true,  goodDown:true  },
-  { id:'cisnienie',  label:'Ciśnienie', group:'health', active:true,  goodDown:false },
-  { id:'puls',       label:'Puls',      group:'health', active:true,  goodDown:true  },
+  { id:'cukier',     label:'Cukier',    group:'health', active:true,  goodDown:null  },
+  { id:'cisnienie',  label:'Ciśnienie', group:'health', active:true,  goodDown:null  },
+  { id:'puls',       label:'Puls',      group:'health', active:true,  goodDown:null  },
   { id:'biceps',     label:'Biceps',    group:'circ',   active:true,  goodDown:false },
   { id:'klatka',     label:'Klatka',    group:'circ',   active:true,  goodDown:false },
   { id:'talia',      label:'Talia',     group:'circ',   active:true,  goodDown:true  },
-  { id:'podpepkiem', label:'Pas',       group:'circ',   active:true,  goodDown:true  },
+  { id:'podpepkiem', label:'Pas',       group:'circ',   active:true,  goodDown:null  },
   { id:'udo',        label:'Udo',       group:'circ',   active:true,  goodDown:true  }
 ];
 
@@ -1321,11 +1321,14 @@ function renderManageFieldsModal() {
     html += '<div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">' + groupLabels[grp] + '</div>';
     grpFields.forEach(function(x) {
       var f = x.f; var i = x.i;
+      // Ustal wartość selecta: null='—', false='↑', true='↓'
+      var dirVal = f.goodDown === null || f.goodDown === undefined ? 'none' : (f.goodDown ? '1' : '0');
       html += '<div class="meas-field-row">'
         + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
         + '<select class="modal-select" style="width:80px;padding:6px 6px;font-size:11px" id="mff-dir-' + i + '">'
-        + '<option value="0"' + (!f.goodDown?' selected':'') + '>↑ więcej</option>'
-        + '<option value="1"' + (f.goodDown?' selected':'') + '>↓ mniej</option>'
+        + '<option value="none"' + (dirVal==='none'?' selected':'') + '>— brak</option>'
+        + '<option value="0"'   + (dirVal==='0'?' selected':'')    + '>↑ więcej</option>'
+        + '<option value="1"'   + (dirVal==='1'?' selected':'')    + '>↓ mniej</option>'
         + '</select>'
         + '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);flex-shrink:0">'
         + '<input type="checkbox" id="mff-act-' + i + '"' + (f.active?' checked':'') + '> Aktywne</label>'
@@ -1376,7 +1379,8 @@ function renderMeasurements() {
     function chipDiff(label, val, prevVal, goodDown) {
       if (!val) return '';
       var diffHtml = '';
-      if (prevVal) {
+      // goodDown === null oznacza brak trendu — nie pokazuj diff
+      if (goodDown !== null && goodDown !== undefined && prevVal) {
         var d = parseFloat(val) - parseFloat(prevVal);
         if (!isNaN(d) && d !== 0) {
           var cls = goodDown ? (d < 0 ? 'diff-neg' : 'diff-pos') : (d > 0 ? 'diff-neg' : 'diff-pos');
@@ -1413,9 +1417,9 @@ function renderMeasurements() {
     // Obsługa starych pomiarów (bez _fields) — stare klucze
     if (!m._fields) {
       if (m.waga && !bodyChips)   bodyChips   += chipDiff('Waga', m.waga, prev&&prev.waga, true);
-      if (m.cukier)               healthChips += chipDiff('Cukier', m.cukier, prev&&prev.cukier, true);
-      if (m.cisnienie)            healthChips += '<div class="meas-chip"><span class="meas-chip-lbl">Ciśnienie</span><span class="meas-chip-val">' + m.cisnienie + '</span></div>';
-      if (m.puls)                 healthChips += chipDiff('Puls', m.puls, prev&&prev.puls, true);
+      if (m.cukier)               healthChips += chipDiff('Cukier', m.cukier, prev&&prev.cukier, null);
+      if (m.cisnienie)            healthChips += chipDiff('Ciśnienie', m.cisnienie, prev&&prev.cisnienie, null);
+      if (m.puls)                 healthChips += chipDiff('Puls', m.puls, prev&&prev.puls, null);
       var oldCirc = m._circFields || DEFAULT_MEAS_FIELDS.filter(function(f){return f.group==='circ';});
       oldCirc.forEach(function(f) {
         if (m[f.id]) circChips += chipDiff(f.label, m[f.id], prev&&prev[f.id], f.goodDown);
@@ -1939,7 +1943,7 @@ function modalSave() {
           label:    nameEl.value.trim() || f.label,
           group:    f.group,
           active:   actEl ? actEl.checked : f.active,
-          goodDown: dirEl ? dirEl.value === '1' : f.goodDown
+          goodDown: dirEl ? (dirEl.value === 'none' ? null : dirEl.value === '1') : f.goodDown
         });
       }
     });
