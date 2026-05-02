@@ -330,17 +330,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <div class="sbtn-txt"><div class="sbtn-name">Eksportuj pomiary CSV</div><div class="sbtn-desc">Pomiary tygodniowe do Excel / Sheets</div></div>
       </button>
     </div>
-    <div class="sct">
-      <div class="sct-title">Dane użytkownika</div>
-      <div class="sbtn" style="cursor:default">
-        <span class="sbtn-ico">📏</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Wzrost</div><div class="sbtn-desc">Potrzebny do obliczenia BMI</div></div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <input class="sinput-sm" type="number" id="user-height" value="" min="100" max="250" placeholder="cm" onchange="saveUserHeight(this.value)" style="width:70px">
-          <span style="font-size:12px;color:var(--text3)">cm</span>
-        </div>
-      </div>
-    </div>
+
     <div class="sct">
       <div class="sct-title">Timer odpoczynku</div>
       <div class="stoggle">
@@ -372,8 +362,22 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       <div class="sct-title">Pomiary</div>
       <button class="sbtn" onclick="measManageFields()">
         <span class="sbtn-ico">📏</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Edytuj pola obwodów</div><div class="sbtn-desc">Dodaj, usuń, zmień nazwy pól pomiarowych</div></div>
+        <div class="sbtn-txt"><div class="sbtn-name">Edytuj pola pomiarowe</div><div class="sbtn-desc">Dodaj, usuń, włącz/wyłącz, zmień nazwy</div></div>
       </button>
+      <div class="stoggle">
+        <div class="stoggle-txt"><div class="stoggle-name">Obliczaj BMI</div><div class="stoggle-desc">Wymaga podania wzrostu poniżej</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-bmi" onchange="toggleBMI(this.checked)"><span class="sl"></span></label>
+      </div>
+      <div id="bmi-height-row" style="display:none">
+        <div class="sbtn" style="cursor:default;border-top:none">
+          <span class="sbtn-ico">📏</span>
+          <div class="sbtn-txt"><div class="sbtn-name">Wzrost</div><div class="sbtn-desc">Potrzebny do BMI</div></div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <input class="sinput-sm" type="number" id="user-height" value="" min="100" max="250" placeholder="cm" onchange="saveUserHeight(this.value)" style="width:70px">
+            <span style="font-size:12px;color:var(--text3)">cm</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="sct">
       <div class="sct-title">Pomiary — wykres obwodów</div>
@@ -401,49 +405,22 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.4 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.5 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
   <!-- POMIARY -->
   <div id="view-measurements" class="view">
-    <!-- Formularz nowego pomiaru -->
     <div class="meas-form">
       <div class="meas-form-title">➕ Nowy pomiar</div>
-
-      <!-- Data -->
       <div class="meas-date-row">
         <input class="meas-date-input" type="text" id="meas-date" placeholder="DD.MM.RRRR" maxlength="10">
         <button class="btn-primary" style="flex:0 0 auto;padding:9px 16px;font-size:13px" onclick="measToday()">Dziś</button>
       </div>
-
-      <!-- Masa ciała -->
-      <div class="meas-section-lbl notop" style="margin-top:0">Masa ciała</div>
-      <div class="meas-grid">
-        <div class="meas-field"><div class="meas-label">Masa ciała (kg)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-waga" placeholder="np. 81.3" oninput="calcBMILive()"></div>
-        <div class="meas-field"><div class="meas-label">BMI (auto)</div><input class="meas-input" id="mf-bmi" readonly placeholder="—" style="color:var(--text2);cursor:default"></div>
-      </div>
-
-      <!-- Parametry zdrowotne -->
-      <div class="meas-section-hdr">
-        <span class="meas-section-lbl">Parametry zdrowotne</span>
-      </div>
-      <div class="meas-grid">
-        <div class="meas-field"><div class="meas-label">Glikemia na czczo (mg/dL)</div><input class="meas-input" type="text" inputmode="decimal" id="mf-cukier" placeholder="np. 82"></div>
-        <div class="meas-field"><div class="meas-label">Tętno spoczynkowe (bpm)</div><input class="meas-input" type="text" inputmode="numeric" id="mf-puls" placeholder="np. 73"></div>
-        <div class="meas-field full"><div class="meas-label">Ciśnienie tętnicze (mmHg)</div><input class="meas-input" type="text" inputmode="text" id="mf-cisnienie" placeholder="np. 115/71"></div>
-      </div>
-
-      <!-- Obwód ciała -->
-      <div class="meas-section-hdr">
-        <span class="meas-section-lbl">Obwód ciała (cm)</span>
-        <button class="btn-meas-manage" onclick="measManageFields()">+ Zarządzaj polami</button>
-      </div>
-      <div class="meas-grid" id="meas-custom-fields"><!-- generowane przez renderMeasForm() --></div>
-
+      <!-- Pola generowane dynamicznie przez renderMeasForm() -->
+      <div id="meas-form-body"></div>
       <button class="btn-save" style="margin-top:12px;margin-bottom:0" onclick="measSave()">💾 Zapisz pomiar</button>
     </div>
-    <!-- Lista pomiarów -->
     <div id="meas-list"></div>
   </div>
 
@@ -492,14 +469,14 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.4';
+var APP_VERSION = '3.5';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
 var prevView = 'home';
 var plan = null;
 var logs = {};
-var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single' };
+var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false };
 var _saveGuard = false;
 var _wakeLock = null;
 var _timerInterval = null;
@@ -549,7 +526,11 @@ function applySettings() {
   document.getElementById('tog-light').checked   = settings.light;
   document.getElementById('timer-secs').value    = settings.timerSecs;
   if (settings.light) document.body.classList.add('light');
-  // Wzrost użytkownika
+  // BMI toggle + wzrost
+  var togBmi = document.getElementById('tog-bmi');
+  if (togBmi) togBmi.checked = !!settings.bmiEnabled;
+  var bmiRow = document.getElementById('bmi-height-row');
+  if (bmiRow) bmiRow.style.display = settings.bmiEnabled ? 'block' : 'none';
   var hEl = document.getElementById('user-height');
   if (hEl && userHeight > 0) hEl.value = userHeight;
   // Tryb wykresu obwodów
@@ -577,6 +558,15 @@ function setCircChartMode(mode) {
 function toggleTheme(on) {
   document.body.classList.toggle('light', on);
   saveSetting('light', on);
+}
+
+// Toggle BMI
+function toggleBMI(on) {
+  saveSetting('bmiEnabled', on);
+  var bmiRow = document.getElementById('bmi-height-row');
+  if (bmiRow) bmiRow.style.display = on ? 'block' : 'none';
+  // Odśwież formularz pomiaru jeśli jesteśmy na Pomiarach
+  if (currentView === 'measurements') renderMeasForm();
 }
 
 // Zapis wzrostu użytkownika
@@ -1158,42 +1148,36 @@ function updateBOLive(exId, setsCount, backoffPct) {
 }
 
 // ═══════════════════════════════════════════════
-// POMIARY
+// POMIARY v2 — jeden ujednolicony system pól
 // ═══════════════════════════════════════════════
 
-// Domyślne pola obwodów — użytkownik może dodawać/usuwać/zmieniać nazwy
-// Format: { id, label, goodDown } — goodDown=true → spadek = zielony
-var DEFAULT_CIRC_FIELDS = [
-  { id:'biceps',     label:'Biceps',           goodDown:false },
-  { id:'klatka',     label:'Obwód klatki',     goodDown:false },
-  { id:'talia',      label:'Talia',             goodDown:true  },
-  { id:'podpepkiem', label:'Pas',               goodDown:true  },
-  { id:'udo',        label:'Udo',               goodDown:true  }
+// Każde pole: { id, label, group:'body'|'health'|'circ', active:true, goodDown:bool }
+// group body   → sekcja "Ciało"
+// group health → sekcja "Zdrowie"
+// group circ   → sekcja "Obwód"
+var DEFAULT_MEAS_FIELDS = [
+  { id:'waga',       label:'Waga',      group:'body',   active:true,  goodDown:true  },
+  { id:'cukier',     label:'Cukier',    group:'health', active:true,  goodDown:true  },
+  { id:'cisnienie',  label:'Ciśnienie', group:'health', active:true,  goodDown:false },
+  { id:'puls',       label:'Puls',      group:'health', active:true,  goodDown:true  },
+  { id:'biceps',     label:'Biceps',    group:'circ',   active:true,  goodDown:false },
+  { id:'klatka',     label:'Klatka',    group:'circ',   active:true,  goodDown:false },
+  { id:'talia',      label:'Talia',     group:'circ',   active:true,  goodDown:true  },
+  { id:'podpepkiem', label:'Pas',       group:'circ',   active:true,  goodDown:true  },
+  { id:'udo',        label:'Udo',       group:'circ',   active:true,  goodDown:true  }
 ];
 
-// Wczytaj pola obwodów z localStorage lub użyj domyślnych
-function loadCircFields() {
+var LS_MEAS_FIELDS = 'trening_meas_fields2';
+
+function loadMeasFields() {
   try {
-    var saved = JSON.parse(localStorage.getItem('trening_meas_fields'));
+    var saved = JSON.parse(localStorage.getItem(LS_MEAS_FIELDS));
     if (saved && Array.isArray(saved) && saved.length) return saved;
   } catch(e) {}
-  return DEFAULT_CIRC_FIELDS.slice();
+  return DEFAULT_MEAS_FIELDS.map(function(f) { return Object.assign({}, f); });
 }
-function saveCircFields(fields) {
-  localStorage.setItem('trening_meas_fields', JSON.stringify(fields));
-}
-
-// Renderuj dynamiczne pola obwodów w formularzu
-function renderMeasForm() {
-  var fields = loadCircFields();
-  var c = document.getElementById('meas-custom-fields');
-  if (!c) return;
-  c.innerHTML = fields.map(function(f) {
-    return '<div class="meas-field">'
-      + '<div class="meas-label">' + esc(f.label) + '</div>'
-      + '<input class="meas-input" type="text" inputmode="decimal" id="mf-circ-' + f.id + '" placeholder="cm">'
-      + '</div>';
-  }).join('');
+function saveMeasFields(fields) {
+  localStorage.setItem(LS_MEAS_FIELDS, JSON.stringify(fields));
 }
 
 // Wypełnij datę dzisiejszą
@@ -1201,55 +1185,99 @@ function measToday() {
   document.getElementById('meas-date').value = new Date().toLocaleDateString('pl-PL');
 }
 
-// Zapisz nowy pomiar
+// Renderuj formularz pomiaru (dynamicznie z pól)
+function renderMeasForm(editEntry) {
+  var fields = loadMeasFields().filter(function(f) { return f.active; });
+  var groups = { body: [], health: [], circ: [] };
+  fields.forEach(function(f) { if (groups[f.group]) groups[f.group].push(f); });
+
+  function fieldHtml(f) {
+    var val = editEntry ? (editEntry[f.id] || '') : '';
+    return '<div class="meas-field">'
+      + '<div class="meas-label">' + esc(f.label) + '</div>'
+      + '<input class="meas-input" type="text" inputmode="decimal" id="mf-' + f.id + '" value="' + esc(val) + '" placeholder="—">'
+      + '</div>';
+  }
+
+  var html = '';
+  if (groups.body.length) {
+    html += '<div class="meas-section-lbl notop" style="margin-top:0">Ciało</div>'
+      + '<div class="meas-grid">' + groups.body.map(fieldHtml).join('') + '</div>';
+    // BMI jeśli włączone i jest pole wagi
+    if (settings.bmiEnabled && groups.body.find(function(f){return f.id==='waga';})) {
+      var bmiVal = editEntry && editEntry.bmi ? editEntry.bmi : '';
+      html += '<div class="meas-grid"><div class="meas-field"><div class="meas-label">BMI (auto)</div>'
+        + '<input class="meas-input" id="mf-bmi" readonly value="' + esc(bmiVal) + '" placeholder="—" style="color:var(--text2);cursor:default" oninput="">'
+        + '</div></div>';
+      // Przyłącz live calc do pola wagi
+      setTimeout(function() {
+        var wEl = document.getElementById('mf-waga');
+        if (wEl) wEl.oninput = calcBMILive;
+        calcBMILive();
+      }, 0);
+    }
+  }
+  if (groups.health.length) {
+    html += '<div class="meas-section-hdr"><span class="meas-section-lbl">Zdrowie</span></div>'
+      + '<div class="meas-grid">' + groups.health.map(fieldHtml).join('') + '</div>';
+  }
+  if (groups.circ.length) {
+    html += '<div class="meas-section-hdr">'
+      + '<span class="meas-section-lbl">Obwód (cm)</span>'
+      + '<button class="btn-meas-manage" onclick="measManageFields()">+ Zarządzaj</button>'
+      + '</div>'
+      + '<div class="meas-grid">' + groups.circ.map(fieldHtml).join('') + '</div>';
+  }
+
+  var formBody = document.getElementById('meas-form-body');
+  if (formBody) formBody.innerHTML = html;
+}
+
+// Zapisz / zaktualizuj pomiar
 function measSave() {
   var date = document.getElementById('meas-date').value.trim();
-  if (!date) { toast('⚠️ Podaj datę pomiaru'); return; }
+  if (!date) { toast('⚠️ Podaj datę'); return; }
 
-  var entry = { date: date };
+  var fields = loadMeasFields().filter(function(f) { return f.active; });
+  var entry = { date: date, _fields: fields.map(function(f) { return { id:f.id, label:f.label, group:f.group, goodDown:f.goodDown }; }) };
 
-  // Stałe pola
-  entry.waga      = document.getElementById('mf-waga').value.trim();
-  // BMI obliczane automatycznie z wzrostu
-  var bmiVal = calcBMI(parseFloat(entry.waga), userHeight);
-  entry.bmi = bmiVal ? bmiVal.toFixed(1) : '';
-  entry.cukier    = document.getElementById('mf-cukier').value.trim();
-  entry.puls      = document.getElementById('mf-puls').value.trim();
-  entry.cisnienie = document.getElementById('mf-cisnienie').value.trim();
-
-  // Dynamiczne pola obwodów
-  var fields = loadCircFields();
-  entry._circFields = fields.map(function(f) { return { id: f.id, label: f.label, goodDown: f.goodDown }; });
   fields.forEach(function(f) {
-    var el = document.getElementById('mf-circ-' + f.id);
+    var el = document.getElementById('mf-' + f.id);
     entry[f.id] = el ? el.value.trim() : '';
   });
 
-  var hasData = Object.keys(entry).some(function(k) {
-    return k !== 'date' && k !== '_circFields' && entry[k] !== '';
-  });
+  // BMI jeśli włączone
+  if (settings.bmiEnabled) {
+    var bmiVal = calcBMI(parseFloat(entry.waga), userHeight);
+    entry.bmi = bmiVal ? bmiVal.toFixed(1) : '';
+  }
+
+  var hasData = fields.some(function(f) { return entry[f.id] !== ''; });
   if (!hasData) { toast('⚠️ Wpisz choć jeden pomiar'); return; }
 
-  // Dodaj lub nadpisz wpis z tą samą datą
+  // Dodaj lub nadpisz (ta sama data)
   var idx = -1;
   for (var i = 0; i < measurements.length; i++) { if (measurements[i].date === date) { idx = i; break; } }
   if (idx >= 0) { measurements[idx] = entry; } else { measurements.push(entry); }
-
   measurements.sort(function(a, b) { return parseDatePL(b.date) - parseDatePL(a.date); });
   saveMeasurements();
 
-  // Wyczyść formularz
+  // Reset formularza
   document.getElementById('meas-date').value = '';
-  ['mf-waga','mf-bmi','mf-cukier','mf-puls','mf-cisnienie'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.value = '';
-  });
-  fields.forEach(function(f) {
-    var el = document.getElementById('mf-circ-' + f.id);
-    if (el) el.value = '';
-  });
-
+  renderMeasForm();
   renderMeasurements();
   toast('✅ Pomiar zapisany!');
+}
+
+// Edytuj istniejący pomiar
+function measEdit(idx) {
+  var m = measurements[idx];
+  document.getElementById('meas-date').value = m.date;
+  renderMeasForm(m);
+  // Przewiń do formularza
+  var form = document.querySelector('.meas-form');
+  if (form) form.scrollIntoView({ behavior: 'smooth' });
+  toast('✏️ Edytujesz pomiar z ' + m.date);
 }
 
 // Usuń pomiar
@@ -1261,35 +1289,57 @@ function measDelete(idx) {
   toast('🗑 Pomiar usunięty');
 }
 
-// Zarządzaj polami obwodów — modal
+// Notatka do pomiaru
+function measNoteSave(idx) {
+  var el = document.getElementById('meas-note-' + idx);
+  if (!el) return;
+  var val = el.value.trim();
+  if (val) measurements[idx]._note = val;
+  else delete measurements[idx]._note;
+  saveMeasurements();
+  toast('✅ Notatka zapisana');
+}
+
+// Zarządzaj polami — modal (dostępny z formularza i z ⚙️)
 function measManageFields() {
-  var fields = loadCircFields();
+  var fields = loadMeasFields();
   _modalCtx = { type: 'measFields', fields: JSON.parse(JSON.stringify(fields)) };
-  document.getElementById('modal-title').textContent = 'Obwód ciała — pola pomiarowe';
+  document.getElementById('modal-title').textContent = 'Pola pomiarowe';
   renderManageFieldsModal();
   openModal();
 }
 
 function renderManageFieldsModal() {
   var fields = _modalCtx.fields;
-  var rows = fields.map(function(f, i) {
-    return '<div class="meas-field-row">'
-      + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
-      + '<select class="modal-select" style="width:90px;padding:6px 8px;font-size:12px" id="mff-dir-' + i + '">'
-      + '<option value="0"' + (!f.goodDown ? ' selected' : '') + '>↑ więcej</option>'
-      + '<option value="1"' + (f.goodDown ? ' selected' : '') + '>↓ mniej</option>'
-      + '</select>'
-      + '<button class="btn-del" onclick="measFieldDel(' + i + ')">🗑</button>'
+  var groupLabels = { body: 'Ciało', health: 'Zdrowie', circ: 'Obwód' };
+  var html = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Nazwa · Kierunek · Aktywne</div>';
+
+  // Grupuj
+  ['body','health','circ'].forEach(function(grp) {
+    var grpFields = fields.map(function(f,i){return{f:f,i:i};}).filter(function(x){return x.f.group===grp;});
+    if (!grpFields.length && grp !== 'circ') return;
+    html += '<div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">' + groupLabels[grp] + '</div>';
+    grpFields.forEach(function(x) {
+      var f = x.f; var i = x.i;
+      html += '<div class="meas-field-row">'
+        + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
+        + '<select class="modal-select" style="width:80px;padding:6px 6px;font-size:11px" id="mff-dir-' + i + '">'
+        + '<option value="0"' + (!f.goodDown?' selected':'') + '>↑ więcej</option>'
+        + '<option value="1"' + (f.goodDown?' selected':'') + '>↓ mniej</option>'
+        + '</select>'
+        + '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);flex-shrink:0">'
+        + '<input type="checkbox" id="mff-act-' + i + '"' + (f.active?' checked':'') + '> Aktywne</label>'
+        + '<button class="btn-del" onclick="measFieldDel(' + i + ')">🗑</button>'
+        + '</div>';
+    });
+    // Dodaj nowe pole do grupy
+    html += '<div style="display:flex;gap:6px;margin-top:6px">'
+      + '<input class="modal-input" id="mff-new-' + grp + '" placeholder="Nowe pole..." style="flex:1;padding:6px 8px;font-size:13px">'
+      + '<button class="btn-primary" style="flex:0 0 auto;padding:6px 12px;font-size:12px" onclick="measFieldAdd(\'' + grp + '\')">+ Dodaj</button>'
       + '</div>';
-  }).join('');
-  var addRow = '<div style="margin-top:10px;display:flex;gap:8px">'
-    + '<input class="modal-input" id="mff-new-name" placeholder="Nazwa nowego pola" style="flex:1">'
-    + '<button class="btn-primary" style="flex:0 0 auto;padding:8px 14px;font-size:13px" onclick="measFieldAdd()">+ Dodaj</button>'
-    + '</div>';
-  document.getElementById('modal-content').innerHTML =
-    '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Nazwa pola · Kierunek (więcej/mniej = lepiej)</div>'
-    + (rows || '<div style="color:var(--text3);font-size:13px;padding:8px 0">Brak pól — dodaj poniżej</div>')
-    + addRow;
+  });
+
+  document.getElementById('modal-content').innerHTML = html;
 }
 
 function measFieldDel(i) {
@@ -1297,42 +1347,33 @@ function measFieldDel(i) {
   renderManageFieldsModal();
 }
 
-function measFieldAdd() {
-  var nm = document.getElementById('mff-new-name').value.trim();
+function measFieldAdd(grp) {
+  var nm = document.getElementById('mff-new-' + grp).value.trim();
   if (!nm) { toast('⚠️ Podaj nazwę'); return; }
-  var id = 'c_' + Date.now();
-  _modalCtx.fields.push({ id: id, label: nm, goodDown: false });
+  _modalCtx.fields.push({ id: 'f_' + Date.now(), label: nm, group: grp, active: true, goodDown: grp !== 'body' && grp !== 'circ' ? true : false });
   renderManageFieldsModal();
 }
 
 // Renderuj listę pomiarów
 function renderMeasurements() {
-  renderMeasForm(); // odśwież pola w formularzu
+  renderMeasForm(); // odśwież formularz
   var c = document.getElementById('meas-list');
   if (!measurements.length) {
     c.innerHTML = '<div class="empty"><div class="empty-ico">📏</div><h2>Brak pomiarów</h2><p>Dodaj pierwszy pomiar powyżej</p></div>';
     return;
   }
 
-  // Wykres obwodów na górze listy
+  // Wykres na górze
   var chartHtml = renderCircChart();
-  var chartSection = chartHtml
-    ? '<div class="chart-wrap" style="margin-bottom:14px">' + chartHtml + '</div>'
-    : '';
+  var chartSection = chartHtml ? '<div class="chart-wrap" style="margin-bottom:14px">' + chartHtml + '</div>' : '';
 
   var listHtml = measurements.map(function(m, i) {
     var prev = measurements[i + 1] || null;
 
-    // Chip pomocniczy
-    function chip(label, val, unit, goodDown) {
-      if (!val) return '';
-      var diffHtml = '';
-      if (prev && prev[label.toLowerCase ? label : label]) {} // placeholder
-      return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + val + (unit ? ' ' + unit : '') + '</span></div>';
-    }
+    // Pobierz pola z pomiaru lub z aktualnej konfiguracji
+    var mFields = m._fields || loadMeasFields().filter(function(f){return f.active;});
 
-    // Chip z diff
-    function chipDiff(label, val, prevVal, unit, goodDown) {
+    function chipDiff(label, val, prevVal, goodDown) {
       if (!val) return '';
       var diffHtml = '';
       if (prevVal) {
@@ -1342,51 +1383,58 @@ function renderMeasurements() {
           diffHtml = '<br><span class="' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
         }
       }
-      return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + val + (unit ? ' ' + unit : '') + diffHtml + '</span></div>';
+      return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + val + diffHtml + '</span></div>';
     }
 
-    // Sekcja: Masa ciała
-    var massChips = '';
-    massChips += chipDiff('Masa ciała', m.waga, prev && prev.waga, 'kg', true);
-    // BMI z kategorią
+    // Grupuj chipy
+    var bodyChips = '', healthChips = '', circChips = '';
+    mFields.forEach(function(f) {
+      var val = m[f.id] || '';
+      var prevVal = prev ? (prev[f.id] || '') : '';
+      var chip = chipDiff(f.label, val, prevVal, f.goodDown);
+      if (f.group === 'body')   bodyChips   += chip;
+      if (f.group === 'health') healthChips += chip;
+      if (f.group === 'circ')   circChips   += chip;
+    });
+
+    // BMI jeśli jest
     if (m.bmi) {
       var bmiCat = getBMICategory(parseFloat(m.bmi));
       var bmiDiff = '';
       if (prev && prev.bmi) {
         var bd = parseFloat(m.bmi) - parseFloat(prev.bmi);
         if (!isNaN(bd) && bd !== 0) {
-          var bcls = bd < 0 ? 'diff-neg' : 'diff-pos';
-          bmiDiff = '<br><span class="' + bcls + '">' + (bd > 0 ? '+' : '') + bd.toFixed(1) + '</span>';
+          bmiDiff = '<br><span class="' + (bd < 0 ? 'diff-neg' : 'diff-pos') + '">' + (bd > 0 ? '+' : '') + bd.toFixed(1) + '</span>';
         }
       }
-      massChips += '<div class="meas-chip"><span class="meas-chip-lbl">BMI</span><span class="meas-chip-val">' + m.bmi + bmiDiff + '</span><span style="font-size:9px;color:var(--text3)">' + bmiCat + '</span></div>';
+      bodyChips += '<div class="meas-chip"><span class="meas-chip-lbl">BMI</span><span class="meas-chip-val">' + m.bmi + bmiDiff + '</span><span style="font-size:9px;color:var(--text3)">' + bmiCat + '</span></div>';
     }
 
-    // Sekcja: Parametry zdrowotne
-    var healthChips = '';
-    healthChips += chipDiff('Glikemia', m.cukier, prev && prev.cukier, 'mg/dL', true);
-    healthChips += chip('Ciśnienie', m.cisnienie, 'mmHg', false);
-    healthChips += chipDiff('Tętno', m.puls, prev && prev.puls, 'bpm', true);
+    // Obsługa starych pomiarów (bez _fields) — stare klucze
+    if (!m._fields) {
+      if (m.waga && !bodyChips)   bodyChips   += chipDiff('Waga', m.waga, prev&&prev.waga, true);
+      if (m.cukier)               healthChips += chipDiff('Cukier', m.cukier, prev&&prev.cukier, true);
+      if (m.cisnienie)            healthChips += '<div class="meas-chip"><span class="meas-chip-lbl">Ciśnienie</span><span class="meas-chip-val">' + m.cisnienie + '</span></div>';
+      if (m.puls)                 healthChips += chipDiff('Puls', m.puls, prev&&prev.puls, true);
+      var oldCirc = m._circFields || DEFAULT_MEAS_FIELDS.filter(function(f){return f.group==='circ';});
+      oldCirc.forEach(function(f) {
+        if (m[f.id]) circChips += chipDiff(f.label, m[f.id], prev&&prev[f.id], f.goodDown);
+      });
+    }
 
-    // Sekcja: Obwód ciała — użyj pól zapisanych w pomiarze (lub aktualnych)
-    var circFields = m._circFields || loadCircFields();
-    var circChips = circFields.map(function(f) {
-      return chipDiff(f.label, m[f.id], prev && prev[f.id], 'cm', f.goodDown);
-    }).filter(Boolean).join('');
-
-    // Nagłówek — podsumowanie
+    // Nagłówek
     var subParts = [];
-    if (m.waga) subParts.push(m.waga + ' kg');
+    var wagaVal = m.waga || (m._fields && m._fields.find(function(f){return f.id==='waga';}) ? m.waga : '');
+    if (wagaVal) subParts.push(wagaVal + ' kg');
+    if (m.bmi) subParts.push('BMI ' + m.bmi);
     if (m.cisnienie) subParts.push('♥ ' + m.cisnienie);
-    if (m.puls) subParts.push(m.puls + ' bpm');
     var sub = subParts.join(' · ');
 
     var bodyHtml = '';
-    if (massChips)   bodyHtml += '<div class="meas-group-lbl">Masa ciała</div><div class="meas-chips">' + massChips + '</div>';
-    if (healthChips) bodyHtml += '<div class="meas-group-lbl">Parametry zdrowotne</div><div class="meas-chips">' + healthChips + '</div>';
-    if (circChips)   bodyHtml += '<div class="meas-group-lbl">Obwód ciała</div><div class="meas-chips">' + circChips + '</div>';
+    if (bodyChips)   bodyHtml += '<div class="meas-group-lbl">Ciało</div><div class="meas-chips">' + bodyChips + '</div>';
+    if (healthChips) bodyHtml += '<div class="meas-group-lbl">Zdrowie</div><div class="meas-chips">' + healthChips + '</div>';
+    if (circChips)   bodyHtml += '<div class="meas-group-lbl">Obwód</div><div class="meas-chips">' + circChips + '</div>';
 
-    // Notatka do pomiaru
     var noteHtml = '<button class="note-toggle" onclick="measNoteToggle(this)">📝 Notatka</button>'
       + '<div class="note-body' + (m._note ? ' open' : '') + '">'
       + '<textarea class="note-input" id="meas-note-' + i + '" placeholder="np. po chorobie, przed zawodami...">' + esc(m._note || '') + '</textarea>'
@@ -1396,7 +1444,8 @@ function renderMeasurements() {
     return '<div class="meas-item">'
       + '<div class="meas-item-hdr" onclick="toggleMeasItem(this)">'
       + '<div><div class="meas-item-date">' + m.date + '</div>' + (sub ? '<div class="meas-item-sub">' + sub + '</div>' : '') + '</div>'
-      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<div style="display:flex;align-items:center;gap:6px">'
+      + '<button class="btn-edit" onclick="event.stopPropagation();measEdit(' + i + ')">✏️</button>'
       + '<button class="meas-del-btn" onclick="event.stopPropagation();measDelete(' + i + ')">🗑</button>'
       + '<span style="color:var(--text3);font-size:14px">▼</span>'
       + '</div></div>'
@@ -1409,49 +1458,38 @@ function renderMeasurements() {
 function toggleMeasItem(hdr) {
   var body = hdr.nextElementSibling;
   body.classList.toggle('open');
-  var arrow = hdr.querySelector('span[style]');
+  var arrow = hdr.querySelector('span[style*="font-size:14px"]');
   if (arrow) arrow.textContent = body.classList.contains('open') ? '▲' : '▼';
 }
 
-// Notatka do pomiaru
 function measNoteToggle(btn) {
-  var body = btn.nextElementSibling;
-  body.classList.toggle('open');
-}
-
-function measNoteSave(idx) {
-  var el = document.getElementById('meas-note-' + idx);
-  if (!el) return;
-  var val = el.value.trim();
-  if (val) measurements[idx]._note = val;
-  else delete measurements[idx]._note;
-  saveMeasurements();
-  toast('✅ Notatka zapisana');
+  btn.nextElementSibling.classList.toggle('open');
 }
 
 // Wykres obwodów SVG
 function renderCircChart() {
   var mode = settings.circChartMode || 'single';
-  var fields = loadCircFields();
-  if (!fields.length || !measurements.length) return '';
-
-  // Dane posortowane rosnąco (chronologicznie)
+  var allFields = loadMeasFields().filter(function(f) { return f.active; });
+  if (!measurements.length) return '';
   var sorted = measurements.slice().reverse();
+
+  // Pola do wykresu: body + circ (nie health bo różne skale)
+  var chartFields = allFields.filter(function(f) { return f.group === 'body' || f.group === 'circ'; });
+  // Dodaj BMI jeśli włączone i są dane
+  if (settings.bmiEnabled && sorted.some(function(m){return m.bmi;})) {
+    chartFields.unshift({ id: '_bmi', label: 'BMI', group: 'body' });
+  }
+  if (!chartFields.length) return '';
 
   if (mode === 'single') {
     var selId = 'circ-chart-field';
-    var selVal = (document.getElementById(selId) ? document.getElementById(selId).value : '') || fields[0].id;
-    // Dodaj BMI jako opcję jeśli są dane
-    var hasBMI = sorted.some(function(m) { return m.bmi; });
-    var allFields = fields.slice();
-    if (hasBMI) allFields.unshift({ id: '_bmi', label: 'BMI' });
-    var field = allFields.find(function(f) { return f.id === selVal; }) || allFields[0];
-    var vals = sorted.map(function(m) { return field.id === '_bmi' ? (parseFloat(m.bmi) || null) : (parseFloat(m[field.id]) || null); });
+    var selVal = (document.getElementById(selId) ? document.getElementById(selId).value : '') || chartFields[0].id;
+    var field = chartFields.find(function(f) { return f.id === selVal; }) || chartFields[0];
+    var vals = sorted.map(function(m) { return field.id === '_bmi' ? (parseFloat(m.bmi)||null) : (parseFloat(m[field.id])||null); });
     var labels = sorted.map(function(m) { return m.date.split('.').slice(0,2).join('.'); });
-    return renderSingleCircChart(field.label, vals, labels, selId, allFields, selVal);
+    return renderSingleCircChart(field.label, vals, labels, selId, chartFields, selVal);
   } else {
-    // Wszystkie pola na jednym wykresie
-    return renderAllCircChart(fields, sorted);
+    return renderAllCircChart(chartFields, sorted);
   }
 }
 
@@ -1461,93 +1499,75 @@ function renderSingleCircChart(label, vals, labels, selId, fields, selVal) {
   var maxVal = Math.max.apply(null, validVals);
   var minVal = Math.min.apply(null, validVals);
   var range = maxVal - minVal || 1;
-  var W = 320; var H = 130; var PAD = 28; var BAR_W = Math.max(6, Math.floor((W - PAD*2) / vals.length) - 3);
-
+  var W = 320; var H = 130; var PAD = 28; var BAR_W = Math.max(6, Math.floor((W-PAD*2)/vals.length)-3);
   var sel = '<select onchange="renderMeasurements()" id="' + selId + '" style="background:var(--input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:5px 8px;width:100%;margin-bottom:8px;-webkit-appearance:none">'
-    + fields.map(function(f) { return '<option value="' + f.id + '"' + (f.id===selVal?' selected':'') + '>' + esc(f.label) + '</option>'; }).join('')
-    + '</select>';
-
-  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;display:block;margin:0 auto">';
-  for (var li = 0; li <= 3; li++) {
-    var ly = PAD + (H - PAD*2) * li / 3;
-    svg += '<line x1="' + PAD + '" y1="' + ly + '" x2="' + (W-PAD) + '" y2="' + ly + '" stroke="var(--border)" stroke-width="1"/>';
-  }
-  vals.forEach(function(v, i) {
-    if (v === null) return;
-    var barH = Math.max(4, ((v - minVal) / range) * (H - PAD*2 - 16));
-    var x = PAD + i * ((W-PAD*2) / vals.length) + ((W-PAD*2) / vals.length - BAR_W) / 2;
-    var y = H - PAD - barH;
-    svg += '<rect x="' + x + '" y="' + y + '" width="' + BAR_W + '" height="' + barH + '" rx="3" fill="var(--blue)" opacity="0.85"/>';
-    svg += '<text x="' + (x+BAR_W/2) + '" y="' + (H-6) + '" text-anchor="middle" font-size="8" fill="var(--text3)">' + labels[i] + '</text>';
-    svg += '<text x="' + (x+BAR_W/2) + '" y="' + (y-3) + '" text-anchor="middle" font-size="9" fill="var(--text2)">' + v.toFixed(1) + '</text>';
+    + fields.map(function(f){return '<option value="'+f.id+'"'+(f.id===selVal?' selected':'')+'>'+esc(f.label)+'</option>';}).join('')+'</select>';
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px;display:block;margin:0 auto">';
+  for (var li=0;li<=3;li++){var ly=PAD+(H-PAD*2)*li/3;svg+='<line x1="'+PAD+'" y1="'+ly+'" x2="'+(W-PAD)+'" y2="'+ly+'" stroke="var(--border)" stroke-width="1"/>';}
+  vals.forEach(function(v,i){
+    if(v===null)return;
+    var barH=Math.max(4,((v-minVal)/range)*(H-PAD*2-16));
+    var x=PAD+i*((W-PAD*2)/vals.length)+((W-PAD*2)/vals.length-BAR_W)/2;
+    var y=H-PAD-barH;
+    svg+='<rect x="'+x+'" y="'+y+'" width="'+BAR_W+'" height="'+barH+'" rx="3" fill="var(--blue)" opacity="0.85"/>';
+    svg+='<text x="'+(x+BAR_W/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="8" fill="var(--text3)">'+labels[i]+'</text>';
+    svg+='<text x="'+(x+BAR_W/2)+'" y="'+(y-3)+'" text-anchor="middle" font-size="9" fill="var(--text2)">'+v.toFixed(1)+'</text>';
   });
-  svg += '</svg>';
-  return sel + svg;
+  svg+='</svg>';
+  return sel+svg;
 }
 
 function renderAllCircChart(fields, sorted) {
-  var colors = ['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#a8dadc','#95d5b2','#f4a261'];
-  var W = 320; var H = 150; var PAD = 28;
-  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;display:block;margin:0 auto">';
-  // Linie pomocnicze
-  for (var li = 0; li <= 3; li++) {
-    var ly = PAD + (H - PAD*2 - 20) * li / 3;
-    svg += '<line x1="' + PAD + '" y1="' + ly + '" x2="' + (W-PAD) + '" y2="' + ly + '" stroke="var(--border)" stroke-width="1"/>';
-  }
-  // Legenda
-  var legendY = H - 12;
-  fields.forEach(function(f, fi) {
-    var vals = sorted.map(function(m) { return parseFloat(m[f.id]) || null; });
-    var validVals = vals.filter(function(v) { return v !== null; });
-    if (!validVals.length) return;
-    var maxV = Math.max.apply(null, validVals);
-    var minV = Math.min.apply(null, validVals);
-    var rng = maxV - minV || 1;
-    var col = colors[fi % colors.length];
-    // Linia łącząca punkty
-    var pts = [];
-    vals.forEach(function(v, i) {
-      if (v === null) return;
-      var x = PAD + i * (W - PAD*2) / Math.max(vals.length-1, 1);
-      var y = PAD + (H - PAD*2 - 20) * (1 - (v - minV) / rng);
-      pts.push(x + ',' + y);
-      svg += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="' + col + '"/>';
+  var colors=['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#a8dadc','#95d5b2','#f4a261'];
+  var W=320;var H=150;var PAD=28;
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px;display:block;margin:0 auto">';
+  for(var li=0;li<=3;li++){var ly=PAD+(H-PAD*2-20)*li/3;svg+='<line x1="'+PAD+'" y1="'+ly+'" x2="'+(W-PAD)+'" y2="'+ly+'" stroke="var(--border)" stroke-width="1"/>';}
+  var legendY=H-12;
+  fields.forEach(function(f,fi){
+    var vals=sorted.map(function(m){return f.id==='_bmi'?(parseFloat(m.bmi)||null):(parseFloat(m[f.id])||null);});
+    var vv=vals.filter(function(v){return v!==null;});
+    if(!vv.length)return;
+    var maxV=Math.max.apply(null,vv);var minV=Math.min.apply(null,vv);var rng=maxV-minV||1;
+    var col=colors[fi%colors.length];var pts=[];
+    vals.forEach(function(v,i){
+      if(v===null)return;
+      var x=PAD+i*(W-PAD*2)/Math.max(vals.length-1,1);
+      var y=PAD+(H-PAD*2-20)*(1-(v-minV)/rng);
+      pts.push(x+','+y);
+      svg+='<circle cx="'+x+'" cy="'+y+'" r="3" fill="'+col+'"/>';
     });
-    if (pts.length > 1) svg += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + col + '" stroke-width="1.5" opacity="0.8"/>';
-    // Legenda
-    svg += '<rect x="' + (PAD + fi*44) + '" y="' + (legendY-6) + '" width="8" height="8" rx="2" fill="' + col + '"/>';
-    svg += '<text x="' + (PAD + fi*44 + 10) + '" y="' + legendY + '" font-size="8" fill="var(--text3)">' + esc(f.label.substring(0,5)) + '</text>';
+    if(pts.length>1)svg+='<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+col+'" stroke-width="1.5" opacity="0.8"/>';
+    svg+='<rect x="'+(PAD+fi*44)+'" y="'+(legendY-6)+'" width="8" height="8" rx="2" fill="'+col+'"/>';
+    svg+='<text x="'+(PAD+fi*44+10)+'" y="'+legendY+'" font-size="8" fill="var(--text3)">'+esc(f.label.substring(0,5))+'</text>';
   });
-  svg += '</svg>';
+  svg+='</svg>';
   return svg;
 }
 
 // Eksport pomiarów CSV
 function exportMeasCSV() {
   if (!measurements.length) { toast('⚠️ Brak pomiarów'); return; }
-  // Zbierz wszystkie unikalne pola obwodów
-  var allCircIds = []; var circLabelMap = {};
+  // Zbierz wszystkie unikalne pola ze wszystkich pomiarów
+  var allIds = []; var labelMap = {};
   measurements.forEach(function(m) {
-    var cf = m._circFields || loadCircFields();
-    cf.forEach(function(f) {
-      if (allCircIds.indexOf(f.id) < 0) { allCircIds.push(f.id); circLabelMap[f.id] = f.label; }
+    var mf = m._fields || DEFAULT_MEAS_FIELDS;
+    mf.forEach(function(f) {
+      if (allIds.indexOf(f.id) < 0) { allIds.push(f.id); labelMap[f.id] = f.label; }
     });
   });
-  // Nagłówek
-  var hdrs = ['Data','Masa ciała (kg)','BMI','Glikemia (mg/dL)','Ciśnienie (mmHg)','Tętno (bpm)'];
-  allCircIds.forEach(function(id) { hdrs.push(circLabelMap[id] + ' (cm)'); });
+  var hdrs = ['Data'].concat(allIds.map(function(id){return labelMap[id]||id;}));
+  if (measurements.some(function(m){return m.bmi;})) hdrs.push('BMI');
   hdrs.push('Notatka');
   var rows = hdrs.join(';') + '\n';
   measurements.forEach(function(m) {
-    var cells = [
-      csvEsc(m.date), m.waga||'', m.bmi||'', m.cukier||'', m.cisnienie||'', m.puls||''
-    ];
-    allCircIds.forEach(function(id) { cells.push(m[id]||''); });
+    var cells = [csvEsc(m.date)];
+    allIds.forEach(function(id) { cells.push(m[id]||''); });
+    if (measurements.some(function(x){return x.bmi;})) cells.push(m.bmi||'');
     cells.push(csvEsc(m._note||''));
     rows += cells.join(';') + '\n';
   });
   var d = new Date().toISOString().split('T')[0];
-  downloadFile('\uFEFF' + rows, 'pomiary_' + d + '.csv', 'text/csv;charset=utf-8;');
+  downloadFile('\uFEFF'+rows, 'pomiary_'+d+'.csv', 'text/csv;charset=utf-8;');
   toast('📏 Pomiary CSV pobrane');
 }
 
@@ -1906,21 +1926,24 @@ function modalSave() {
   if (!_modalCtx) return;
   var ctx = _modalCtx;
 
-  // Zapis pól obwodów
+  // Zapis pól pomiarowych (nowy system)
   if (ctx.type === 'measFields') {
     var updated = [];
     ctx.fields.forEach(function(f, i) {
       var nameEl = document.getElementById('mff-name-' + i);
       var dirEl  = document.getElementById('mff-dir-' + i);
+      var actEl  = document.getElementById('mff-act-' + i);
       if (nameEl) {
         updated.push({
           id:       f.id,
           label:    nameEl.value.trim() || f.label,
+          group:    f.group,
+          active:   actEl ? actEl.checked : f.active,
           goodDown: dirEl ? dirEl.value === '1' : f.goodDown
         });
       }
     });
-    saveCircFields(updated);
+    saveMeasFields(updated);
     closeModal();
     renderMeasurements();
     toast('✅ Pola zapisane');
@@ -2155,43 +2178,37 @@ function exportHTMLReport() {
   // ── SEKCJA 3: POMIARY ─────────────────────────────────────────────
   var measSection = '';
   if (measurements.length) {
-    // Zbierz wszystkie unikalne pola obwodów ze wszystkich pomiarów
-    var allCircIds = [];
-    var circLabelMap = {};
+    // Zbierz wszystkie unikalne pola ze wszystkich pomiarów (nowy + stary format)
+    var allMeasIds = []; var measLabelMap = {};
     measurements.forEach(function(m) {
-      var cf = m._circFields || loadCircFields();
-      cf.forEach(function(f) {
-        if (allCircIds.indexOf(f.id) < 0) { allCircIds.push(f.id); circLabelMap[f.id] = f.label; }
+      var mf = m._fields || DEFAULT_MEAS_FIELDS;
+      mf.forEach(function(f) {
+        if (allMeasIds.indexOf(f.id) < 0) { allMeasIds.push(f.id); measLabelMap[f.id] = f.label; }
       });
     });
+    var hasBMIData = measurements.some(function(m) { return m.bmi; });
 
     var measRows = measurements.map(function(m) {
       var cells = '';
-      // Masa ciała
-      if (m.waga)  cells += '<td><small>Masa ciała</small><br><strong>' + m.waga + ' kg</strong></td>';
-      if (m.bmi)   cells += '<td><small>BMI</small><br><strong>' + m.bmi + '</strong><br><small style="color:#888">' + getBMICategory(parseFloat(m.bmi)) + '</small></td>';
-      // Parametry zdrowotne
-      if (m.cukier)    cells += '<td><small>Glikemia</small><br><strong>' + m.cukier + ' mg/dL</strong></td>';
-      if (m.cisnienie) cells += '<td><small>Ciśnienie</small><br><strong>' + m.cisnienie + ' mmHg</strong></td>';
-      if (m.puls)      cells += '<td><small>Tętno</small><br><strong>' + m.puls + ' bpm</strong></td>';
-      // Obwód ciała
-      allCircIds.forEach(function(id) {
-        if (m[id]) cells += '<td><small>' + htmlEsc(circLabelMap[id] || id) + '</small><br><strong>' + m[id] + ' cm</strong></td>';
-        else cells += '<td style="color:#ccc">—</td>';
+      allMeasIds.forEach(function(id) {
+        var val = m[id] || '';
+        cells += val ? '<td><small>' + htmlEsc(measLabelMap[id]||id) + '</small><br><strong>' + htmlEsc(val) + '</strong></td>'
+                     : '<td style="color:#ccc">—</td>';
       });
+      if (hasBMIData) {
+        cells += m.bmi ? '<td><small>BMI</small><br><strong>' + m.bmi + '</strong><br><small style="color:#888">' + getBMICategory(parseFloat(m.bmi)) + '</small></td>'
+                       : '<td style="color:#ccc">—</td>';
+      }
       return '<tr><td style="font-weight:700;white-space:nowrap">' + htmlEsc(m.date) + '</td>' + cells + '</tr>';
     }).join('');
 
-    // Nagłówki tabeli
     var measHdrs = '<th style="text-align:left;padding:8px 10px">Data</th>';
-    measHdrs += '<th style="padding:8px 6px">Masa ciała</th><th style="padding:8px 6px">BMI</th>';
-    measHdrs += '<th style="padding:8px 6px">Glikemia</th><th style="padding:8px 6px">Ciśnienie</th><th style="padding:8px 6px">Tętno</th>';
-    allCircIds.forEach(function(id) { measHdrs += '<th style="padding:8px 6px">' + htmlEsc(circLabelMap[id] || id) + '</th>'; });
+    allMeasIds.forEach(function(id) { measHdrs += '<th style="padding:8px 6px">' + htmlEsc(measLabelMap[id]||id) + '</th>'; });
+    if (hasBMIData) measHdrs += '<th style="padding:8px 6px">BMI</th>';
 
     measSection = '<div class="section"><h2>📏 Pomiary tygodniowe</h2>'
       + '<table style="font-size:12px"><thead><tr style="background:#457b9d;color:#fff">'
-      + measHdrs
-      + '</tr></thead><tbody>' + measRows + '</tbody></table></div>';
+      + measHdrs + '</tr></thead><tbody>' + measRows + '</tbody></table></div>';
   }
 
   // ── SKLEJENIE HTML ────────────────────────────────────────────────
