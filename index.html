@@ -243,6 +243,11 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
   <!-- WORKOUT -->
   <div id="view-workout" class="view">
     <div id="workout-progress-bar" style="margin-bottom:10px;display:none"></div>
+    <!-- Data treningu — edytowalna, domyślnie dziś -->
+    <div class="meas-date-row" style="margin-bottom:10px">
+      <input class="meas-date-input" type="text" id="workout-date" placeholder="DD.MM.RRRR" maxlength="10">
+      <button class="btn-primary" style="flex:0 0 auto;padding:9px 16px;font-size:13px" onclick="workoutDateToday()">Dziś</button>
+    </div>
     <div id="ex-list"></div>
     <!-- Notatka ogólna do sesji -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
@@ -321,9 +326,13 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <span class="sbtn-ico">📊</span>
         <div class="sbtn-txt"><div class="sbtn-name">Eksportuj CSV</div><div class="sbtn-desc">Otwórz w Excel lub Google Sheets</div></div>
       </button>
-      <button class="sbtn" onclick="exportHTMLReport()">
+      <button class="sbtn" onclick="exportHTMLReport('full')">
         <span class="sbtn-ico">📄</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Raport PDF dla trenera</div><div class="sbtn-desc">Otwórz w przeglądarce → Drukuj → Zapisz PDF</div></div>
+        <div class="sbtn-txt"><div class="sbtn-name">Raport B — Pełny (od początku)</div><div class="sbtn-desc">Statystyki + pomiary + dziennik z trendami</div></div>
+      </button>
+      <button class="sbtn" onclick="showReportAModal()">
+        <span class="sbtn-ico">📊</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Raport A — Porównanie tygodni</div><div class="sbtn-desc">Wybierz dwa tygodnie i porównaj trendy</div></div>
       </button>
       <button class="sbtn" onclick="exportMeasCSV()">
         <span class="sbtn-ico">📏</span>
@@ -353,9 +362,13 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <div class="stoggle-txt"><div class="stoggle-name">Podpowiedź ciężaru</div><div class="stoggle-desc">Sugeruje ciężar na następny tydzień</div></div>
         <label class="toggle-sw"><input type="checkbox" id="tog-suggest" onchange="saveSetting('suggest',this.checked)"><span class="sl"></span></label>
       </div>
-      <div class="stoggle" style="border-bottom:none">
+      <div class="stoggle">
         <div class="stoggle-txt"><div class="stoggle-name">Wake Lock</div><div class="stoggle-desc">Ekran nie gaśnie podczas treningu</div></div>
         <label class="toggle-sw"><input type="checkbox" id="tog-wake" onchange="saveSetting('wake',this.checked)"><span class="sl"></span></label>
+      </div>
+      <div class="stoggle" style="border-bottom:none;background:rgba(233,196,106,0.07)">
+        <div class="stoggle-txt"><div class="stoggle-name" style="color:var(--yellow)">Tryb Deload 🔄</div><div class="stoggle-desc">-40% ciężaru, badge na home, ostrzeżenie w treningu</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-deload" onchange="saveSetting('deload',this.checked);renderHome()"><span class="sl"></span></label>
       </div>
     </div>
     <div class="sct">
@@ -405,7 +418,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.6 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.7 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -469,14 +482,14 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.6';
+var APP_VERSION = '3.7';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
 var prevView = 'home';
 var plan = null;
 var logs = {};
-var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false };
+var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false, deload:false };
 var _saveGuard = false;
 var _wakeLock = null;
 var _timerInterval = null;
@@ -505,6 +518,21 @@ function loadAll() {
   try { measurements = JSON.parse(localStorage.getItem(LS_MEAS)) || []; } catch(e) { measurements = []; }
   try { var u = JSON.parse(localStorage.getItem(LS_USER)); if(u && u.height) userHeight = parseInt(u.height) || 0; } catch(e) {}
   currentWeek = parseInt(localStorage.getItem(LS_WEEK)) || 1;
+  // Jednorazowe czyszczenie śmieci — usuń wpisy bez żadnych danych ćwiczeń
+  cleanEmptyLogs();
+}
+
+// Usuń puste wpisy z logs (tylko _date bez ćwiczeń i notatek)
+function cleanEmptyLogs() {
+  var changed = false;
+  Object.keys(logs).forEach(function(key) {
+    var dl = logs[key];
+    var hasData = Object.keys(dl).some(function(k) {
+      return k !== '_date' && k !== '_note';
+    });
+    if (!hasData) { delete logs[key]; changed = true; }
+  });
+  if (changed) saveLogs();
 }
 function savePlan()  { localStorage.setItem(LS_PLAN, JSON.stringify(plan)); }
 function saveLogs()  { localStorage.setItem(LS_LOGS, JSON.stringify(logs)); }
@@ -526,6 +554,9 @@ function applySettings() {
   document.getElementById('tog-light').checked   = settings.light;
   document.getElementById('timer-secs').value    = settings.timerSecs;
   if (settings.light) document.body.classList.add('light');
+  // Deload toggle
+  var togDeload = document.getElementById('tog-deload');
+  if (togDeload) togDeload.checked = !!settings.deload;
   // BMI toggle + wzrost
   var togBmi = document.getElementById('tog-bmi');
   if (togBmi) togBmi.checked = !!settings.bmiEnabled;
@@ -786,22 +817,26 @@ function isPR(dayId, exId, weight) {
   return true;
 }
 
-// Podpowiedź ciężaru — tylko schemeType standard
+// Podpowiedź ciężaru — standard i backoff (serie robocze)
 function getSuggestion(dayId, exId, scheme, schemeType) {
   if (!settings.suggest) return null;
-  if (schemeType && schemeType !== 'standard') return null;
+  // Obsługujemy standard i backoff; exdrop/dropset pomijamy
+  if (schemeType && schemeType !== 'standard' && schemeType !== 'backoff') return null;
   var prev = getPrevSets(dayId, exId);
   if (!prev || !prev.length) return null;
   // Parsuj górną granicę powt. ze scheme np "4×5–8" → 8
   var m = scheme ? scheme.match(/(\d+)\s*[–\-]\s*(\d+)/) : null;
   if (!m) return null;
   var maxReps = parseInt(m[2]);
-  // Sprawdź czy wszystkie serie osiągnęły max
-  var allMax = prev.every(function(s) { return parseInt(s.r) >= maxReps; });
+  // Dla backoff — sprawdzaj tylko serie robocze (bez ostatniej BO)
+  var checkSets = (schemeType === 'backoff') ? prev.slice(0, prev.length - 1) : prev;
+  if (!checkSets.length) return null;
+  // Sprawdź czy wszystkie serie robocze osiągnęły max powt.
+  var allMax = checkSets.every(function(s) { return parseInt(s.r) >= maxReps; });
   if (!allMax) return null;
-  // Sugeruj +2.5kg
+  // Sugeruj +2.5kg od max ciężaru serii roboczych
   var maxW = 0;
-  prev.forEach(function(s) { var w = parseFloat(s.w); if (!isNaN(w) && w > maxW) maxW = w; });
+  checkSets.forEach(function(s) { var w = parseFloat(s.w); if (!isNaN(w) && w > maxW) maxW = w; });
   if (maxW <= 0) return null;
   return (maxW + 2.5).toFixed(1) + ' kg';
 }
@@ -815,13 +850,9 @@ function clearWorkout() {
   if (!day) return;
   if (!confirm('Wyczyścić wszystkie wpisane wartości dla "' + day.name + '" w tygodniu ' + currentWeek + '?')) return;
   var key = logKey(currentWeek, currentDayId);
-  // Usuń tylko dane ćwiczeń, zostaw _date i notatki
-  if (logs[key]) {
-    day.exercises.forEach(function(ex) { delete logs[key][ex.id]; });
-    // Jeśli nic nie zostało — usuń cały klucz
-    var remaining = Object.keys(logs[key]).filter(function(k) { return k !== '_date'; });
-    if (!remaining.length) delete logs[key];
-  }
+  // Usuń cały klucz — ćwiczenia, notatki, datę
+  // Dzięki temu nie zostają śmieci w historii
+  if (logs[key]) delete logs[key];
   saveLogs();
   renderWorkout();
   toast('🗑 Wyczyszczono');
@@ -833,8 +864,10 @@ function saveWorkout(silent) {
   if (!day) return;
   var key = logKey(currentWeek, currentDayId);
   if (!logs[key]) logs[key] = {};
-  // Zapisuj datę tylko jeśli jeszcze nie ma (pierwsza sesja tego dnia)
-  if (!logs[key]._date) logs[key]._date = new Date().toLocaleDateString('pl-PL');
+  // Data treningu — zawsze z pola input (użytkownik może ją zmienić)
+  var wdEl = document.getElementById('workout-date');
+  var wdVal = wdEl ? wdEl.value.trim() : '';
+  logs[key]._date = wdVal || new Date().toLocaleDateString('pl-PL');
 
   // Notatka ogólna do sesji
   var snEl = document.getElementById('session-note');
@@ -849,14 +882,14 @@ function saveWorkout(silent) {
     if (ex.schemeType === 'exdrop') {
       // Zapis exdrop — per drop z wszystkimi polami
       for (var i = 0; i < ex.setsCount; i++) {
-        var g = function(sfx) { var el = document.getElementById('w_' + ex.id + '_' + i + '_' + sfx); return el ? el.value.trim() : ''; };
+        var g = function(sfx) { var el = document.getElementById('w_' + ex.id + '_' + i + '_' + sfx); return el ? normalizeNum(el.value.trim()) : ''; };
         sets.push({ w:g('w'), r:g('r'), wd0:g('wd0'), rd0:g('rd0'), wd1:g('wd1'), rd1:g('rd1'), wd2:g('wd2'), rd2:g('rd2'), wd3:g('wd3'), rd3:g('rd3'), wd4:g('wd4'), rd4:g('rd4') });
       }
     } else {
       for (var i = 0; i < ex.setsCount; i++) {
         var wEl = document.getElementById('w_' + ex.id + '_' + i);
         var rEl = document.getElementById('r_' + ex.id + '_' + i);
-        sets.push({ w: wEl ? wEl.value.trim() : '', r: rEl ? rEl.value.trim() : '' });
+        sets.push({ w: wEl ? normalizeNum(wEl.value.trim()) : '', r: rEl ? rEl.value.trim() : '' });
       }
     }
     if (sets.some(function(s) { return s.w || s.r; })) logs[key][ex.id] = sets;
@@ -947,6 +980,7 @@ function renderHome() {
       + '<div><div class="day-card-name">' + day.name + '</div>'
       + '<div class="day-card-sub">' + day.exercises.length + ' ćwiczeń</div></div>'
       + '<div class="day-card-right">'
+      + (settings.deload ? '<span class="badge" style="background:rgba(233,196,106,0.15);color:var(--yellow);margin-right:2px">🔄 DELOAD</span>' : '')
       + '<span class="badge ' + badgeCls + '">' + badgeTxt + '</span>'
       + '<span class="dc-arrow">›</span></div></div>';
   }).join('');
@@ -962,6 +996,24 @@ function renderWorkout() {
   var c = document.getElementById('ex-list');
   var key = logKey(currentWeek, currentDayId);
   var dl = logs[key] || {};
+
+  // Wczytaj datę treningu do pola — jeśli jest zapisana użyj jej, jeśli nie — dziś
+  var wdEl = document.getElementById('workout-date');
+  if (wdEl) {
+    wdEl.value = dl._date || new Date().toLocaleDateString('pl-PL');
+  }
+
+  // Baner deload — widoczny na górze workout gdy tryb deload jest włączony
+  var deloadBanner = document.getElementById('deload-banner');
+  if (!deloadBanner) {
+    deloadBanner = document.createElement('div');
+    deloadBanner.id = 'deload-banner';
+    deloadBanner.style.cssText = 'background:rgba(233,196,106,0.12);border:1px solid var(--yellow);border-radius:var(--radius);padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--yellow);text-align:center;';
+    deloadBanner.innerHTML = '🔄 <strong>TYDZIEŃ DELOAD</strong> — -40% ciężaru. Zachowaj pełny zakres ruchu i liczbę serii.';
+    var pb = document.getElementById('workout-progress-bar');
+    pb.parentNode.insertBefore(deloadBanner, pb);
+  }
+  deloadBanner.style.display = settings.deload ? 'block' : 'none';
 
   // Wczytaj notatkę ogólną do pola
   var snEl = document.getElementById('session-note');
@@ -1006,15 +1058,21 @@ function renderWorkout() {
           var prMark = isPR(currentDayId, ex.id, s.w) ? ' 🏆' : '';
           return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (i+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + prMark + '</span>';
         }).join('');
-        prevHTML = '<div class="ref-label">↑ Tydzień ' + (currentWeek-1) + '</div><div class="ref-chips">' + chips + '</div>';
+        // Notatka per ćwiczenie z poprzedniego tygodnia — delikatnie pod chipami
+        var prevLogKey = logKey(currentWeek - 1, currentDayId);
+        var prevNote = logs[prevLogKey] ? (logs[prevLogKey]['note_' + ex.id] || '') : '';
+        var prevNoteHTML = prevNote
+          ? '<div style="font-size:10px;color:var(--text3);font-style:italic;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">📝 ' + esc(prevNote) + '</div>'
+          : '';
+        prevHTML = '<div class="ref-label">↑ Tydzień ' + (currentWeek-1) + '</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML;
       } else {
         prevHTML = '<div class="ref-label">↑ Tydzień ' + (currentWeek-1) + '</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
       }
     }
 
-    // Podpowiedź
+    // Podpowiedź ciężaru — mały chip gdy osiągnięto max powt.
     var sugg = getSuggestion(currentDayId, ex.id, ex.scheme, ex.schemeType);
-    var suggHTML = sugg ? '<div class="suggestion show">💡 Następny tydzień: spróbuj ' + sugg + '</div>' : '';
+    var suggHTML = sugg ? '<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;margin-bottom:6px;background:var(--green-bg);border:1px solid var(--green);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--green)">💡 +2.5 kg → ' + sugg + '</div>' : '';
 
     // Inputy serii
     var timerBtn = settings.timer ? '<button class="btn-timer" onclick="timerStart(this)">⏱</button>' : '<span></span>';
@@ -1077,6 +1135,14 @@ function renderWorkout() {
         var isBO = (ex.schemeType === 'backoff' && i === ex.setsCount - 1);
         var cw = curr && curr[i] ? curr[i].w : '';
         var cr = curr && curr[i] ? curr[i].r : '';
+        // Deload: auto-propozycja -40% od poprzedniego tygodnia (tylko gdy brak aktualnych danych)
+        if (settings.deload && !cw && !isBO) {
+          var prevSets = getPrevSets(currentDayId, ex.id);
+          if (prevSets && prevSets[i] && prevSets[i].w) {
+            var deloadW = parseFloat(prevSets[i].w) * 0.6;
+            cw = (Math.round(deloadW * 2) / 2).toFixed(1);
+          }
+        }
         // Auto-propozycja back-off przy renderze (z zapisanych danych)
         if (isBO && !cw && curr) {
           var lastW = 0;
@@ -1103,9 +1169,12 @@ function renderWorkout() {
 
     var yt = ex.youtube ? '<a class="btn-yt" href="' + ex.youtube + '" target="_blank">▶ YT</a>' : '';
     var nt = ex.notes ? '<span style="color:var(--text3);font-weight:400;font-size:12px"> (' + ex.notes + ')</span>' : '';
+    // Opcjonalne ćwiczenie — subtelna etykieta i jasnoniebieska lewa krawędź
+    var optLabel = ex.optional ? '<span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-left:6px;font-weight:400">opcjonalne</span>' : '';
+    var optBorder = ex.optional ? 'border-left:3px solid var(--blue);' : '';
 
-    return '<div class="ex-card">'
-      + '<div class="ex-head"><span class="ex-num">' + (idx+1) + '.</span><span class="ex-name">' + esc(ex.name) + nt + '</span>' + yt + '</div>'
+    return '<div class="ex-card" style="' + optBorder + '">'
+      + '<div class="ex-head"><span class="ex-num">' + (idx+1) + '.</span><span class="ex-name">' + esc(ex.name) + nt + optLabel + '</span>' + yt + '</div>'
       + '<div class="ex-meta">'
       + '<div class="em"><span class="em-l">Serie / Powt.</span><span class="em-v">' + esc(ex.scheme) + '</span></div>'
       + '<div class="em"><span class="em-l">TUT</span><span class="em-v">' + (ex.tut || '—') + '</span></div>'
@@ -1180,9 +1249,15 @@ function saveMeasFields(fields) {
   localStorage.setItem(LS_MEAS_FIELDS, JSON.stringify(fields));
 }
 
-// Wypełnij datę dzisiejszą
+// Wypełnij datę dzisiejszą w pomiarach
 function measToday() {
   document.getElementById('meas-date').value = new Date().toLocaleDateString('pl-PL');
+}
+
+// Wypełnij datę dzisiejszą w treningu
+function workoutDateToday() {
+  var el = document.getElementById('workout-date');
+  if (el) el.value = new Date().toLocaleDateString('pl-PL');
 }
 
 // Renderuj formularz pomiaru (dynamicznie z pól)
@@ -1193,6 +1268,19 @@ function renderMeasForm(editEntry) {
 
   function fieldHtml(f) {
     var val = editEntry ? (editEntry[f.id] || '') : '';
+    // Ciśnienie — dwa osobne pola numeryczne ze slashem między nimi
+    if (f.id === 'cisnienie') {
+      var parts = val ? val.split('/') : ['', ''];
+      var sys = parts[0] ? parts[0].trim() : '';
+      var dia = parts[1] ? parts[1].trim() : '';
+      return '<div class="meas-field">'
+        + '<div class="meas-label">' + esc(f.label) + '</div>'
+        + '<div style="display:flex;align-items:center;gap:4px">'
+        + '<input class="meas-input" type="text" inputmode="numeric" id="mf-cisnienie-sys" value="' + esc(sys) + '" placeholder="120" style="text-align:center">'
+        + '<span style="color:var(--text3);font-size:16px;font-weight:700;flex-shrink:0">/</span>'
+        + '<input class="meas-input" type="text" inputmode="numeric" id="mf-cisnienie-dia" value="' + esc(dia) + '" placeholder="80" style="text-align:center">'
+        + '</div></div>';
+    }
     return '<div class="meas-field">'
       + '<div class="meas-label">' + esc(f.label) + '</div>'
       + '<input class="meas-input" type="text" inputmode="decimal" id="mf-' + f.id + '" value="' + esc(val) + '" placeholder="—">'
@@ -1242,8 +1330,19 @@ function measSave() {
   var entry = { date: date, _fields: fields.map(function(f) { return { id:f.id, label:f.label, group:f.group, goodDown:f.goodDown }; }) };
 
   fields.forEach(function(f) {
+    // Ciśnienie — dwa osobne pola, sklejamy do "115/71"
+    if (f.id === 'cisnienie') {
+      var sysEl = document.getElementById('mf-cisnienie-sys');
+      var diaEl = document.getElementById('mf-cisnienie-dia');
+      var sys = sysEl ? sysEl.value.trim() : '';
+      var dia = diaEl ? diaEl.value.trim() : '';
+      entry[f.id] = (sys || dia) ? (sys + '/' + dia) : '';
+      return;
+    }
     var el = document.getElementById('mf-' + f.id);
-    entry[f.id] = el ? el.value.trim() : '';
+    // Pozostałe pola liczbowe normalizujemy (przecinek → kropka)
+    var raw = el ? el.value.trim() : '';
+    entry[f.id] = normalizeNum(raw);
   });
 
   // BMI jeśli włączone
@@ -1656,7 +1755,10 @@ function renderHistory() {
     return '<div class="hist-item">'
       + '<div class="hist-hdr" onclick="toggleHist(this)">'
       + '<span>Tydz.' + week + ' — ' + esc(dayName) + '</span>'
-      + '<span class="hist-hdr-sub" data-date="' + date + '">' + (date ? date + ' ' : '') + '▼</span>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span class="hist-hdr-sub" data-date="' + date + '">' + (date ? date + ' ' : 'brak daty ') + '▼</span>'
+      + '<button class="meas-del-btn" onclick="event.stopPropagation();deleteHistEntry(\'' + key + '\')" style="font-size:14px;padding:0 4px">🗑</button>'
+      + '</div>'
       + '</div><div class="hist-body">' + sessionNoteHtml + items + '</div></div>';
   }).join('');
 }
@@ -1671,7 +1773,20 @@ function toggleHist(hdr) {
   var open = body.classList.toggle('open');
   var sub = hdr.querySelector('.hist-hdr-sub');
   var d = sub.getAttribute('data-date') || '';
-  sub.textContent = (d ? d + ' ' : '') + (open ? '▲' : '▼');
+  sub.textContent = (d ? d + ' ' : 'brak daty ') + (open ? '▲' : '▼');
+}
+
+// Usuń wpis sesji treningowej z historii
+function deleteHistEntry(key) {
+  var pk = parseLogKey(key);
+  var week = pk[0]; var dayId = pk[1];
+  var dayName = dayId;
+  if (plan && plan.days) { var fd = plan.days.find(function(d){return d.id===dayId;}); if (fd) dayName = fd.name; }
+  if (!confirm('Usunąć trening: Tydz.' + week + ' — ' + dayName + '?')) return;
+  delete logs[key];
+  saveLogs();
+  renderHistory();
+  toast('🗑 Trening usunięty');
 }
 
 // ═══════════════════════════════════════════════
@@ -1887,7 +2002,8 @@ function editorEditEx(di, ei) {
     + '<div class="modal-field"><div class="modal-label">TUT</div><input class="modal-input" id="m-tut" value="' + esc(ex.tut||'') + '"></div>'
     + '<div class="modal-field"><div class="modal-label">Link YouTube</div><input class="modal-input" id="m-yt" value="' + esc(ex.youtube||'') + '"></div>'
     + '<div class="modal-field"><div class="modal-label">Liczba serii (setsCount)</div><input class="modal-input" type="number" id="m-sets" value="' + (ex.setsCount||3) + '" min="1" max="10"></div>'
-    + '<div class="modal-field"><div class="modal-label">Notatka (notes)</div><input class="modal-input" id="m-notes" value="' + esc(ex.notes||'') + '"></div>';
+    + '<div class="modal-field"><div class="modal-label">Notatka (notes)</div><input class="modal-input" id="m-notes" value="' + esc(ex.notes||'') + '"></div>'
+    + '<div class="modal-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><input type="checkbox" id="m-optional"' + (ex.optional?' checked':'') + '> Ćwiczenie opcjonalne (np. rozgrzewkowe)</label></div>';
   openModal();
 }
 
@@ -1910,7 +2026,8 @@ function editorAddEx(di) {
     + '<div class="modal-field"><div class="modal-label">TUT</div><input class="modal-input" id="m-tut" placeholder="np. 2010"></div>'
     + '<div class="modal-field"><div class="modal-label">Link YouTube</div><input class="modal-input" id="m-yt" placeholder="https://..."></div>'
     + '<div class="modal-field"><div class="modal-label">Liczba serii</div><input class="modal-input" type="number" id="m-sets" value="3" min="1" max="10"></div>'
-    + '<div class="modal-field"><div class="modal-label">Notatka</div><input class="modal-input" id="m-notes" placeholder="opcjonalnie"></div>';
+    + '<div class="modal-field"><div class="modal-label">Notatka</div><input class="modal-input" id="m-notes" placeholder="opcjonalnie"></div>'
+    + '<div class="modal-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><input type="checkbox" id="m-optional"> Ćwiczenie opcjonalne (np. rozgrzewkowe)</label></div>';
   openModal();
 }
 
@@ -1929,6 +2046,9 @@ function editorDelEx(di, ei) {
 function modalSave() {
   if (!_modalCtx) return;
   var ctx = _modalCtx;
+
+  // Raport A — generuj po wyborze tygodni
+  if (ctx.type === 'reportA') { exportReportA(); return; }
 
   // Zapis pól pomiarowych (nowy system)
   if (ctx.type === 'measFields') {
@@ -1970,6 +2090,8 @@ function modalSave() {
     ex.youtube   = document.getElementById('m-yt').value.trim();
     ex.setsCount = parseInt(document.getElementById('m-sets').value) || ex.setsCount;
     ex.notes     = document.getElementById('m-notes').value.trim();
+    var optEl    = document.getElementById('m-optional');
+    ex.optional  = optEl ? optEl.checked : false;
   } else if (ctx.type === 'newex') {
     var nm2 = document.getElementById('m-name').value.trim();
     if (!nm2) { toast('⚠️ Podaj nazwę'); return; }
@@ -1981,7 +2103,8 @@ function modalSave() {
       tut: document.getElementById('m-tut').value.trim(),
       youtube: document.getElementById('m-yt').value.trim(),
       setsCount: parseInt(document.getElementById('m-sets').value) || 3,
-      notes: document.getElementById('m-notes').value.trim()
+      notes: document.getElementById('m-notes').value.trim(),
+      optional: (function(){ var el = document.getElementById('m-optional'); return el ? el.checked : false; })()
     });
   }
 
@@ -2011,7 +2134,7 @@ function downloadFile(content, filename, type) {
 }
 
 function createBackup() {
-  var data = { _version: APP_VERSION, _date: new Date().toLocaleDateString('pl-PL'), logs: logs, measurements: measurements };
+  var data = { _version: APP_VERSION, _date: new Date().toLocaleDateString('pl-PL'), logs: logs, measurements: measurements, measFields: loadMeasFields() };
   var d = new Date().toISOString().split('T')[0];
   downloadFile(JSON.stringify(data, null, 2), 'backup_v' + APP_VERSION + '_' + d + '.json', 'application/json');
   toast('🔒 Backup pobrany');
@@ -2049,7 +2172,7 @@ function resetApp() {
 
 function exportCSV() {
   if (!Object.keys(logs).length) { toast('⚠️ Brak danych'); return; }
-  var rows = 'Data;Tydzień;Dzień;Ćwiczenie;Seria;Ciężar (kg);Powtórzenia;Notatka\n';
+  var rows = 'Data;Tydzień;Dzień;Ćwiczenie;Seria;Ciężar (kg);Powtórzenia;Notatka;Notatka ogólna sesji\n';
   var keys = Object.keys(logs).sort(function(a,b){ return parseLogKey(a)[0]-parseLogKey(b)[0]; });
   keys.forEach(function(key) {
     var pk = parseLogKey(key); var week = pk[0]; var dayId = pk[1];
@@ -2063,8 +2186,9 @@ function exportCSV() {
       var exObj = dayExs.find(function(e){ return e.id===exId; });
       var exName = exObj ? exObj.name : exId;
       var note = dl['note_'+exId]||'';
+      var sessionNote = dl._note || '';
       dl[exId].forEach(function(s,i) {
-        rows += [csvEsc(date), week, csvEsc(dayName), csvEsc(exName), 'S'+(i+1), s.w||'', s.r||'', csvEsc(note)].join(';') + '\n';
+        rows += [csvEsc(date), week, csvEsc(dayName), csvEsc(exName), 'S'+(i+1), s.w||'', s.r||'', csvEsc(note), csvEsc(sessionNote)].join(';') + '\n';
       });
     });
   });
@@ -2073,14 +2197,53 @@ function exportCSV() {
   toast('📊 CSV pobrany');
 }
 
-function exportHTMLReport() {
-  if (!Object.keys(logs).length && !measurements.length) { toast('⚠️ Brak danych'); return; }
+// ═══════════════════════════════════════════════
+// RAPORTY HTML
+// ═══════════════════════════════════════════════
 
-  // ── SEKCJA 1: STATYSTYKI TRENINGOWE ──────────────────────────────
-  // Zbierz statystyki per ćwiczenie: max ciężar, łączna objętość, liczba sesji
-  var exStats = {}; // exKey (dayId|exId) → { name, sessions, maxW, totalVol }
+// Wspólne style CSS dla obu raportów
+function reportCSS() {
+  return 'body{font-family:Arial,sans-serif;padding:24px;color:#1a1a1a;max-width:1000px;margin:0 auto}'
+    + 'h1{color:#e63946;font-size:24px;margin-bottom:4px}'
+    + 'p.sub{color:#888;font-size:13px;margin-bottom:28px}'
+    + '.section{margin-bottom:32px;page-break-inside:avoid}'
+    + 'h2{font-size:15px;color:#333;margin-bottom:10px;border-bottom:2px solid #e63946;padding-bottom:5px}'
+    + '.date{font-size:12px;color:#aaa;font-weight:400}'
+    + 'table{border-collapse:collapse;width:100%;font-size:13px}'
+    + 'th{padding:8px 10px;text-align:left}'
+    + 'td{padding:7px 10px;border:1px solid #eee;vertical-align:top}'
+    + 'tr:nth-child(even) td{background:#f9f9f9}'
+    + 'td:first-child{min-width:140px}'
+    + '.trend-up{color:#27ae60;font-weight:700}'
+    + '.trend-dn{color:#e63946;font-weight:700}'
+    + '.trend-neu{color:#888}'
+    + 'p.tip{margin-top:18px;font-size:11px;color:#bbb}'
+    + '@media print{p.tip{display:none}}';
+}
+
+// Generuj znacznik trendu dla raportu HTML
+// val — aktualna wartość, prev — poprzednia, goodDown — kierunek
+function trendBadge(val, prev, goodDown) {
+  var v = parseFloat(val); var p = parseFloat(prev);
+  if (isNaN(v) || isNaN(p) || v === p) return '<span class="trend-neu">→ bez zmian</span>';
+  var diff = v - p;
+  var sign = diff > 0 ? '+' : '';
+  // goodDown === null — brak oceny kierunku (np. ciśnienie)
+  if (goodDown === null || goodDown === undefined) {
+    return '<span class="trend-neu">' + sign + diff.toFixed(1) + '</span>';
+  }
+  // goodDown true — spadek dobry; goodDown false — wzrost dobry
+  var isGood = goodDown ? (diff < 0) : (diff > 0);
+  var cls = isGood ? 'trend-up' : 'trend-dn';
+  var arrow = diff > 0 ? ' ▲' : ' ▼';
+  return '<span class="' + cls + '">' + sign + diff.toFixed(1) + arrow + '</span>';
+}
+
+// Zbierz statystyki per ćwiczenie ze wszystkich logów
+function collectExStats() {
+  var exStats = {};
   Object.keys(logs).forEach(function(key) {
-    var pk = parseLogKey(key); var dayId = pk[1];
+    var pk = parseLogKey(key); var dayId = pk[1]; var week = pk[0];
     var dl = logs[key];
     Object.keys(dl).filter(function(k) { return k !== '_date' && k !== '_note' && k.indexOf('note_') !== 0; }).forEach(function(exId) {
       var exKey = dayId + '|' + exId;
@@ -2089,7 +2252,7 @@ function exportHTMLReport() {
         if (plan && plan.days) { var fd = plan.days.find(function(d) { return d.id === dayId; }); if (fd) dayExs = fd.exercises || []; }
         var exObj = dayExs.find(function(e) { return e.id === exId; });
         var dayObj = plan && plan.days ? plan.days.find(function(d) { return d.id === dayId; }) : null;
-        exStats[exKey] = { name: exObj ? exObj.name : exId, dayName: dayObj ? dayObj.name : dayId, sessions: 0, maxW: 0, totalVol: 0, scheme: exObj ? exObj.scheme : '' };
+        exStats[exKey] = { name: exObj ? exObj.name : exId, dayName: dayObj ? dayObj.name : dayId, dayId: dayId, exId: exId, sessions: 0, maxW: 0, totalVol: 0, scheme: exObj ? exObj.scheme : '', byWeek: {} };
       }
       exStats[exKey].sessions++;
       var sets = dl[exId];
@@ -2097,45 +2260,74 @@ function exportHTMLReport() {
       if (plan && plan.days) { var fd2 = plan.days.find(function(d) { return d.id === dayId; }); if (fd2) exObj2 = fd2.exercises.find(function(e) { return e.id === exId; }); }
       var sType = exObj2 ? exObj2.schemeType : 'standard';
       var boIdx = (sType === 'backoff') ? sets.length - 1 : -1;
+      var wkMaxW = 0; var wkVol = 0;
       sets.forEach(function(s, si) {
         if (si === boIdx) return;
-        var w = parseFloat(sType === 'exdrop' ? s.w : s.w) || 0;
-        var r = parseInt(s.r) || 0;
+        var w = parseFloat(s.w) || 0; var r = parseInt(s.r) || 0;
         if (w > exStats[exKey].maxW) exStats[exKey].maxW = w;
+        if (w > wkMaxW) wkMaxW = w;
         exStats[exKey].totalVol += w * r;
+        wkVol += w * r;
       });
+      // Zapisz dane per tydzień
+      exStats[exKey].byWeek[week] = { maxW: wkMaxW, vol: wkVol };
     });
   });
+  return exStats;
+}
 
-  // Grupuj statystyki po dniu
-  var statsByDay = {};
-  Object.keys(exStats).forEach(function(k) {
+// ── RAPORT B — PEŁNY (od początku) z trendami ────────────────────
+function exportHTMLReport(mode) {
+  if (!Object.keys(logs).length && !measurements.length) { toast('⚠️ Brak danych'); return; }
+
+  // ── SEKCJA 1: STATYSTYKI TRENINGOWE z trendami ───────────────────
+  // Używamy collectExStats() który ma byWeek — trendy ostatni vs przedostatni tydzień
+  var exStatsB = collectExStats();
+
+  // Znajdź dwa ostatnie tygodnie z danymi
+  var allWeeksB = [];
+  Object.keys(logs).forEach(function(key) { var w = parseLogKey(key)[0]; if (allWeeksB.indexOf(w) < 0) allWeeksB.push(w); });
+  allWeeksB.sort(function(a,b){return a-b;});
+  var lastWB = allWeeksB.length ? allWeeksB[allWeeksB.length-1] : null;
+  var prevWB = allWeeksB.length > 1 ? allWeeksB[allWeeksB.length-2] : null;
+
+  var statsByDayB = {};
+  Object.keys(exStatsB).forEach(function(k) {
     var dayId = k.split('|')[0];
-    if (!statsByDay[dayId]) statsByDay[dayId] = { dayName: exStats[k].dayName, exs: [] };
-    statsByDay[dayId].exs.push(exStats[k]);
+    if (!statsByDayB[dayId]) statsByDayB[dayId] = { dayName: exStatsB[k].dayName, exs: [] };
+    statsByDayB[dayId].exs.push(exStatsB[k]);
   });
 
   var statsSection = '';
-  if (Object.keys(statsByDay).length) {
+  if (Object.keys(statsByDayB).length) {
     var statsRows = '';
-    Object.keys(statsByDay).forEach(function(dayId) {
-      var grp = statsByDay[dayId];
-      statsRows += '<tr style="background:#f0f0f0"><td colspan="4" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
+    Object.keys(statsByDayB).forEach(function(dayId) {
+      var grp = statsByDayB[dayId];
+      statsRows += '<tr style="background:#f0f0f0"><td colspan="6" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
       grp.exs.forEach(function(ex) {
+        var dLast = lastWB ? (ex.byWeek[lastWB] || null) : null;
+        var dPrev = prevWB ? (ex.byWeek[prevWB] || null) : null;
+        var maxWTrend = (dLast && dPrev) ? trendBadge(dLast.maxW, dPrev.maxW, false) : '<span style="color:#aaa">—</span>';
+        var volTrend  = (dLast && dPrev) ? trendBadge(dLast.vol,  dPrev.vol,  false) : '<span style="color:#aaa">—</span>';
         statsRows += '<tr>'
           + '<td>' + htmlEsc(ex.name) + (ex.scheme ? '<br><small style="color:#888">' + htmlEsc(ex.scheme) + '</small>' : '') + '</td>'
           + '<td style="text-align:center">' + ex.sessions + '</td>'
           + '<td style="text-align:center;font-weight:700;color:#e63946">' + (ex.maxW > 0 ? ex.maxW.toFixed(1) + ' kg' : '—') + '</td>'
+          + '<td style="text-align:center">' + maxWTrend + '</td>'
           + '<td style="text-align:center">' + (ex.totalVol > 0 ? Math.round(ex.totalVol) + ' kg·r' : '—') + '</td>'
+          + '<td style="text-align:center">' + volTrend + '</td>'
           + '</tr>';
       });
     });
-    statsSection = '<div class="section"><h2>📊 Statystyki treningowe</h2>'
+    var trendNote = (lastWB && prevWB) ? ' <small style="color:#888;font-weight:400">(trend: T' + lastWB + ' vs T' + prevWB + ')</small>' : '';
+    statsSection = '<div class="section"><h2>📊 Statystyki treningowe' + trendNote + '</h2>'
       + '<table><thead><tr style="background:#e63946;color:#fff">'
       + '<th style="text-align:left;padding:8px 10px">Ćwiczenie</th>'
       + '<th style="text-align:center;padding:8px 10px">Sesje</th>'
       + '<th style="text-align:center;padding:8px 10px">Max ciężar</th>'
-      + '<th style="text-align:center;padding:8px 10px">Łączna objętość</th>'
+      + '<th style="text-align:center;padding:8px 10px">Trend kg</th>'
+      + '<th style="text-align:center;padding:8px 10px">Łączna obj.</th>'
+      + '<th style="text-align:center;padding:8px 10px">Trend obj.</th>'
       + '</tr></thead><tbody>' + statsRows + '</tbody></table></div>';
   }
 
@@ -2174,64 +2366,17 @@ function exportHTMLReport() {
       var sessionNoteRow = sessionNote
         ? '<tr><td colspan="20" style="background:#f5f5f5;color:#555;font-style:italic;font-size:12px">📋 Notatka ogólna: ' + htmlEsc(sessionNote) + '</td></tr>'
         : '';
-      trainingSections += '<div class="section"><h2>Tydzień ' + week + ' — ' + htmlEsc(dayName) + ' <span class="date">' + date + '</span></h2>'
+      trainingSections += '<div class="section"><h2>Tydzień ' + week + ' — ' + htmlEsc(dayName) + ' <span class="date">' + (date||'brak daty') + '</span></h2>'
         + '<table><tbody>' + sessionNoteRow + exRows + '</tbody></table></div>';
     }
   });
 
-  // ── SEKCJA 3: POMIARY ─────────────────────────────────────────────
-  var measSection = '';
-  if (measurements.length) {
-    // Zbierz wszystkie unikalne pola ze wszystkich pomiarów (nowy + stary format)
-    var allMeasIds = []; var measLabelMap = {};
-    measurements.forEach(function(m) {
-      var mf = m._fields || DEFAULT_MEAS_FIELDS;
-      mf.forEach(function(f) {
-        if (allMeasIds.indexOf(f.id) < 0) { allMeasIds.push(f.id); measLabelMap[f.id] = f.label; }
-      });
-    });
-    var hasBMIData = measurements.some(function(m) { return m.bmi; });
-
-    var measRows = measurements.map(function(m) {
-      var cells = '';
-      allMeasIds.forEach(function(id) {
-        var val = m[id] || '';
-        cells += val ? '<td><small>' + htmlEsc(measLabelMap[id]||id) + '</small><br><strong>' + htmlEsc(val) + '</strong></td>'
-                     : '<td style="color:#ccc">—</td>';
-      });
-      if (hasBMIData) {
-        cells += m.bmi ? '<td><small>BMI</small><br><strong>' + m.bmi + '</strong><br><small style="color:#888">' + getBMICategory(parseFloat(m.bmi)) + '</small></td>'
-                       : '<td style="color:#ccc">—</td>';
-      }
-      return '<tr><td style="font-weight:700;white-space:nowrap">' + htmlEsc(m.date) + '</td>' + cells + '</tr>';
-    }).join('');
-
-    var measHdrs = '<th style="text-align:left;padding:8px 10px">Data</th>';
-    allMeasIds.forEach(function(id) { measHdrs += '<th style="padding:8px 6px">' + htmlEsc(measLabelMap[id]||id) + '</th>'; });
-    if (hasBMIData) measHdrs += '<th style="padding:8px 6px">BMI</th>';
-
-    measSection = '<div class="section"><h2>📏 Pomiary tygodniowe</h2>'
-      + '<table style="font-size:12px"><thead><tr style="background:#457b9d;color:#fff">'
-      + measHdrs + '</tr></thead><tbody>' + measRows + '</tbody></table></div>';
-  }
+  // ── SEKCJA 3: POMIARY z trendami (używa buildMeasSection) ─────────
+  var measSection = measurements.length ? buildMeasSection(measurements) : '';
 
   // ── SKLEJENIE HTML ────────────────────────────────────────────────
   var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>Raport treningowy</title>'
-    + '<style>'
-    + 'body{font-family:Arial,sans-serif;padding:24px;color:#1a1a1a;max-width:1000px;margin:0 auto}'
-    + 'h1{color:#e63946;font-size:24px;margin-bottom:4px}'
-    + 'p.sub{color:#888;font-size:13px;margin-bottom:28px}'
-    + '.section{margin-bottom:32px;page-break-inside:avoid}'
-    + 'h2{font-size:15px;color:#333;margin-bottom:10px;border-bottom:2px solid #e63946;padding-bottom:5px}'
-    + '.date{font-size:12px;color:#aaa;font-weight:400}'
-    + 'table{border-collapse:collapse;width:100%;font-size:13px}'
-    + 'th{padding:8px 10px;text-align:left}'
-    + 'td{padding:7px 10px;border:1px solid #eee;vertical-align:top}'
-    + 'tr:nth-child(even) td{background:#f9f9f9}'
-    + 'td:first-child{min-width:160px}'
-    + 'p.tip{margin-top:18px;font-size:11px;color:#bbb}'
-    + '@media print{p.tip{display:none}}'
-    + '</style></head><body>'
+    + '<style>' + reportCSS() + '</style></head><body>'
     + '<h1>🏋️ Dziennik treningowy</h1>'
     + '<p class="sub">Wygenerowano: ' + new Date().toLocaleDateString('pl-PL') + ' · Wersja apki: ' + APP_VERSION + '</p>'
     + statsSection
@@ -2271,6 +2416,10 @@ function handleLogsFile(e) {
           measurements = p.measurements;
           saveMeasurements();
         }
+        // Import konfiguracji pól pomiarowych z backupu
+        if (p.measFields && Array.isArray(p.measFields)) {
+          saveMeasFields(p.measFields);
+        }
         p = p.logs;
       }
       if (typeof p !== 'object' || Array.isArray(p)) { toast('❌ Zły format'); return; }
@@ -2278,6 +2427,131 @@ function handleLogsFile(e) {
     } catch(err) { toast('❌ Błąd odczytu JSON'); }
   };
   r.readAsText(f); e.target.value = '';
+}
+
+// Wspólna funkcja budująca sekcję pomiarów z trendami
+function buildMeasSection(measArr) {
+  if (!measArr || !measArr.length) return '';
+  var allMeasIds = []; var measLabelMap = {}; var measGoodDownMap = {};
+  measArr.forEach(function(m) {
+    var mf = m._fields || DEFAULT_MEAS_FIELDS;
+    mf.forEach(function(f) {
+      if (allMeasIds.indexOf(f.id) < 0) {
+        allMeasIds.push(f.id); measLabelMap[f.id] = f.label; measGoodDownMap[f.id] = f.goodDown;
+      }
+    });
+  });
+  var hasBMI = measArr.some(function(m) { return m.bmi; });
+  var sorted = measArr.slice().sort(function(a,b){ return parseDatePL(b.date) - parseDatePL(a.date); });
+  var measRows = sorted.map(function(m, i) {
+    var prev = sorted[i+1] || null;
+    var cells = '';
+    allMeasIds.forEach(function(id) {
+      var val = m[id] || ''; var prevVal = prev ? (prev[id] || '') : '';
+      var trend = (val && prevVal && id !== 'cisnienie') ? (' ' + trendBadge(val, prevVal, measGoodDownMap[id])) : '';
+      cells += val ? '<td><small>' + htmlEsc(measLabelMap[id]||id) + '</small><br><strong>' + htmlEsc(val) + '</strong>' + trend + '</td>'
+                   : '<td style="color:#ccc">—</td>';
+    });
+    if (hasBMI) {
+      var bmiTrend = (m.bmi && prev && prev.bmi) ? (' ' + trendBadge(m.bmi, prev.bmi, true)) : '';
+      cells += m.bmi ? '<td><small>BMI</small><br><strong>' + m.bmi + '</strong>' + bmiTrend + '<br><small style="color:#888">' + getBMICategory(parseFloat(m.bmi)) + '</small></td>'
+                     : '<td style="color:#ccc">—</td>';
+    }
+    return '<tr><td style="font-weight:700;white-space:nowrap">' + htmlEsc(m.date) + '</td>' + cells + '</tr>';
+  }).join('');
+  var measHdrs = '<th style="text-align:left;padding:8px 10px">Data</th>';
+  allMeasIds.forEach(function(id) { measHdrs += '<th style="padding:8px 6px">' + htmlEsc(measLabelMap[id]||id) + '</th>'; });
+  if (hasBMI) measHdrs += '<th style="padding:8px 6px">BMI</th>';
+  return '<div class="section"><h2>📏 Pomiary tygodniowe</h2>'
+    + '<table style="font-size:12px"><thead><tr style="background:#457b9d;color:#fff">'
+    + measHdrs + '</tr></thead><tbody>' + measRows + '</tbody></table></div>';
+}
+
+// Raport A — modal wyboru tygodni
+function showReportAModal() {
+  var allWeeks = [];
+  Object.keys(logs).forEach(function(key) { var w = parseLogKey(key)[0]; if (allWeeks.indexOf(w) < 0) allWeeks.push(w); });
+  allWeeks.sort(function(a,b){return a-b;});
+  if (allWeeks.length < 2) { toast('⚠️ Potrzeba co najmniej 2 tygodni z danymi'); return; }
+  var lastW = allWeeks[allWeeks.length-1]; var prevW = allWeeks[allWeeks.length-2];
+  var opts = allWeeks.map(function(w) { return '<option value="'+w+'">Tydzień '+w+'</option>'; }).join('');
+  _modalCtx = { type: 'reportA' };
+  document.getElementById('modal-title').textContent = 'Raport A — Porównanie tygodni';
+  document.getElementById('modal-content').innerHTML =
+    '<div class="modal-field"><div class="modal-label">Tydzień A (nowszy)</div>'
+    + '<select class="modal-select" id="ra-weekA">' + opts + '</select></div>'
+    + '<div class="modal-field"><div class="modal-label">Tydzień B (starszy)</div>'
+    + '<select class="modal-select" id="ra-weekB">' + opts + '</select></div>'
+    + '<button class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="reportASetDefault()">Dwa ostatnie tygodnie</button>';
+  setTimeout(function() {
+    var selA = document.getElementById('ra-weekA'); var selB = document.getElementById('ra-weekB');
+    if (selA) selA.value = lastW; if (selB) selB.value = prevW;
+  }, 0);
+  openModal();
+}
+
+function reportASetDefault() {
+  var allWeeks = [];
+  Object.keys(logs).forEach(function(key) { var w = parseLogKey(key)[0]; if (allWeeks.indexOf(w) < 0) allWeeks.push(w); });
+  allWeeks.sort(function(a,b){return a-b;});
+  var selA = document.getElementById('ra-weekA'); var selB = document.getElementById('ra-weekB');
+  if (selA && allWeeks.length) selA.value = allWeeks[allWeeks.length-1];
+  if (selB && allWeeks.length > 1) selB.value = allWeeks[allWeeks.length-2];
+}
+
+function exportReportA() {
+  var selA = document.getElementById('ra-weekA'); var selB = document.getElementById('ra-weekB');
+  if (!selA || !selB) return;
+  var weekA = parseInt(selA.value); var weekB = parseInt(selB.value);
+  if (weekA === weekB) { toast('⚠️ Wybierz dwa różne tygodnie'); return; }
+  closeModal();
+  var exStats = collectExStats();
+  var statsByDay = {};
+  Object.keys(exStats).forEach(function(k) {
+    var dayId = k.split('|')[0];
+    if (!statsByDay[dayId]) statsByDay[dayId] = { dayName: exStats[k].dayName, exs: [] };
+    statsByDay[dayId].exs.push(exStats[k]);
+  });
+  var exSection = '';
+  if (Object.keys(statsByDay).length) {
+    var exRows = '';
+    Object.keys(statsByDay).forEach(function(dayId) {
+      var grp = statsByDay[dayId];
+      exRows += '<tr style="background:#f0f0f0"><td colspan="5" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
+      grp.exs.forEach(function(ex) {
+        var dA = ex.byWeek[weekA] || null; var dB = ex.byWeek[weekB] || null;
+        var maxWA = dA ? dA.maxW.toFixed(1)+' kg' : '—'; var maxWB = dB ? dB.maxW.toFixed(1)+' kg' : '—';
+        var volA  = dA ? Math.round(dA.vol)+' kg·r' : '—'; var volB  = dB ? Math.round(dB.vol)+' kg·r' : '—';
+        var maxWTrend = (dA && dB) ? trendBadge(dA.maxW, dB.maxW, false) : '<span style="color:#888">—</span>';
+        var volTrend  = (dA && dB) ? trendBadge(dA.vol,  dB.vol,  false) : '<span style="color:#888">—</span>';
+        exRows += '<tr>'
+          + '<td>' + htmlEsc(ex.name) + (ex.scheme ? '<br><small style="color:#888">' + htmlEsc(ex.scheme) + '</small>' : '') + '</td>'
+          + '<td style="text-align:center">' + maxWA + '<br><small style="color:#aaa">T'+weekA+'</small></td>'
+          + '<td style="text-align:center">' + maxWB + '<br><small style="color:#aaa">T'+weekB+'</small></td>'
+          + '<td style="text-align:center">' + maxWTrend + '</td>'
+          + '<td style="text-align:center">' + volA + ' vs ' + volB + '<br>' + volTrend + '</td>'
+          + '</tr>';
+      });
+    });
+    exSection = '<div class="section"><h2>💪 Ćwiczenia: T' + weekA + ' vs T' + weekB + '</h2>'
+      + '<table><thead><tr style="background:#e63946;color:#fff">'
+      + '<th style="text-align:left;padding:8px 10px">Ćwiczenie</th>'
+      + '<th style="text-align:center;padding:8px 10px">Max ciężar T'+weekA+'</th>'
+      + '<th style="text-align:center;padding:8px 10px">Max ciężar T'+weekB+'</th>'
+      + '<th style="text-align:center;padding:8px 10px">Trend</th>'
+      + '<th style="text-align:center;padding:8px 10px">Objętość</th>'
+      + '</tr></thead><tbody>' + exRows + '</tbody></table></div>';
+  }
+  var measSection = buildMeasSection(measurements.slice(0, 2));
+  var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>Raport A — Porównanie</title>'
+    + '<style>' + reportCSS() + '</style></head><body>'
+    + '<h1>📊 Raport A — Porównanie tygodni</h1>'
+    + '<p class="sub">T' + weekA + ' vs T' + weekB + ' · Wygenerowano: ' + new Date().toLocaleDateString('pl-PL') + '</p>'
+    + exSection + measSection
+    + '<p class="tip">Aby zapisać jako PDF: Ctrl+P → Zapisz jako PDF</p></body></html>';
+  var d = new Date().toISOString().split('T')[0];
+  downloadFile(html, 'trening_raportA_T'+weekA+'vsT'+weekB+'_' + d + '.html', 'text/html;charset=utf-8;');
+  toast('📊 Raport A pobrany');
 }
 
 // ═══════════════════════════════════════════════
@@ -2293,6 +2567,12 @@ function parseDatePL(s) {
   var p = s.split('.');
   if (p.length !== 3) return 0;
   return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0])).getTime();
+}
+
+// Normalizacja wartości liczbowej — zamienia przecinek na kropkę
+// Dzięki temu "31,5" i "31.5" są traktowane identycznie
+function normalizeNum(s) {
+  return String(s || '').replace(',', '.');
 }
 
 function esc(s) {
