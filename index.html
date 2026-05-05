@@ -237,7 +237,13 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
   <div id="view-home" class="view active">
     <div class="week-bar">
       <button class="wbtn" onclick="changeWeek(-1)">‹</button>
-      <strong id="week-label">Tydzień 1</strong>
+      <!-- v4.0: klik na napis otwiera input do skoku do tygodnia -->
+      <strong id="week-label" onclick="weekLabelClick()" style="cursor:pointer;user-select:none">Tydzień 1</strong>
+      <input id="week-jump-input" type="text" inputmode="numeric"
+        style="display:none;width:90px;background:var(--input);border:1px solid var(--accent);border-radius:8px;color:var(--text);font-size:17px;font-weight:700;text-align:center;padding:4px 8px;"
+        placeholder="nr"
+        onblur="weekJumpCommit()"
+        onkeydown="if(event.key==='Enter')weekJumpCommit();if(event.key==='Escape')weekJumpCancel()">
       <button class="wbtn" onclick="changeWeek(1)">›</button>
     </div>
     <div id="day-list"></div>
@@ -421,7 +427,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.9 · 2026-05-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 4.0 · 2026-05-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -485,14 +491,15 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.9';
+var APP_VERSION = '4.0';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
 var prevView = 'home';
 var plan = null;
 var logs = {};
-var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false, deload:false };
+var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false, deload:false, planCycleWeek:1 };
+// planCycleWeek: od którego tygodnia startuje raport B (domyślnie 1 = cała historia)
 var _saveGuard = false;
 var _wakeLock = null;
 var _timerInterval = null;
@@ -525,13 +532,15 @@ function loadAll() {
   cleanEmptyLogs();
 }
 
-// Usuń puste wpisy z logs (tylko _date bez ćwiczeń i notatek)
+// Usuń puste wpisy z logs (tylko metadane bez serii ćwiczeń)
 function cleanEmptyLogs() {
   var changed = false;
+  // Klucze metadanych które nie są seriami ćwiczeń
+  var META_KEYS = { '_date':1, '_note':1, '_dayName':1, '_exNames':1 };
   Object.keys(logs).forEach(function(key) {
     var dl = logs[key];
     var hasData = Object.keys(dl).some(function(k) {
-      return k !== '_date' && k !== '_note';
+      return !META_KEYS[k] && k.indexOf('note_') !== 0;
     });
     if (!hasData) { delete logs[key]; changed = true; }
   });
@@ -772,6 +781,38 @@ function changeWeek(delta) {
   renderHome();
 }
 
+// v4.0: skok do tygodnia — klik na napis "Tydzień X"
+function weekLabelClick() {
+  var lbl = document.getElementById('week-label');
+  var inp = document.getElementById('week-jump-input');
+  if (!lbl || !inp) return;
+  lbl.style.display = 'none';
+  inp.style.display = 'inline-block';
+  inp.value = currentWeek;
+  inp.focus();
+  inp.select();
+}
+function weekJumpCommit() {
+  var inp = document.getElementById('week-jump-input');
+  var lbl = document.getElementById('week-label');
+  if (!inp || !lbl) return;
+  var val = parseInt(inp.value);
+  if (!isNaN(val) && val >= 1) {
+    currentWeek = val;
+    saveWeek();
+    renderHome();
+  }
+  inp.style.display = 'none';
+  lbl.style.display = '';
+}
+function weekJumpCancel() {
+  var inp = document.getElementById('week-jump-input');
+  var lbl = document.getElementById('week-label');
+  if (!inp || !lbl) return;
+  inp.style.display = 'none';
+  lbl.style.display = '';
+}
+
 // ═══════════════════════════════════════════════
 // LOG HELPERS
 // ═══════════════════════════════════════════════
@@ -875,6 +916,12 @@ function saveWorkout(silent) {
   var wdVal = wdEl ? wdEl.value.trim() : '';
   logs[key]._date = wdVal || new Date().toLocaleDateString('pl-PL');
 
+  // v3.10 B: snapshot nazwy dnia i ćwiczeń — raport używa tych nazw nawet po zmianie planu
+  logs[key]._dayName = day.name;
+  var exNames = {};
+  day.exercises.forEach(function(ex) { exNames[ex.id] = ex.name; });
+  logs[key]._exNames = exNames;
+
   // Notatka ogólna do sesji
   var snEl = document.getElementById('session-note');
   if (snEl) {
@@ -905,7 +952,7 @@ function saveWorkout(silent) {
     else if (logs[key]['note_' + ex.id] !== undefined && nEl && !nEl.value.trim()) delete logs[key]['note_' + ex.id];
   });
 
-  // Sprawdź czy jest cokolwiek wpisane (seria lub notatka ogólna)
+  // Sprawdź czy jest cokolwiek wpisane (seria lub notatka ogólna) — ignoruj metadane
   var hasAnyData = false;
   day.exercises.forEach(function(ex) {
     if (logs[key][ex.id]) hasAnyData = true;
@@ -2345,25 +2392,56 @@ function trendBadge(val, prev, goodDown) {
   return '<span class="' + cls + '">' + sign + diff.toFixed(1) + arrow + '</span>';
 }
 
+// v3.10: pomocnicze — klucze metadanych w logu
+var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1 };
+function isExKey(k) { return !LOG_META[k] && k.indexOf('note_') !== 0; }
+
+// v3.10: pobierz nazwę ćwiczenia z logu (snapshot) lub z aktualnego planu lub surowe ID
+function getExName(dl, dayId, exId) {
+  if (dl._exNames && dl._exNames[exId]) return dl._exNames[exId];
+  if (plan && plan.days) {
+    var fd = plan.days.find(function(d) { return d.id === dayId; });
+    if (fd) { var ex = fd.exercises.find(function(e) { return e.id === exId; }); if (ex) return ex.name; }
+  }
+  return exId;
+}
+
+// v3.10: pobierz nazwę dnia z logu (snapshot) lub z aktualnego planu lub surowe ID
+function getDayName(dl, dayId) {
+  if (dl._dayName) return dl._dayName;
+  if (plan && plan.days) { var fd = plan.days.find(function(d) { return d.id === dayId; }); if (fd) return fd.name; }
+  return dayId;
+}
+
 // Zbierz statystyki per ćwiczenie ze wszystkich logów
+// v3.10: trend liczony per ćwiczenie z jego własnych dwóch ostatnich tygodni
 function collectExStats() {
   var exStats = {};
   Object.keys(logs).forEach(function(key) {
     var pk = parseLogKey(key); var dayId = pk[1]; var week = pk[0];
     var dl = logs[key];
-    Object.keys(dl).filter(function(k) { return k !== '_date' && k !== '_note' && k.indexOf('note_') !== 0; }).forEach(function(exId) {
+    Object.keys(dl).filter(isExKey).forEach(function(exId) {
       var exKey = dayId + '|' + exId;
       if (!exStats[exKey]) {
-        var dayExs = [];
-        if (plan && plan.days) { var fd = plan.days.find(function(d) { return d.id === dayId; }); if (fd) dayExs = fd.exercises || []; }
-        var exObj = dayExs.find(function(e) { return e.id === exId; });
-        var dayObj = plan && plan.days ? plan.days.find(function(d) { return d.id === dayId; }) : null;
-        exStats[exKey] = { name: exObj ? exObj.name : exId, dayName: dayObj ? dayObj.name : dayId, dayId: dayId, exId: exId, sessions: 0, maxW: 0, totalVol: 0, scheme: exObj ? exObj.scheme : '', byWeek: {} };
+        var exObj = null;
+        if (plan && plan.days) { var fd = plan.days.find(function(d){return d.id===dayId;}); if (fd) exObj = fd.exercises.find(function(e){return e.id===exId;}); }
+        exStats[exKey] = {
+          name: getExName(dl, dayId, exId),
+          dayName: getDayName(dl, dayId),
+          dayId: dayId, exId: exId,
+          sessions: 0, maxW: 0, totalVol: 0,
+          scheme: exObj ? exObj.scheme : '',
+          byWeek: {}
+        };
+      } else {
+        // Aktualizuj nazwę jeśli późniejszy log ma snapshot (nowszy zapis)
+        if (dl._exNames && dl._exNames[exId]) exStats[exKey].name = dl._exNames[exId];
+        if (dl._dayName) exStats[exKey].dayName = dl._dayName;
       }
       exStats[exKey].sessions++;
       var sets = dl[exId];
       var exObj2 = null;
-      if (plan && plan.days) { var fd2 = plan.days.find(function(d) { return d.id === dayId; }); if (fd2) exObj2 = fd2.exercises.find(function(e) { return e.id === exId; }); }
+      if (plan && plan.days) { var fd2 = plan.days.find(function(d){return d.id===dayId;}); if (fd2) exObj2 = fd2.exercises.find(function(e){return e.id===exId;}); }
       var sType = exObj2 ? exObj2.schemeType : 'standard';
       var boIdx = (sType === 'backoff') ? sets.length - 1 : -1;
       var wkMaxW = 0; var wkVol = 0;
@@ -2375,10 +2453,18 @@ function collectExStats() {
         exStats[exKey].totalVol += w * r;
         wkVol += w * r;
       });
-      // Zapisz dane per tydzień
       exStats[exKey].byWeek[week] = { maxW: wkMaxW, vol: wkVol };
     });
   });
+
+  // v3.10: dla każdego ćwiczenia oblicz trend z jego własnych dwóch ostatnich tygodni
+  Object.keys(exStats).forEach(function(exKey) {
+    var ex = exStats[exKey];
+    var weeks = Object.keys(ex.byWeek).map(Number).sort(function(a,b){return a-b;});
+    ex.trendLastW  = weeks.length ? weeks[weeks.length-1] : null;
+    ex.trendPrevW  = weeks.length > 1 ? weeks[weeks.length-2] : null;
+  });
+
   return exStats;
 }
 
@@ -2387,7 +2473,17 @@ function exportHTMLReport(mode) {
   if (!Object.keys(logs).length && !measurements.length) { toast('⚠️ Brak danych'); return; }
 
   // ── SEKCJA 1: STATYSTYKI TRENINGOWE z trendami ───────────────────
-  // Używamy collectExStats() który ma byWeek — trendy ostatni vs przedostatni tydzień
+  // v4.0: filtruj logi od planCycleWeek (domyślnie 1 = cała historia)
+  var cycleFrom = settings.planCycleWeek || 1;
+  var logsOrig = logs;
+  if (cycleFrom > 1) {
+    var logsFiltered = {};
+    Object.keys(logs).forEach(function(key) {
+      if (parseLogKey(key)[0] >= cycleFrom) logsFiltered[key] = logs[key];
+    });
+    logs = logsFiltered;
+  }
+
   var exStatsB = collectExStats();
 
   // Znajdź dwa ostatnie tygodnie z danymi
@@ -2411,14 +2507,19 @@ function exportHTMLReport(mode) {
       var grp = statsByDayB[dayId];
       statsRows += '<tr style="background:#f0f0f0"><td colspan="6" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
       grp.exs.forEach(function(ex) {
-        var dLast = lastWB ? (ex.byWeek[lastWB] || null) : null;
-        var dPrev = prevWB ? (ex.byWeek[prevWB] || null) : null;
-        var maxWTrend = (dLast && dPrev) ? trendBadge(dLast.maxW, dPrev.maxW, false) : '<span style="color:#aaa">—</span>';
-        var volTrend  = (dLast && dPrev) ? trendBadge(dLast.vol,  dPrev.vol,  false) : '<span style="color:#aaa">—</span>';
-        // v3.8: ostatnia notatka per ćwiczenie z ostatniego tygodnia
+        // v3.10: trend per ćwiczenie z jego własnych dwóch ostatnich tygodni
+        var dLast = ex.trendLastW ? (ex.byWeek[ex.trendLastW] || null) : null;
+        var dPrev = ex.trendPrevW ? (ex.byWeek[ex.trendPrevW] || null) : null;
+        var maxWTrend = (dLast && dPrev)
+          ? (trendBadge(dLast.maxW, dPrev.maxW, false) + ' <small style="color:#aaa">(T' + ex.trendLastW + ' vs T' + ex.trendPrevW + ')</small>')
+          : '<span style="color:#aaa">—</span>';
+        var volTrend = (dLast && dPrev)
+          ? trendBadge(dLast.vol, dPrev.vol, false)
+          : '<span style="color:#aaa">—</span>';
+        // Ostatnia notatka per ćwiczenie
         var lastNote = '';
-        if (lastWB) {
-          var lastKey = logKey(lastWB, ex.dayId);
+        if (ex.trendLastW) {
+          var lastKey = logKey(ex.trendLastW, ex.dayId);
           if (logs[lastKey] && logs[lastKey]['note_' + ex.exId]) lastNote = logs[lastKey]['note_' + ex.exId];
         }
         statsRows += '<tr>'
@@ -2432,7 +2533,7 @@ function exportHTMLReport(mode) {
           + '</tr>';
       });
     });
-    var trendNote = (lastWB && prevWB) ? ' <small style="color:#888;font-weight:400">(porównanie z poprzednim tygodniem: Tydzień ' + lastWB + ' vs Tydzień ' + prevWB + ')</small>' : '';
+    var trendNote = ' <small style="color:#888;font-weight:400">(trend per ćwiczenie względem ostatniego wykonania)</small>';
     statsSection = '<div class="section"><h2>📊 Statystyki treningowe' + trendNote + '</h2>'
       + '<table><thead><tr style="background:#e63946;color:#fff">'
       + '<th style="text-align:left;padding:8px 10px">Ćwiczenie</th>'
@@ -2444,33 +2545,48 @@ function exportHTMLReport(mode) {
       + '</tr></thead><tbody>' + statsRows + '</tbody></table></div>';
   }
 
-  // ── SEKCJA 2: DZIENNIK TRENINGÓW ─────────────────────────────────
+  // ── SEKCJA 2: DZIENNIK TRENINGÓW — v3.10: nazwy z snapshotu + trend C vs poprzednia sesja
   var keys = Object.keys(logs).sort(function(a,b){ return parseLogKey(b)[0]-parseLogKey(a)[0]; });
   var trainingSections = '';
   keys.forEach(function(key) {
     var pk = parseLogKey(key); var week = pk[0]; var dayId = pk[1];
-    var dayName = dayId; var dayExs = [];
-    if (plan && plan.days) {
-      var found = plan.days.find(function(d){ return d.id===dayId; });
-      if (found) { dayName = found.name; dayExs = found.exercises||[]; }
-    }
-    var dl = logs[key]; var date = dl._date||'';
+    var dl = logs[key];
+    // v3.10 B: nazwa dnia z snapshotu lub z planu
+    var dayName = getDayName(dl, dayId);
+    var date = dl._date||'';
     var sessionNote = dl._note || '';
     var exRows = '';
-    Object.keys(dl).filter(function(k){ return k!=='_date'&&k!=='_note'&&k.indexOf('note_')!==0; }).forEach(function(exId) {
-      var exObj = dayExs.find(function(e){ return e.id===exId; });
-      var exName = exObj ? exObj.name : exId;
+    Object.keys(dl).filter(isExKey).forEach(function(exId) {
+      // v3.10 B: nazwa ćwiczenia z snapshotu lub z planu
+      var exName = getExName(dl, dayId, exId);
+      // Dane z planu jeśli dostępne (scheme, tut, schemeType)
+      var exObj = null;
+      if (plan && plan.days) { var fd = plan.days.find(function(d){return d.id===dayId;}); if (fd) exObj = fd.exercises.find(function(e){return e.id===exId;}); }
       var scheme = exObj ? exObj.scheme : '';
       var tut = exObj ? exObj.tut : '';
       var note = dl['note_'+exId]||'';
       var sType = exObj ? exObj.schemeType : 'standard';
       var boIdx = (sType === 'backoff') ? dl[exId].length - 1 : -1;
+      // v3.10 C: trend vs poprzednia sesja tego ćwiczenia
+      var exKey = dayId + '|' + exId;
+      var exStat = exStatsB[exKey];
+      var sessionTrend = '';
+      if (exStat && exStat.trendPrevW && exStat.trendLastW === week) {
+        var dCurr = exStat.byWeek[week];
+        var dPrev2 = exStat.byWeek[exStat.trendPrevW];
+        if (dCurr && dPrev2 && dCurr.maxW > 0 && dPrev2.maxW > 0) {
+          var diff2 = dCurr.maxW - dPrev2.maxW;
+          var sign2 = diff2 > 0 ? '+' : '';
+          var col2 = diff2 > 0 ? '#27ae60' : (diff2 < 0 ? '#e63946' : '#888');
+          sessionTrend = ' <span style="color:' + col2 + ';font-weight:700;font-size:11px">' + sign2 + diff2.toFixed(1) + ' kg vs T' + exStat.trendPrevW + '</span>';
+        }
+      }
       var setsHtml = dl[exId].map(function(s,i){
         var lbl = (sType === 'backoff' && i === boIdx) ? 'BO' : 'S'+(i+1);
         var style = (sType === 'backoff' && i === boIdx) ? ' style="color:#e9c46a"' : '';
         return '<td' + style + '><strong>' + lbl + '</strong>: '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
       }).join('');
-      exRows += '<tr><td><strong>' + htmlEsc(exName) + '</strong>'
+      exRows += '<tr><td><strong>' + htmlEsc(exName) + '</strong>' + sessionTrend
         + (scheme ? '<br><small style="color:#888">' + htmlEsc(scheme) + (tut?' · TUT: '+tut:'') + '</small>' : '')
         + (note ? '<br><small style="color:#aaa;font-style:italic">📝 ' + htmlEsc(note) + '</small>' : '')
         + '</td>' + setsHtml + '</tr>';
@@ -2499,10 +2615,14 @@ function exportHTMLReport(mode) {
     + '</body></html>';
 
   var d = new Date().toISOString().split('T')[0];
+  // v4.0: przywroć oryginalne logi po generowaniu raportu
+  logs = logsOrig;
+
   downloadFile(html, 'trening_raport_' + d + '.html', 'text/html;charset=utf-8;');
   toast('📄 Raport pobrany');
 }
 
+// v4.0: przy wgraniu planu pytamy czy to nowy cykl treningowy
 function handlePlanFile(e) {
   var f = e.target.files[0]; if (!f) return;
   var r = new FileReader();
@@ -2510,7 +2630,25 @@ function handlePlanFile(e) {
     try {
       var p = JSON.parse(ev.target.result);
       if (!p.days || !Array.isArray(p.days)) { toast('❌ Zły format — brak pola "days"'); return; }
-      plan = p; savePlan(); renderHome(); toast('✅ Plan załadowany!');
+      plan = p; savePlan();
+      // Pytanie o nowy cykl — tylko gdy są już jakieś logi
+      if (Object.keys(logs).length > 0) {
+        var isCycle = confirm(
+          'Czy to nowy cykl treningowy?\n\n'
+          + 'TAK — Raport B będzie startował od Tygodnia ' + currentWeek + ' (stara historia zostaje, nie jest kasowana)\n'
+          + 'NIE — Raport B pokazuje całą historię od początku'
+        );
+        if (isCycle) {
+          saveSetting('planCycleWeek', currentWeek);
+          toast('✅ Plan załadowany! Raport B od Tygodnia ' + currentWeek);
+        } else {
+          saveSetting('planCycleWeek', 1);
+          toast('✅ Plan załadowany!');
+        }
+      } else {
+        toast('✅ Plan załadowany!');
+      }
+      renderHome();
     } catch(err) { toast('❌ Błąd odczytu JSON'); }
   };
   r.readAsText(f); e.target.value = '';
