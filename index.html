@@ -1847,7 +1847,7 @@ function renderHistory() {
     }
 
     var items = Object.keys(dl).filter(function(k) {
-      return k !== '_date' && k !== '_note' && k.indexOf('note_') !== 0;
+      return k !== '_date' && k !== '_note' && k !== '_dayName' && k !== '_exNames' && k.indexOf('note_') !== 0;
     }).map(function(exId) {
       var exObj = dayExs.find(function(e) { return e.id === exId; });
       var nm = exObj ? exObj.name : exId;
@@ -2555,6 +2555,11 @@ function exportHTMLReport(mode) {
     var dayName = getDayName(dl, dayId);
     var date = dl._date||'';
     var sessionNote = dl._note || '';
+    // v4.1: oblicz max liczbę serii w tej sesji — do wyrównania kolumn
+    var maxSets = 1;
+    Object.keys(dl).filter(isExKey).forEach(function(exId) {
+      if (Array.isArray(dl[exId]) && dl[exId].length > maxSets) maxSets = dl[exId].length;
+    });
     var exRows = '';
     Object.keys(dl).filter(isExKey).forEach(function(exId) {
       // v3.10 B: nazwa ćwiczenia z snapshotu lub z planu
@@ -2581,18 +2586,21 @@ function exportHTMLReport(mode) {
           sessionTrend = '<span style="color:' + col2 + ';font-weight:700;font-size:11px">' + sign2 + diff2.toFixed(1) + ' kg<br><small style="color:#aaa;font-weight:400">vs T' + exStat.trendPrevW + '</small></span>';
         }
       }
-      // v4.1: wszystkie serie w jednej komórce (wyrównanie do lewej niezależnie od liczby serii)
-      var setsHtml = '<td style="white-space:nowrap">' + dl[exId].map(function(s,i){
+      // v4.1: serie jako osobne <td> — wyrównanie przez colspan nagłówka dnia
+      // Zbieramy serie do tablicy, dopełniamy do maxSets pustymi komórkami
+      var setsCells = dl[exId].map(function(s,i){
         var lbl = (sType === 'backoff' && i === boIdx) ? 'BO' : 'S'+(i+1);
-        var style = (sType === 'backoff' && i === boIdx) ? 'color:#e9c46a;' : '';
-        return '<span style="display:inline-block;margin-right:12px;' + style + '"><strong>' + lbl + '</strong>: '+(s.w||'—')+' kg × '+(s.r||'—')+'</span>';
-      }).join('') + '</td>';
+        var style = (sType === 'backoff' && i === boIdx) ? ' style="color:#e9c46a"' : '';
+        return '<td' + style + '><strong>' + lbl + '</strong>: '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
+      });
+      // Dopełnij do maxSets pustymi komórkami
+      while (setsCells.length < maxSets) { setsCells.push('<td style="color:#ccc">—</td>'); }
       exRows += '<tr>'
         + '<td style="text-align:left"><strong>' + htmlEsc(exName) + '</strong>'
         + (scheme ? '<br><small style="color:#888">' + htmlEsc(scheme) + (tut?' · TUT: '+tut:'') + '</small>' : '')
         + (note ? '<br><small style="color:#aaa;font-style:italic">📝 ' + htmlEsc(note) + '</small>' : '')
         + '</td>'
-        + setsHtml
+        + setsCells.join('')
         + '<td style="text-align:center;white-space:nowrap">' + sessionTrend + '</td>'
         + '</tr>';
     });
