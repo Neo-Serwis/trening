@@ -1419,76 +1419,31 @@ function measManageFields() {
   openModal();
 }
 
-// v3.9: zmiana kolejności pól pomiarowych — long-press + swap (Android-safe, bez ghost)
-// Mechanizm: przytrzymaj ☰ (600ms) → pole się podświetla → dotknij drugie pole → zamiana
-var _measSwapSrc = null;      // indeks pola wybranego do zamiany
-var _measLongTimer = null;    // timer long-press
+// v3.9fix: zmiana kolejności pól pomiarowych — HTML5 drag (jak edytor planu, bez touch events)
+var _measDragSrcIdx = null;
 
-function measFieldLongPress(idx) {
-  // Anuluj poprzedni wybór
-  _measSwapSrc = null;
-  document.querySelectorAll('.meas-field-row').forEach(function(r) {
-    r.style.background = '';
-    r.style.borderColor = '';
-  });
-  // Zaznacz wybrane pole
-  var rows = document.querySelectorAll('.meas-field-row');
-  if (rows[idx]) {
-    rows[idx].style.background = 'rgba(69,123,157,0.25)';
-    rows[idx].style.borderColor = 'var(--blue)';
-  }
-  _measSwapSrc = idx;
-  toast('↕ Wybrano pole. Dotknij drugie pole aby zamienić kolejność.');
+function measFieldDragStart(e, idx) {
+  _measDragSrcIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
 }
-
-function measFieldSwapTap(idx) {
-  // Jeśli nie ma wybranego źródła — ignoruj
-  if (_measSwapSrc === null) return;
-  if (_measSwapSrc === idx) {
-    // Kliknięto to samo — anuluj wybór
-    _measSwapSrc = null;
-    document.querySelectorAll('.meas-field-row').forEach(function(r) {
-      r.style.background = ''; r.style.borderColor = '';
-    });
-    return;
-  }
-  // Zamień miejscami
-  var fields = _modalCtx.fields;
-  var tmp = fields[_measSwapSrc];
-  fields[_measSwapSrc] = fields[idx];
-  fields[idx] = tmp;
-  _measSwapSrc = null;
+function measFieldDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function measFieldDrop(e, idx) {
+  e.preventDefault();
+  if (_measDragSrcIdx === null || _measDragSrcIdx === idx) return;
+  var moved = _modalCtx.fields.splice(_measDragSrcIdx, 1)[0];
+  _modalCtx.fields.splice(idx, 0, moved);
+  _measDragSrcIdx = null;
   renderManageFieldsModal();
   toast('✅ Kolejność zmieniona');
-}
-
-function measFieldHandleTouch(e, idx) {
-  // Obsługa dotyku na uchwycie ☰:
-  // krótkie dotknięcie = swap tap (jeśli jest wybór) lub long-press start
-  clearTimeout(_measLongTimer);
-  var startTime = Date.now();
-  _measLongTimer = setTimeout(function() {
-    measFieldLongPress(idx);
-  }, 500);
-  // Anuluj long-press jeśli palec się ruszył
-  function onEnd() {
-    var elapsed = Date.now() - startTime;
-    clearTimeout(_measLongTimer);
-    if (elapsed < 400) {
-      // Krótkie dotknięcie — swap
-      measFieldSwapTap(idx);
-    }
-    e.currentTarget.removeEventListener('touchend', onEnd);
-    e.currentTarget.removeEventListener('touchcancel', onEnd);
-  }
-  e.currentTarget.addEventListener('touchend', onEnd);
-  e.currentTarget.addEventListener('touchcancel', onEnd);
 }
 
 function renderManageFieldsModal() {
   var fields = _modalCtx.fields;
   var groupLabels = { body: 'Ciało', health: 'Zdrowie', circ: 'Waga i obwody' };
-  var html = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Kliknij ☰ → podświetli się → kliknij drugie pole → zamiana kolejności</div>';
+  var html = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Przytrzymaj ⠷ i przeciągnij aby zmienić kolejność</div>';
 
   // v3.8: kolejność grup: circ, health, body
   ['circ','health','body'].forEach(function(grp) {
@@ -1498,11 +1453,11 @@ function renderManageFieldsModal() {
     grpFields.forEach(function(x) {
       var f = x.f; var i = x.i;
       var dirVal = f.goodDown === null || f.goodDown === undefined ? 'none' : (f.goodDown ? '1' : '0');
-      // v3.9: kliknięcie/dotyk na ☰ — long-press aktywuje wybór, następne dotknięcie zamienia
-      html += '<div class="meas-field-row" onclick="measFieldSwapTap(' + i + ')">'
-        + '<span class="drag-handle" style="cursor:pointer;user-select:none"'
-        + ' ontouchstart="measFieldHandleTouch(event,' + i + ')"'
-        + ' onclick="event.stopPropagation();measFieldLongPress(' + i + ')">☰</span>'
+      html += '<div class="meas-field-row" draggable="true"'
+        + ' ondragstart="measFieldDragStart(event,' + i + ')"'
+        + ' ondragover="measFieldDragOver(event)"'
+        + ' ondrop="measFieldDrop(event,' + i + ')">'
+        + '<span class="drag-handle">⠷</span>'
         + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
         + '<select class="modal-select" style="width:80px;padding:6px 6px;font-size:11px" id="mff-dir-' + i + '">'
         + '<option value="none"' + (dirVal==='none'?' selected':'') + '>— brak</option>'
