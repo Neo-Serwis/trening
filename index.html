@@ -427,7 +427,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 4.6 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 4.7 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -491,7 +491,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '4.6';
+var APP_VERSION = '4.7';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -2188,7 +2188,8 @@ function editorDelDay(di) {
 function editorDelEx(di, ei) {
   if (!confirm('Usunąć ćwiczenie "' + plan.days[di].exercises[ei].name + '"?')) return;
   plan.days[di].exercises.splice(ei, 1);
-  savePlan(); renderEditor(); toast('🗑 Ćwiczenie usunięte');
+  // v4.7: zachowaj otwarty dzień po usunięciu ćwiczenia
+  savePlan(); renderEditorKeepOpen(di); toast('🗑 ćwiczenie usunięte');
 }
 
 function modalSave() {
@@ -2510,10 +2511,22 @@ function exportHTMLReport(mode) {
     statsByDayB[dayId].exs.push(exStatsB[k]);
   });
 
+  // v4.7: sortuj dni w statystykach wg kolejności z planu
+  var sortedDayIdsB = Object.keys(statsByDayB).sort(function(a, b) {
+    var idxA = 999; var idxB = 999;
+    if (plan && plan.days) {
+      for (var i = 0; i < plan.days.length; i++) {
+        if (plan.days[i].id === a) idxA = i;
+        if (plan.days[i].id === b) idxB = i;
+      }
+    }
+    return idxA - idxB;
+  });
+
   var statsSection = '';
-  if (Object.keys(statsByDayB).length) {
+  if (sortedDayIdsB.length) {
     var statsRows = '';
-    Object.keys(statsByDayB).forEach(function(dayId) {
+    sortedDayIdsB.forEach(function(dayId) {
       var grp = statsByDayB[dayId];
       statsRows += '<tr style="background:#f0f0f0"><td colspan="6" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
       grp.exs.forEach(function(ex) {
@@ -2868,10 +2881,21 @@ function exportReportA() {
     if (!statsByDay[dayId]) statsByDay[dayId] = { dayName: exStats[k].dayName, exs: [] };
     statsByDay[dayId].exs.push(exStats[k]);
   });
+  // v4.7: sortuj dni w Raporcie A wg kolejności z planu
+  var sortedDayIdsA = Object.keys(statsByDay).sort(function(a, b) {
+    var idxA = 999; var idxB = 999;
+    if (plan && plan.days) {
+      for (var i = 0; i < plan.days.length; i++) {
+        if (plan.days[i].id === a) idxA = i;
+        if (plan.days[i].id === b) idxB = i;
+      }
+    }
+    return idxA - idxB;
+  });
   var exSection = '';
-  if (Object.keys(statsByDay).length) {
+  if (sortedDayIdsA.length) {
     var exRows = '';
-    Object.keys(statsByDay).forEach(function(dayId) {
+    sortedDayIdsA.forEach(function(dayId) {
       var grp = statsByDay[dayId];
       exRows += '<tr style="background:#f0f0f0"><td colspan="5" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
       grp.exs.forEach(function(ex) {
