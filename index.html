@@ -2377,7 +2377,7 @@ function reportCSS() {
     + '.trend-dn{color:#e63946;font-weight:700}'
     + '.trend-neu{color:#888}'
     + 'p.tip{margin-top:18px;font-size:11px;color:#bbb}'
-    + '@media print{p.tip{display:none}.section{page-break-inside:auto}}';
+    + '@media print{p.tip{display:none}.section{page-break-inside:auto}tr{page-break-inside:avoid;page-break-after:auto}thead{display:table-header-group}}';
 }
 
 // Generuj znacznik trendu dla raportu HTML
@@ -2652,8 +2652,8 @@ function exportHTMLReport(mode) {
     + '<style>' + reportCSS() + '</style></head><body>'
     + '<h1>🏋️ Dziennik treningowy</h1>'
     + '<p class="sub">Wygenerowano: ' + new Date().toLocaleDateString('pl-PL') + ' · Wersja apki: ' + APP_VERSION + '</p>'
-    + statsSection
     + measSection
+    + statsSection
     + trainingSections
     + '<p class="tip">Aby zapisać jako PDF: Ctrl+P → Zapisz jako PDF</p>'
     + '</body></html>';
@@ -2882,11 +2882,12 @@ function exportReportA() {
       + '</tr></thead><tbody>' + exRows + '</tbody></table></div>';
   }
   var measSection = buildMeasSection(measurements.slice(0, 2));
+  // v4.5: kolejność — pomiary, porównanie ćwiczeń
   var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>Raport A — Porównanie</title>'
     + '<style>' + reportCSS() + '</style></head><body>'
     + '<h1>📊 Raport A — Porównanie tygodni</h1>'
     + '<p class="sub">T' + weekA + ' vs T' + weekB + ' · Wygenerowano: ' + new Date().toLocaleDateString('pl-PL') + '</p>'
-    + exSection + measSection
+    + measSection + exSection
     + '<p class="tip">Aby zapisać jako PDF: Ctrl+P → Zapisz jako PDF</p></body></html>';
   var d = new Date().toISOString().split('T')[0];
   downloadFile(html, 'trening_raportA_T'+weekA+'vsT'+weekB+'_' + d + '.html', 'text/html;charset=utf-8;');
