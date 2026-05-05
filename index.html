@@ -418,7 +418,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.8 · 2026-05-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.9 · 2026-05-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -482,7 +482,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.8';
+var APP_VERSION = '3.9';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1419,51 +1419,76 @@ function measManageFields() {
   openModal();
 }
 
-// v3.8: drag & drop kolejności pól pomiarowych
-var _measDragSrcIdx = null;
-function measFieldDragStart(e, idx) { _measDragSrcIdx = idx; e.dataTransfer.effectAllowed = 'move'; }
-function measFieldDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
-function measFieldDrop(e, idx) {
-  e.preventDefault();
-  if (_measDragSrcIdx === null || _measDragSrcIdx === idx) return;
-  var moved = _modalCtx.fields.splice(_measDragSrcIdx, 1)[0];
-  _modalCtx.fields.splice(idx, 0, moved);
-  _measDragSrcIdx = null;
+// v3.9: zmiana kolejności pól pomiarowych — long-press + swap (Android-safe, bez ghost)
+// Mechanizm: przytrzymaj ☰ (600ms) → pole się podświetla → dotknij drugie pole → zamiana
+var _measSwapSrc = null;      // indeks pola wybranego do zamiany
+var _measLongTimer = null;    // timer long-press
+
+function measFieldLongPress(idx) {
+  // Anuluj poprzedni wybór
+  _measSwapSrc = null;
+  document.querySelectorAll('.meas-field-row').forEach(function(r) {
+    r.style.background = '';
+    r.style.borderColor = '';
+  });
+  // Zaznacz wybrane pole
+  var rows = document.querySelectorAll('.meas-field-row');
+  if (rows[idx]) {
+    rows[idx].style.background = 'rgba(69,123,157,0.25)';
+    rows[idx].style.borderColor = 'var(--blue)';
+  }
+  _measSwapSrc = idx;
+  toast('↕ Wybrano pole. Dotknij drugie pole aby zamienić kolejność.');
+}
+
+function measFieldSwapTap(idx) {
+  // Jeśli nie ma wybranego źródła — ignoruj
+  if (_measSwapSrc === null) return;
+  if (_measSwapSrc === idx) {
+    // Kliknięto to samo — anuluj wybór
+    _measSwapSrc = null;
+    document.querySelectorAll('.meas-field-row').forEach(function(r) {
+      r.style.background = ''; r.style.borderColor = '';
+    });
+    return;
+  }
+  // Zamień miejscami
+  var fields = _modalCtx.fields;
+  var tmp = fields[_measSwapSrc];
+  fields[_measSwapSrc] = fields[idx];
+  fields[idx] = tmp;
+  _measSwapSrc = null;
   renderManageFieldsModal();
+  toast('✅ Kolejność zmieniona');
 }
-var _measTouchSrcIdx = null;
-var _measTouchClone = null;
-function measFieldTouchStart(e, idx) {
-  _measTouchSrcIdx = idx;
-  var el = e.currentTarget.closest('.meas-field-row');
-  if (!el) return;
-  _measTouchClone = el.cloneNode(true);
-  _measTouchClone.style.cssText = 'position:fixed;opacity:.75;pointer-events:none;z-index:9999;width:' + el.offsetWidth + 'px;background:var(--bg3);border-radius:8px;padding:8px;';
-  document.body.appendChild(_measTouchClone);
-  var t = e.touches[0];
-  _measTouchClone.style.left = (t.clientX - 20) + 'px';
-  _measTouchClone.style.top  = (t.clientY - 20) + 'px';
-}
-function measFieldTouchMove(e) {
-  if (!_measTouchClone) return;
-  e.preventDefault();
-  var t = e.touches[0];
-  _measTouchClone.style.left = (t.clientX - 20) + 'px';
-  _measTouchClone.style.top  = (t.clientY - 20) + 'px';
-}
-function measFieldTouchEnd(e, idx) {
-  if (_measTouchClone) { document.body.removeChild(_measTouchClone); _measTouchClone = null; }
-  if (_measTouchSrcIdx === null || _measTouchSrcIdx === idx) { _measTouchSrcIdx = null; return; }
-  var moved = _modalCtx.fields.splice(_measTouchSrcIdx, 1)[0];
-  _modalCtx.fields.splice(idx, 0, moved);
-  _measTouchSrcIdx = null;
-  renderManageFieldsModal();
+
+function measFieldHandleTouch(e, idx) {
+  // Obsługa dotyku na uchwycie ☰:
+  // krótkie dotknięcie = swap tap (jeśli jest wybór) lub long-press start
+  clearTimeout(_measLongTimer);
+  var startTime = Date.now();
+  _measLongTimer = setTimeout(function() {
+    measFieldLongPress(idx);
+  }, 500);
+  // Anuluj long-press jeśli palec się ruszył
+  function onEnd() {
+    var elapsed = Date.now() - startTime;
+    clearTimeout(_measLongTimer);
+    if (elapsed < 400) {
+      // Krótkie dotknięcie — swap
+      measFieldSwapTap(idx);
+    }
+    e.currentTarget.removeEventListener('touchend', onEnd);
+    e.currentTarget.removeEventListener('touchcancel', onEnd);
+  }
+  e.currentTarget.addEventListener('touchend', onEnd);
+  e.currentTarget.addEventListener('touchcancel', onEnd);
 }
 
 function renderManageFieldsModal() {
   var fields = _modalCtx.fields;
   var groupLabels = { body: 'Ciało', health: 'Zdrowie', circ: 'Waga i obwody' };
-  var html = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Przytrzymaj ☰ aby zmienić kolejność · Nazwa · Kierunek · Aktywne</div>';
+  var html = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Kliknij ☰ → podświetli się → kliknij drugie pole → zamiana kolejności</div>';
 
   // v3.8: kolejność grup: circ, health, body
   ['circ','health','body'].forEach(function(grp) {
@@ -1473,14 +1498,11 @@ function renderManageFieldsModal() {
     grpFields.forEach(function(x) {
       var f = x.f; var i = x.i;
       var dirVal = f.goodDown === null || f.goodDown === undefined ? 'none' : (f.goodDown ? '1' : '0');
-      html += '<div class="meas-field-row" draggable="true"'
-        + ' ondragstart="measFieldDragStart(event,' + i + ')"'
-        + ' ondragover="measFieldDragOver(event)"'
-        + ' ondrop="measFieldDrop(event,' + i + ')">'
-        + '<span class="drag-handle" style="touch-action:none"'
-        + ' ontouchstart="measFieldTouchStart(event,' + i + ')"'
-        + ' ontouchmove="measFieldTouchMove(event)"'
-        + ' ontouchend="measFieldTouchEnd(event,' + i + ')">☰</span>'
+      // v3.9: kliknięcie/dotyk na ☰ — long-press aktywuje wybór, następne dotknięcie zamienia
+      html += '<div class="meas-field-row" onclick="measFieldSwapTap(' + i + ')">'
+        + '<span class="drag-handle" style="cursor:pointer;user-select:none"'
+        + ' ontouchstart="measFieldHandleTouch(event,' + i + ')"'
+        + ' onclick="event.stopPropagation();measFieldLongPress(' + i + ')">☰</span>'
         + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
         + '<select class="modal-select" style="width:80px;padding:6px 6px;font-size:11px" id="mff-dir-' + i + '">'
         + '<option value="none"' + (dirVal==='none'?' selected':'') + '>— brak</option>'
@@ -2052,6 +2074,13 @@ function renderEditor() {
 
 function toggleEditorDay(hdr) { hdr.nextElementSibling.classList.toggle('open'); }
 
+// v3.9: renderEditor z zachowaniem stanu open konkretnego dnia
+function renderEditorKeepOpen(openDi) {
+  renderEditor();
+  var bodies = document.querySelectorAll('.editor-day-body');
+  if (bodies[openDi]) bodies[openDi].classList.add('open');
+}
+
 // Drag & drop kolejności ćwiczeń
 function dragStart(e) { _dragSrc = e.currentTarget; e.dataTransfer.effectAllowed = 'move'; }
 function dragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
@@ -2066,7 +2095,9 @@ function dragDrop(e)  {
   var exs = plan.days[di].exercises;
   var tmp = exs.splice(ei, 1)[0];
   exs.splice(ei2, 0, tmp);
-  savePlan(); renderEditor();
+  savePlan();
+  // v3.9: zachowaj stan open sekcji po drag
+  renderEditorKeepOpen(di);
 }
 
 function editorEditDay(di) {
@@ -2224,11 +2255,21 @@ function downloadFile(content, filename, type) {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
+// v3.9: backup pełny — zawiera logs, measurements, measFields, plan, settings, week
 function createBackup() {
-  var data = { _version: APP_VERSION, _date: new Date().toLocaleDateString('pl-PL'), logs: logs, measurements: measurements, measFields: loadMeasFields() };
+  var data = {
+    _version: APP_VERSION,
+    _date: new Date().toLocaleDateString('pl-PL'),
+    logs: logs,
+    measurements: measurements,
+    measFields: loadMeasFields(),
+    plan: plan,
+    settings: settings,
+    week: currentWeek
+  };
   var d = new Date().toISOString().split('T')[0];
   downloadFile(JSON.stringify(data, null, 2), 'backup_v' + APP_VERSION + '_' + d + '.json', 'application/json');
-  toast('🔒 Backup pobrany');
+  toast('🔒 Backup pełny pobrany');
 }
 
 function exportPlan() {
@@ -2501,25 +2542,42 @@ function handlePlanFile(e) {
   r.readAsText(f); e.target.value = '';
 }
 
+// v3.9: import pełny — przywraca logs, measurements, measFields, plan, settings, week
 function handleLogsFile(e) {
   var f = e.target.files[0]; if (!f) return;
   var r = new FileReader();
   r.onload = function(ev) {
     try {
       var p = JSON.parse(ev.target.result);
-      // Obsługa formatu backup (z polem logs) i zwykłego JSON
+      // Format backup (z polem logs)
       if (p.logs && typeof p.logs === 'object') {
-        // Import pomiarów z backupu jeśli są
+        // Logi treningowe
+        Object.assign(logs, p.logs); saveLogs();
+        // Pomiary
         if (p.measurements && Array.isArray(p.measurements)) {
-          measurements = p.measurements;
-          saveMeasurements();
+          measurements = p.measurements; saveMeasurements();
         }
-        // Import konfiguracji pól pomiarowych z backupu
+        // Konfiguracja pól pomiarowych
         if (p.measFields && Array.isArray(p.measFields)) {
           saveMeasFields(p.measFields);
         }
-        p = p.logs;
+        // v3.9: Plan treningowy
+        if (p.plan && p.plan.days) {
+          plan = p.plan; savePlan();
+        }
+        // v3.9: Ustawienia (bez nadpisywania motywu jeśli nie ma)
+        if (p.settings && typeof p.settings === 'object') {
+          Object.assign(settings, p.settings); saveSettings(); applySettings();
+        }
+        // v3.9: Tydzień
+        if (p.week && typeof p.week === 'number') {
+          currentWeek = p.week; saveWeek();
+        }
+        renderHome();
+        toast('✅ Backup przywrócony!');
+        return;
       }
+      // Zwykły JSON logów (stary format)
       if (typeof p !== 'object' || Array.isArray(p)) { toast('❌ Zły format'); return; }
       Object.assign(logs, p); saveLogs(); toast('✅ Dane zaimportowane!');
     } catch(err) { toast('❌ Błąd odczytu JSON'); }
