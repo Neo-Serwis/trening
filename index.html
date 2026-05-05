@@ -427,7 +427,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 4.2 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 4.3 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -491,7 +491,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '4.2';
+var APP_VERSION = '4.3';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1827,22 +1827,27 @@ function renderHistory() {
       ? '<div class="hist-note" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">📋 <strong>Notatka ogólna:</strong> ' + esc(dl._note) + '</div>'
       : '';
 
-    // v3.8: trend ciężaru vs poprzedni tydzień — kolor lewej krawędzi
+    // v4.3: trójkolorowa krawędź — zielony/pomarańczowy/czerwony na podstawie bilansu ćwiczeń
     var prevWeekKey = logKey(week - 1, dayId);
     var prevDl = logs[prevWeekKey] || null;
     var histBorderStyle = '';
     if (prevDl) {
-      var currMaxW = 0; var prevMaxW = 0;
-      Object.keys(dl).filter(function(k){return k!=='_date'&&k!=='_note'&&k.indexOf('note_')!==0;}).forEach(function(exId){
+      var exUp = 0; var exDown = 0;
+      Object.keys(dl).filter(isExKey).forEach(function(exId) {
         if (!Array.isArray(dl[exId])) return;
-        dl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>currMaxW) currMaxW=w; });
+        if (!prevDl[exId] || !Array.isArray(prevDl[exId])) return;
+        var cMax = 0; var pMax = 0;
+        dl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>cMax) cMax=w; });
+        prevDl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pMax) pMax=w; });
+        if (cMax > 0 && pMax > 0) {
+          if (cMax > pMax) exUp++;
+          else if (cMax < pMax) exDown++;
+        }
       });
-      Object.keys(prevDl).filter(function(k){return k!=='_date'&&k!=='_note'&&k.indexOf('note_')!==0;}).forEach(function(exId){
-        if (!Array.isArray(prevDl[exId])) return;
-        prevDl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>prevMaxW) prevMaxW=w; });
-      });
-      if (currMaxW > 0 && prevMaxW > 0) {
-        histBorderStyle = currMaxW >= prevMaxW ? 'border-left:3px solid var(--green)' : 'border-left:3px solid var(--accent)';
+      if (exUp > 0 || exDown > 0) {
+        if (exDown === 0) histBorderStyle = 'border-left:3px solid var(--green)';
+        else if (exUp === 0) histBorderStyle = 'border-left:3px solid var(--accent)';
+        else histBorderStyle = 'border-left:3px solid var(--yellow)';
       }
     }
 
@@ -2545,26 +2550,38 @@ function exportHTMLReport(mode) {
       + '</tr></thead><tbody>' + statsRows + '</tbody></table></div>';
   }
 
-  // ── SEKCJA 2: DZIENNIK TRENINGÓW — v3.10: nazwy z snapshotu + trend C vs poprzednia sesja
+  // ── SEKCJA 2: DZIENNIK TRENINGÓW — v4.3: jedna globalna tabela, kolumny wyrównane
   var keys = Object.keys(logs).sort(function(a,b){ return parseLogKey(b)[0]-parseLogKey(a)[0]; });
-  var trainingSections = '';
+
+  // Oblicz globalny maxSets ze wszystkich sesji
+  var globalMaxSets = 1;
+  keys.forEach(function(key) {
+    var dl = logs[key];
+    Object.keys(dl).filter(isExKey).forEach(function(exId) {
+      if (Array.isArray(dl[exId]) && dl[exId].length > globalMaxSets) globalMaxSets = dl[exId].length;
+    });
+  });
+
+  // Buduj nagłówek tabeli
+  var tableHdr = '<tr style="background:#e63946;color:#fff">'
+    + '<th style="text-align:left;padding:8px 10px;min-width:160px">Ćwiczenie</th>';
+  for (var si = 0; si < globalMaxSets; si++) {
+    tableHdr += '<th style="text-align:left;padding:8px 10px;min-width:110px">S' + (si+1) + '</th>';
+  }
+  tableHdr += '<th style="text-align:center;padding:8px 10px;min-width:80px">Trend</th></tr>';
+
+  var tableRows = '';
   keys.forEach(function(key) {
     var pk = parseLogKey(key); var week = pk[0]; var dayId = pk[1];
     var dl = logs[key];
-    // v3.10 B: nazwa dnia z snapshotu lub z planu
     var dayName = getDayName(dl, dayId);
     var date = dl._date||'';
     var sessionNote = dl._note || '';
-    // v4.1: oblicz max liczbę serii w tej sesji — do wyrównania kolumn
-    var maxSets = 1;
+    var hasRows = false;
+    var sessionRows = '';
+
     Object.keys(dl).filter(isExKey).forEach(function(exId) {
-      if (Array.isArray(dl[exId]) && dl[exId].length > maxSets) maxSets = dl[exId].length;
-    });
-    var exRows = '';
-    Object.keys(dl).filter(isExKey).forEach(function(exId) {
-      // v3.10 B: nazwa ćwiczenia z snapshotu lub z planu
       var exName = getExName(dl, dayId, exId);
-      // Dane z planu jeśli dostępne (scheme, tut, schemeType)
       var exObj = null;
       if (plan && plan.days) { var fd = plan.days.find(function(d){return d.id===dayId;}); if (fd) exObj = fd.exercises.find(function(e){return e.id===exId;}); }
       var scheme = exObj ? exObj.scheme : '';
@@ -2572,10 +2589,11 @@ function exportHTMLReport(mode) {
       var note = dl['note_'+exId]||'';
       var sType = exObj ? exObj.schemeType : 'standard';
       var boIdx = (sType === 'backoff') ? dl[exId].length - 1 : -1;
-      // v4.1: trend vs poprzednia sesja — przeniesiony do osobnej kolumny na końcu wiersza
+
+      // Trend w osobnej kolumnie
       var exKey = dayId + '|' + exId;
       var exStat = exStatsB[exKey];
-      var sessionTrend = '—';
+      var sessionTrend = '<span style="color:#ccc">—</span>';
       if (exStat && exStat.trendPrevW && exStat.trendLastW === week) {
         var dCurr = exStat.byWeek[week];
         var dPrev2 = exStat.byWeek[exStat.trendPrevW];
@@ -2586,16 +2604,16 @@ function exportHTMLReport(mode) {
           sessionTrend = '<span style="color:' + col2 + ';font-weight:700;font-size:11px">' + sign2 + diff2.toFixed(1) + ' kg<br><small style="color:#aaa;font-weight:400">vs T' + exStat.trendPrevW + '</small></span>';
         }
       }
-      // v4.1: serie jako osobne <td> — wyrównanie przez colspan nagłówka dnia
-      // Zbieramy serie do tablicy, dopełniamy do maxSets pustymi komórkami
+
+      // Serie jako osobne <td>, dopełnione do globalMaxSets
       var setsCells = dl[exId].map(function(s,i){
         var lbl = (sType === 'backoff' && i === boIdx) ? 'BO' : 'S'+(i+1);
         var style = (sType === 'backoff' && i === boIdx) ? ' style="color:#e9c46a"' : '';
-        return '<td' + style + '><strong>' + lbl + '</strong>: '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
+        return '<td' + style + '>' + lbl + ': '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
       });
-      // Dopełnij do maxSets pustymi komórkami
-      while (setsCells.length < maxSets) { setsCells.push('<td style="color:#ccc">—</td>'); }
-      exRows += '<tr>'
+      while (setsCells.length < globalMaxSets) { setsCells.push('<td style="color:#ddd">—</td>'); }
+
+      sessionRows += '<tr>'
         + '<td style="text-align:left"><strong>' + htmlEsc(exName) + '</strong>'
         + (scheme ? '<br><small style="color:#888">' + htmlEsc(scheme) + (tut?' · TUT: '+tut:'') + '</small>' : '')
         + (note ? '<br><small style="color:#aaa;font-style:italic">📝 ' + htmlEsc(note) + '</small>' : '')
@@ -2603,15 +2621,27 @@ function exportHTMLReport(mode) {
         + setsCells.join('')
         + '<td style="text-align:center;white-space:nowrap">' + sessionTrend + '</td>'
         + '</tr>';
+      hasRows = true;
     });
-    if (exRows) {
-      var sessionNoteRow = sessionNote
-        ? '<tr><td colspan="20" style="background:#f5f5f5;color:#555;font-style:italic;font-size:12px">📋 Notatka ogólna: ' + htmlEsc(sessionNote) + '</td></tr>'
-        : '';
-      trainingSections += '<div class="section"><h2>Tydzień ' + week + ' — ' + htmlEsc(dayName) + ' <span class="date">' + (date||'brak daty') + '</span></h2>'
-        + '<table><tbody>' + sessionNoteRow + exRows + '</tbody></table></div>';
+
+    if (hasRows) {
+      // Wiersz nagłówkowy sesji
+      tableRows += '<tr style="background:#f0f0f0">'
+        + '<td colspan="' + (globalMaxSets + 2) + '" style="padding:8px 10px;font-weight:700;color:#e63946;font-size:13px">'
+        + 'Tydzień ' + week + ' — ' + htmlEsc(dayName)
+        + ' <span style="font-size:11px;color:#aaa;font-weight:400">' + (date||'brak daty') + '</span>'
+        + '</td></tr>';
+      if (sessionNote) {
+        tableRows += '<tr><td colspan="' + (globalMaxSets + 2) + '" style="background:#f5f5f5;color:#555;font-style:italic;font-size:12px;padding:6px 10px">📋 ' + htmlEsc(sessionNote) + '</td></tr>';
+      }
+      tableRows += sessionRows;
     }
   });
+
+  var trainingSections = tableRows
+    ? '<div class="section"><h2>📋 Dziennik treningów</h2>'
+      + '<table><thead>' + tableHdr + '</thead><tbody>' + tableRows + '</tbody></table></div>'
+    : '';
 
   // ── SEKCJA 3: POMIARY z trendami (używa buildMeasSection) ─────────
   var measSection = measurements.length ? buildMeasSection(measurements) : '';
