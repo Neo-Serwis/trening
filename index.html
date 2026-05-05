@@ -427,7 +427,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 4.5 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 4.6 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -491,7 +491,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '4.5';
+var APP_VERSION = '4.6';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -2240,6 +2240,8 @@ function modalSave() {
     ex.notes     = document.getElementById('m-notes').value.trim();
     var optEl    = document.getElementById('m-optional');
     ex.optional  = optEl ? optEl.checked : false;
+    // v4.6: zachowaj otwarty dzień po zapisie ćwiczenia
+    savePlan(); closeModal(); renderEditorKeepOpen(ctx.di); toast('✅ Zapisano'); return;
   } else if (ctx.type === 'newex') {
     var nm2 = document.getElementById('m-name').value.trim();
     if (!nm2) { toast('⚠️ Podaj nazwę'); return; }
@@ -2254,6 +2256,8 @@ function modalSave() {
       notes: document.getElementById('m-notes').value.trim(),
       optional: (function(){ var el = document.getElementById('m-optional'); return el ? el.checked : false; })()
     });
+    // v4.6: zachowaj otwarty dzień po dodaniu ćwiczenia
+    savePlan(); closeModal(); renderEditorKeepOpen(ctx.di); toast('✅ Zapisano'); return;
   }
 
   savePlan(); closeModal(); renderEditor(); toast('✅ Zapisano');
@@ -2552,7 +2556,20 @@ function exportHTMLReport(mode) {
   }
 
   // ── SEKCJA 2: DZIENNIK TRENINGÓW — v4.3: jedna globalna tabela, kolumny wyrównane
-  var keys = Object.keys(logs).sort(function(a,b){ return parseLogKey(b)[0]-parseLogKey(a)[0]; });
+  // v4.6: sortowanie — tydzień malejąco, w obrębie tygodnia kolejność z planu
+  var keys = Object.keys(logs).sort(function(a, b) {
+    var pa = parseLogKey(a); var pb = parseLogKey(b);
+    if (pb[0] !== pa[0]) return pb[0] - pa[0]; // tydzień malejąco
+    // w obrębie tygodnia — indeks dnia w planie
+    var idxA = 999; var idxB = 999;
+    if (plan && plan.days) {
+      for (var i = 0; i < plan.days.length; i++) {
+        if (plan.days[i].id === pa[1]) idxA = i;
+        if (plan.days[i].id === pb[1]) idxB = i;
+      }
+    }
+    return idxA - idxB;
+  });
 
   // Oblicz globalny maxSets ze wszystkich sesji
   var globalMaxSets = 1;
