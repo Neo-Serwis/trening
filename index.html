@@ -245,7 +245,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     <div id="workout-progress-bar" style="margin-bottom:10px;display:none"></div>
     <!-- Data treningu — edytowalna, domyślnie dziś -->
     <div class="meas-date-row" style="margin-bottom:10px">
-      <input class="meas-date-input" type="text" id="workout-date" placeholder="DD.MM.RRRR" maxlength="10">
+      <input class="meas-date-input" type="text" inputmode="numeric" id="workout-date" placeholder="DD.MM.RRRR" maxlength="10">
       <button class="btn-primary" style="flex:0 0 auto;padding:9px 16px;font-size:13px" onclick="workoutDateToday()">Dziś</button>
     </div>
     <div id="ex-list"></div>
@@ -418,7 +418,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 3.7 · 2026-05-02 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 3.8 · 2026-05-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -427,7 +427,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     <div class="meas-form">
       <div class="meas-form-title">➕ Nowy pomiar</div>
       <div class="meas-date-row">
-        <input class="meas-date-input" type="text" id="meas-date" placeholder="DD.MM.RRRR" maxlength="10">
+        <input class="meas-date-input" type="text" inputmode="numeric" id="meas-date" placeholder="DD.MM.RRRR" maxlength="10">
         <button class="btn-primary" style="flex:0 0 auto;padding:9px 16px;font-size:13px" onclick="measToday()">Dziś</button>
       </div>
       <!-- Pola generowane dynamicznie przez renderMeasForm() -->
@@ -482,7 +482,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '3.7';
+var APP_VERSION = '3.8';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -719,6 +719,9 @@ function openDay(id) {
   currentDayId = id;
   showView('workout');
   renderWorkout();
+  // Przewiń widok workout na górę przy każdym otwarciu treningu
+  var vw = document.getElementById('view-workout');
+  if (vw) vw.scrollTop = 0;
 }
 
 function showEditorView() { showView('editor'); }
@@ -1143,13 +1146,13 @@ function renderWorkout() {
             cw = (Math.round(deloadW * 2) / 2).toFixed(1);
           }
         }
-        // Auto-propozycja back-off przy renderze (z zapisanych danych)
+        // Auto-propozycja back-off przy renderze — ciężar ostatniej serii roboczej (nie max)
         if (isBO && !cw && curr) {
-          var lastW = 0;
-          for (var j = 0; j < ex.setsCount - 1; j++) {
-            if (curr[j] && parseFloat(curr[j].w) > lastW) lastW = parseFloat(curr[j].w);
+          var lastRoboczaW = 0;
+          for (var j = ex.setsCount - 2; j >= 0; j--) {
+            if (curr[j] && parseFloat(curr[j].w) > 0) { lastRoboczaW = parseFloat(curr[j].w); break; }
           }
-          if (lastW > 0) cw = (Math.round(lastW * (1 - backoffPct/100) * 2) / 2).toFixed(1);
+          if (lastRoboczaW > 0) cw = (Math.round(lastRoboczaW * (1 - backoffPct/100) * 2) / 2).toFixed(1);
         }
         var lbl = isBO ? 'BO' : 'S' + (i+1);
         var lblStyle = isBO ? 'color:var(--yellow)' : '';
@@ -1193,23 +1196,22 @@ function toggleNote(btn) {
   body.classList.toggle('open');
 }
 
-// Aktualizacja pola BO na żywo gdy użytkownik wpisuje ciężar w seriach roboczych
+// Aktualizacja pola BO na żywo — bierze ciężar z ostatniej serii roboczej przed BO
 function updateBOLive(exId, setsCount, backoffPct) {
   var boIdx = setsCount - 1;
   var boInput = document.getElementById('w_' + exId + '_' + boIdx);
   if (!boInput) return;
-  // Jeśli BO już ma ręcznie wpisany ciężar — nie nadpisuj
-  // (uznajemy że jeśli wartość nie pasuje do auto-obliczeń, użytkownik edytował ręcznie)
-  var maxW = 0;
-  for (var j = 0; j < boIdx; j++) {
+  // Szukamy ostatniej serii roboczej z wpisanym ciężarem (od końca, pomijając BO)
+  var lastRoboczaW = 0;
+  for (var j = boIdx - 1; j >= 0; j--) {
     var el = document.getElementById('w_' + exId + '_' + j);
     if (el) {
       var v = parseFloat(el.value);
-      if (!isNaN(v) && v > maxW) maxW = v;
+      if (!isNaN(v) && v > 0) { lastRoboczaW = v; break; }
     }
   }
-  if (maxW > 0) {
-    var suggested = (Math.round(maxW * (1 - backoffPct / 100) * 2) / 2).toFixed(1);
+  if (lastRoboczaW > 0) {
+    var suggested = (Math.round(lastRoboczaW * (1 - backoffPct / 100) * 2) / 2).toFixed(1);
     boInput.value = suggested;
   } else {
     boInput.value = '';
@@ -1224,16 +1226,17 @@ function updateBOLive(exId, setsCount, backoffPct) {
 // group body   → sekcja "Ciało"
 // group health → sekcja "Zdrowie"
 // group circ   → sekcja "Obwód"
+// v3.8: Waga przeniesiona z grupy 'body' do 'circ' — pojawia się przed obwodami
 var DEFAULT_MEAS_FIELDS = [
-  { id:'waga',       label:'Waga',      group:'body',   active:true,  goodDown:true  },
-  { id:'cukier',     label:'Cukier',    group:'health', active:true,  goodDown:null  },
-  { id:'cisnienie',  label:'Ciśnienie', group:'health', active:true,  goodDown:null  },
-  { id:'puls',       label:'Puls',      group:'health', active:true,  goodDown:null  },
+  { id:'waga',       label:'Waga',      group:'circ',   active:true,  goodDown:true  },
   { id:'biceps',     label:'Biceps',    group:'circ',   active:true,  goodDown:false },
   { id:'klatka',     label:'Klatka',    group:'circ',   active:true,  goodDown:false },
   { id:'talia',      label:'Talia',     group:'circ',   active:true,  goodDown:true  },
   { id:'podpepkiem', label:'Pas',       group:'circ',   active:true,  goodDown:null  },
-  { id:'udo',        label:'Udo',       group:'circ',   active:true,  goodDown:true  }
+  { id:'udo',        label:'Udo',       group:'circ',   active:true,  goodDown:true  },
+  { id:'cukier',     label:'Cukier',    group:'health', active:true,  goodDown:null  },
+  { id:'cisnienie',  label:'Ciśnienie', group:'health', active:true,  goodDown:null  },
+  { id:'puls',       label:'Puls',      group:'health', active:true,  goodDown:null  }
 ];
 
 var LS_MEAS_FIELDS = 'trening_meas_fields2';
@@ -1241,7 +1244,15 @@ var LS_MEAS_FIELDS = 'trening_meas_fields2';
 function loadMeasFields() {
   try {
     var saved = JSON.parse(localStorage.getItem(LS_MEAS_FIELDS));
-    if (saved && Array.isArray(saved) && saved.length) return saved;
+    if (saved && Array.isArray(saved) && saved.length) {
+      // Migracja v3.8: jeśli waga jest w grupie 'body' — przenieś do 'circ'
+      var migrated = false;
+      saved.forEach(function(f) {
+        if (f.id === 'waga' && f.group === 'body') { f.group = 'circ'; migrated = true; }
+      });
+      if (migrated) saveMeasFields(saved);
+      return saved;
+    }
   } catch(e) {}
   return DEFAULT_MEAS_FIELDS.map(function(f) { return Object.assign({}, f); });
 }
@@ -1287,17 +1298,24 @@ function renderMeasForm(editEntry) {
       + '</div>';
   }
 
+  // v3.8: kolejność sekcji — Ciało (jeśli jest), Waga+Obwody, Zdrowie
   var html = '';
   if (groups.body.length) {
     html += '<div class="meas-section-lbl notop" style="margin-top:0">Ciało</div>'
       + '<div class="meas-grid">' + groups.body.map(fieldHtml).join('') + '</div>';
-    // BMI jeśli włączone i jest pole wagi
-    if (settings.bmiEnabled && groups.body.find(function(f){return f.id==='waga';})) {
+  }
+  if (groups.circ.length) {
+    html += '<div class="meas-section-hdr' + (!groups.body.length ? ' notop' : '') + '">'
+      + '<span class="meas-section-lbl">Waga i obwody (kg / cm)</span>'
+      + '<button class="btn-meas-manage" onclick="measManageFields()">+ Zarządzaj</button>'
+      + '</div>'
+      + '<div class="meas-grid">' + groups.circ.map(fieldHtml).join('') + '</div>';
+    // BMI jeśli włączone i jest pole wagi w circ
+    if (settings.bmiEnabled && groups.circ.find(function(f){return f.id==='waga';})) {
       var bmiVal = editEntry && editEntry.bmi ? editEntry.bmi : '';
       html += '<div class="meas-grid"><div class="meas-field"><div class="meas-label">BMI (auto)</div>'
         + '<input class="meas-input" id="mf-bmi" readonly value="' + esc(bmiVal) + '" placeholder="—" style="color:var(--text2);cursor:default" oninput="">'
         + '</div></div>';
-      // Przyłącz live calc do pola wagi
       setTimeout(function() {
         var wEl = document.getElementById('mf-waga');
         if (wEl) wEl.oninput = calcBMILive;
@@ -1308,13 +1326,6 @@ function renderMeasForm(editEntry) {
   if (groups.health.length) {
     html += '<div class="meas-section-hdr"><span class="meas-section-lbl">Zdrowie</span></div>'
       + '<div class="meas-grid">' + groups.health.map(fieldHtml).join('') + '</div>';
-  }
-  if (groups.circ.length) {
-    html += '<div class="meas-section-hdr">'
-      + '<span class="meas-section-lbl">Obwód (cm)</span>'
-      + '<button class="btn-meas-manage" onclick="measManageFields()">+ Zarządzaj</button>'
-      + '</div>'
-      + '<div class="meas-grid">' + groups.circ.map(fieldHtml).join('') + '</div>';
   }
 
   var formBody = document.getElementById('meas-form-body');
@@ -1408,21 +1419,68 @@ function measManageFields() {
   openModal();
 }
 
+// v3.8: drag & drop kolejności pól pomiarowych
+var _measDragSrcIdx = null;
+function measFieldDragStart(e, idx) { _measDragSrcIdx = idx; e.dataTransfer.effectAllowed = 'move'; }
+function measFieldDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function measFieldDrop(e, idx) {
+  e.preventDefault();
+  if (_measDragSrcIdx === null || _measDragSrcIdx === idx) return;
+  var moved = _modalCtx.fields.splice(_measDragSrcIdx, 1)[0];
+  _modalCtx.fields.splice(idx, 0, moved);
+  _measDragSrcIdx = null;
+  renderManageFieldsModal();
+}
+var _measTouchSrcIdx = null;
+var _measTouchClone = null;
+function measFieldTouchStart(e, idx) {
+  _measTouchSrcIdx = idx;
+  var el = e.currentTarget.closest('.meas-field-row');
+  if (!el) return;
+  _measTouchClone = el.cloneNode(true);
+  _measTouchClone.style.cssText = 'position:fixed;opacity:.75;pointer-events:none;z-index:9999;width:' + el.offsetWidth + 'px;background:var(--bg3);border-radius:8px;padding:8px;';
+  document.body.appendChild(_measTouchClone);
+  var t = e.touches[0];
+  _measTouchClone.style.left = (t.clientX - 20) + 'px';
+  _measTouchClone.style.top  = (t.clientY - 20) + 'px';
+}
+function measFieldTouchMove(e) {
+  if (!_measTouchClone) return;
+  e.preventDefault();
+  var t = e.touches[0];
+  _measTouchClone.style.left = (t.clientX - 20) + 'px';
+  _measTouchClone.style.top  = (t.clientY - 20) + 'px';
+}
+function measFieldTouchEnd(e, idx) {
+  if (_measTouchClone) { document.body.removeChild(_measTouchClone); _measTouchClone = null; }
+  if (_measTouchSrcIdx === null || _measTouchSrcIdx === idx) { _measTouchSrcIdx = null; return; }
+  var moved = _modalCtx.fields.splice(_measTouchSrcIdx, 1)[0];
+  _modalCtx.fields.splice(idx, 0, moved);
+  _measTouchSrcIdx = null;
+  renderManageFieldsModal();
+}
+
 function renderManageFieldsModal() {
   var fields = _modalCtx.fields;
-  var groupLabels = { body: 'Ciało', health: 'Zdrowie', circ: 'Obwód' };
-  var html = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Nazwa · Kierunek · Aktywne</div>';
+  var groupLabels = { body: 'Ciało', health: 'Zdrowie', circ: 'Waga i obwody' };
+  var html = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Przytrzymaj ☰ aby zmienić kolejność · Nazwa · Kierunek · Aktywne</div>';
 
-  // Grupuj
-  ['body','health','circ'].forEach(function(grp) {
+  // v3.8: kolejność grup: circ, health, body
+  ['circ','health','body'].forEach(function(grp) {
     var grpFields = fields.map(function(f,i){return{f:f,i:i};}).filter(function(x){return x.f.group===grp;});
     if (!grpFields.length && grp !== 'circ') return;
     html += '<div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">' + groupLabels[grp] + '</div>';
     grpFields.forEach(function(x) {
       var f = x.f; var i = x.i;
-      // Ustal wartość selecta: null='—', false='↑', true='↓'
       var dirVal = f.goodDown === null || f.goodDown === undefined ? 'none' : (f.goodDown ? '1' : '0');
-      html += '<div class="meas-field-row">'
+      html += '<div class="meas-field-row" draggable="true"'
+        + ' ondragstart="measFieldDragStart(event,' + i + ')"'
+        + ' ondragover="measFieldDragOver(event)"'
+        + ' ondrop="measFieldDrop(event,' + i + ')">'
+        + '<span class="drag-handle" style="touch-action:none"'
+        + ' ontouchstart="measFieldTouchStart(event,' + i + ')"'
+        + ' ontouchmove="measFieldTouchMove(event)"'
+        + ' ontouchend="measFieldTouchEnd(event,' + i + ')">☰</span>'
         + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
         + '<select class="modal-select" style="width:80px;padding:6px 6px;font-size:11px" id="mff-dir-' + i + '">'
         + '<option value="none"' + (dirVal==='none'?' selected':'') + '>— brak</option>'
@@ -1434,7 +1492,6 @@ function renderManageFieldsModal() {
         + '<button class="btn-del" onclick="measFieldDel(' + i + ')">🗑</button>'
         + '</div>';
     });
-    // Dodaj nowe pole do grupy
     html += '<div style="display:flex;gap:6px;margin-top:6px">'
       + '<input class="modal-input" id="mff-new-' + grp + '" placeholder="Nowe pole..." style="flex:1;padding:6px 8px;font-size:13px">'
       + '<button class="btn-primary" style="flex:0 0 auto;padding:6px 12px;font-size:12px" onclick="measFieldAdd(\'' + grp + '\')">+ Dodaj</button>'
@@ -1515,11 +1572,12 @@ function renderMeasurements() {
 
     // Obsługa starych pomiarów (bez _fields) — stare klucze
     if (!m._fields) {
-      if (m.waga && !bodyChips)   bodyChips   += chipDiff('Waga', m.waga, prev&&prev.waga, true);
-      if (m.cukier)               healthChips += chipDiff('Cukier', m.cukier, prev&&prev.cukier, null);
-      if (m.cisnienie)            healthChips += chipDiff('Ciśnienie', m.cisnienie, prev&&prev.cisnienie, null);
-      if (m.puls)                 healthChips += chipDiff('Puls', m.puls, prev&&prev.puls, null);
-      var oldCirc = m._circFields || DEFAULT_MEAS_FIELDS.filter(function(f){return f.group==='circ';});
+      // v3.8: waga idzie do circChips (razem z obwodami)
+      if (m.waga)      circChips   += chipDiff('Waga', m.waga, prev&&prev.waga, true);
+      if (m.cukier)    healthChips += chipDiff('Cukier', m.cukier, prev&&prev.cukier, null);
+      if (m.cisnienie) healthChips += chipDiff('Ciśnienie', m.cisnienie, prev&&prev.cisnienie, null);
+      if (m.puls)      healthChips += chipDiff('Puls', m.puls, prev&&prev.puls, null);
+      var oldCirc = m._circFields || DEFAULT_MEAS_FIELDS.filter(function(f){return f.group==='circ' && f.id !== 'waga';});
       oldCirc.forEach(function(f) {
         if (m[f.id]) circChips += chipDiff(f.label, m[f.id], prev&&prev[f.id], f.goodDown);
       });
@@ -1533,10 +1591,11 @@ function renderMeasurements() {
     if (m.cisnienie) subParts.push('♥ ' + m.cisnienie);
     var sub = subParts.join(' · ');
 
+    // v3.8: kolejność — Ciało (jeśli jest), Waga+Obwody, Zdrowie
     var bodyHtml = '';
     if (bodyChips)   bodyHtml += '<div class="meas-group-lbl">Ciało</div><div class="meas-chips">' + bodyChips + '</div>';
+    if (circChips)   bodyHtml += '<div class="meas-group-lbl">Waga i obwody</div><div class="meas-chips">' + circChips + '</div>';
     if (healthChips) bodyHtml += '<div class="meas-group-lbl">Zdrowie</div><div class="meas-chips">' + healthChips + '</div>';
-    if (circChips)   bodyHtml += '<div class="meas-group-lbl">Obwód</div><div class="meas-chips">' + circChips + '</div>';
 
     var noteHtml = '<button class="note-toggle" onclick="measNoteToggle(this)">📝 Notatka</button>'
       + '<div class="note-body' + (m._note ? ' open' : '') + '">'
@@ -1732,6 +1791,25 @@ function renderHistory() {
       ? '<div class="hist-note" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">📋 <strong>Notatka ogólna:</strong> ' + esc(dl._note) + '</div>'
       : '';
 
+    // v3.8: trend ciężaru vs poprzedni tydzień — kolor lewej krawędzi
+    var prevWeekKey = logKey(week - 1, dayId);
+    var prevDl = logs[prevWeekKey] || null;
+    var histBorderStyle = '';
+    if (prevDl) {
+      var currMaxW = 0; var prevMaxW = 0;
+      Object.keys(dl).filter(function(k){return k!=='_date'&&k!=='_note'&&k.indexOf('note_')!==0;}).forEach(function(exId){
+        if (!Array.isArray(dl[exId])) return;
+        dl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>currMaxW) currMaxW=w; });
+      });
+      Object.keys(prevDl).filter(function(k){return k!=='_date'&&k!=='_note'&&k.indexOf('note_')!==0;}).forEach(function(exId){
+        if (!Array.isArray(prevDl[exId])) return;
+        prevDl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>prevMaxW) prevMaxW=w; });
+      });
+      if (currMaxW > 0 && prevMaxW > 0) {
+        histBorderStyle = currMaxW >= prevMaxW ? 'border-left:3px solid var(--green)' : 'border-left:3px solid var(--accent)';
+      }
+    }
+
     var items = Object.keys(dl).filter(function(k) {
       return k !== '_date' && k !== '_note' && k.indexOf('note_') !== 0;
     }).map(function(exId) {
@@ -1740,19 +1818,32 @@ function renderHistory() {
       var sets = dl[exId];
       var noteKey = 'note_' + exId;
       var noteVal = dl[noteKey] || '';
+      // v3.8: trend per ćwiczenie — porównaj max ciężar z poprzednim tygodniem
+      var exTrendBadge = '';
+      if (prevDl && prevDl[exId] && Array.isArray(prevDl[exId])) {
+        var cMax = 0; var pMax = 0;
+        sets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>cMax) cMax=w; });
+        prevDl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pMax) pMax=w; });
+        if (cMax > 0 && pMax > 0 && cMax !== pMax) {
+          var diff = cMax - pMax;
+          var tCol = diff > 0 ? 'var(--green)' : 'var(--accent)';
+          var tSign = diff > 0 ? '+' : '';
+          exTrendBadge = ' <span style="font-size:10px;color:' + tCol + ';font-weight:600">' + tSign + diff.toFixed(1) + ' kg</span>';
+        }
+      }
       var chips = sets.map(function(s, i) {
         var prMark = isPR(dayId, exId, s.w) ? ' 🏆' : '';
         var cls = prMark ? ' pr' : '';
         return (s.w||s.r) ? '<span class="hist-chip' + cls + '">S' + (i+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + prMark + '</span>' : '';
       }).filter(Boolean).join('');
       return '<div class="hist-ex">'
-        + '<div class="hist-ex-name">' + esc(nm) + '</div>'
+        + '<div class="hist-ex-name">' + esc(nm) + exTrendBadge + '</div>'
         + '<div class="hist-chips">' + (chips || '<span style="color:var(--text3);font-size:12px">brak</span>') + '</div>'
         + (noteVal ? '<div class="hist-note">📝 ' + esc(noteVal) + '</div>' : '')
         + '</div>';
     }).join('');
 
-    return '<div class="hist-item">'
+    return '<div class="hist-item" style="' + histBorderStyle + '">'
       + '<div class="hist-hdr" onclick="toggleHist(this)">'
       + '<span>Tydz.' + week + ' — ' + esc(dayName) + '</span>'
       + '<div style="display:flex;align-items:center;gap:8px">'
@@ -2309,8 +2400,15 @@ function exportHTMLReport(mode) {
         var dPrev = prevWB ? (ex.byWeek[prevWB] || null) : null;
         var maxWTrend = (dLast && dPrev) ? trendBadge(dLast.maxW, dPrev.maxW, false) : '<span style="color:#aaa">—</span>';
         var volTrend  = (dLast && dPrev) ? trendBadge(dLast.vol,  dPrev.vol,  false) : '<span style="color:#aaa">—</span>';
+        // v3.8: ostatnia notatka per ćwiczenie z ostatniego tygodnia
+        var lastNote = '';
+        if (lastWB) {
+          var lastKey = logKey(lastWB, ex.dayId);
+          if (logs[lastKey] && logs[lastKey]['note_' + ex.exId]) lastNote = logs[lastKey]['note_' + ex.exId];
+        }
         statsRows += '<tr>'
-          + '<td>' + htmlEsc(ex.name) + (ex.scheme ? '<br><small style="color:#888">' + htmlEsc(ex.scheme) + '</small>' : '') + '</td>'
+          + '<td>' + htmlEsc(ex.name) + (ex.scheme ? '<br><small style="color:#888">' + htmlEsc(ex.scheme) + '</small>' : '')
+          + (lastNote ? '<br><small style="color:#888;font-style:italic">📝 ' + htmlEsc(lastNote) + '</small>' : '') + '</td>'
           + '<td style="text-align:center">' + ex.sessions + '</td>'
           + '<td style="text-align:center;font-weight:700;color:#e63946">' + (ex.maxW > 0 ? ex.maxW.toFixed(1) + ' kg' : '—') + '</td>'
           + '<td style="text-align:center">' + maxWTrend + '</td>'
@@ -2319,7 +2417,7 @@ function exportHTMLReport(mode) {
           + '</tr>';
       });
     });
-    var trendNote = (lastWB && prevWB) ? ' <small style="color:#888;font-weight:400">(trend: T' + lastWB + ' vs T' + prevWB + ')</small>' : '';
+    var trendNote = (lastWB && prevWB) ? ' <small style="color:#888;font-weight:400">(porównanie z poprzednim tygodniem: Tydzień ' + lastWB + ' vs Tydzień ' + prevWB + ')</small>' : '';
     statsSection = '<div class="section"><h2>📊 Statystyki treningowe' + trendNote + '</h2>'
       + '<table><thead><tr style="background:#e63946;color:#fff">'
       + '<th style="text-align:left;padding:8px 10px">Ćwiczenie</th>'
@@ -2430,9 +2528,18 @@ function handleLogsFile(e) {
 }
 
 // Wspólna funkcja budująca sekcję pomiarów z trendami
+// v3.8: kolejność kolumn zgodna z loadMeasFields()
 function buildMeasSection(measArr) {
   if (!measArr || !measArr.length) return '';
+  var configFields = loadMeasFields();
   var allMeasIds = []; var measLabelMap = {}; var measGoodDownMap = {};
+  // Najpierw pola w kolejności z konfiguracji
+  configFields.forEach(function(f) {
+    if (allMeasIds.indexOf(f.id) < 0) {
+      allMeasIds.push(f.id); measLabelMap[f.id] = f.label; measGoodDownMap[f.id] = f.goodDown;
+    }
+  });
+  // Potem pola z pomiarów których nie ma w konfiguracji (stare dane)
   measArr.forEach(function(m) {
     var mf = m._fields || DEFAULT_MEAS_FIELDS;
     mf.forEach(function(f) {
