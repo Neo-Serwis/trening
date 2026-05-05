@@ -427,7 +427,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 4.7 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 4.8 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -491,7 +491,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '4.7';
+var APP_VERSION = '4.8';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -2510,6 +2510,17 @@ function exportHTMLReport(mode) {
     if (!statsByDayB[dayId]) statsByDayB[dayId] = { dayName: exStatsB[k].dayName, exs: [] };
     statsByDayB[dayId].exs.push(exStatsB[k]);
   });
+  // v4.8: zbierz datę ostatniego wykonania per dzień
+  Object.keys(statsByDayB).forEach(function(dayId) {
+    var lastDate = '';
+    Object.keys(logs).forEach(function(key) {
+      var pk = parseLogKey(key);
+      if (pk[1] === dayId && logs[key]._date) {
+        if (!lastDate || parseDatePL(logs[key]._date) > parseDatePL(lastDate)) lastDate = logs[key]._date;
+      }
+    });
+    statsByDayB[dayId].lastDate = lastDate;
+  });
 
   // v4.7: sortuj dni w statystykach wg kolejności z planu
   var sortedDayIdsB = Object.keys(statsByDayB).sort(function(a, b) {
@@ -2528,7 +2539,7 @@ function exportHTMLReport(mode) {
     var statsRows = '';
     sortedDayIdsB.forEach(function(dayId) {
       var grp = statsByDayB[dayId];
-      statsRows += '<tr style="background:#f0f0f0"><td colspan="6" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
+      statsRows += '<tr style="background:#f0f0f0"><td colspan="6" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + (grp.lastDate ? ' <span style="font-size:11px;color:#aaa;font-weight:400">· ' + htmlEsc(grp.lastDate) + '</span>' : '') + '</td></tr>';
       grp.exs.forEach(function(ex) {
         // v3.10: trend per ćwiczenie z jego własnych dwóch ostatnich tygodni
         var dLast = ex.trendLastW ? (ex.byWeek[ex.trendLastW] || null) : null;
@@ -2881,6 +2892,17 @@ function exportReportA() {
     if (!statsByDay[dayId]) statsByDay[dayId] = { dayName: exStats[k].dayName, exs: [] };
     statsByDay[dayId].exs.push(exStats[k]);
   });
+  // v4.8: zbierz datę ostatniego wykonania per dzień dla Raportu A
+  Object.keys(statsByDay).forEach(function(dayId) {
+    var lastDate = '';
+    Object.keys(logs).forEach(function(key) {
+      var pk = parseLogKey(key);
+      if (pk[1] === dayId && logs[key]._date) {
+        if (!lastDate || parseDatePL(logs[key]._date) > parseDatePL(lastDate)) lastDate = logs[key]._date;
+      }
+    });
+    statsByDay[dayId].lastDate = lastDate;
+  });
   // v4.7: sortuj dni w Raporcie A wg kolejności z planu
   var sortedDayIdsA = Object.keys(statsByDay).sort(function(a, b) {
     var idxA = 999; var idxB = 999;
@@ -2897,7 +2919,7 @@ function exportReportA() {
     var exRows = '';
     sortedDayIdsA.forEach(function(dayId) {
       var grp = statsByDay[dayId];
-      exRows += '<tr style="background:#f0f0f0"><td colspan="5" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + '</td></tr>';
+      exRows += '<tr style="background:#f0f0f0"><td colspan="5" style="font-weight:700;color:#e63946;padding:8px 10px">' + htmlEsc(grp.dayName) + (grp.lastDate ? ' <span style="font-size:11px;color:#aaa;font-weight:400">· ' + htmlEsc(grp.lastDate) + '</span>' : '') + '</td></tr>';
       grp.exs.forEach(function(ex) {
         var dA = ex.byWeek[weekA] || null; var dB = ex.byWeek[weekB] || null;
         var maxWA = dA ? dA.maxW.toFixed(1)+' kg' : '—'; var maxWB = dB ? dB.maxW.toFixed(1)+' kg' : '—';
