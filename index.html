@@ -212,10 +212,13 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .meas-del-btn{background:none;border:none;color:#c44;font-size:16px;cursor:pointer;padding:2px 6px;}
 .diff-pos{color:#e63946;font-size:11px;}.diff-neg{color:#52b788;font-size:11px;}
 /* Zarządzanie polami obwodów */
-.meas-field-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.meas-field-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);transition:background .15s;}
 .meas-field-row:last-child{border-bottom:none}
 .meas-field-name{flex:1;font-size:13px;color:var(--text2);}
 .meas-field-unit{font-size:11px;color:var(--text3);min-width:28px;}
+/* Podswietlenie drag-over — edytor planu i pola pomiarowe */
+.editor-ex-row.drag-over{background:rgba(69,123,157,0.18);border-top:2px solid var(--blue);}
+.meas-field-row.drag-over{background:rgba(69,123,157,0.18);border-top:2px solid var(--blue);}
 
 /* UKRYJ SCROLLBAR */
 *{scrollbar-width:none;-ms-overflow-style:none;}
@@ -1429,9 +1432,17 @@ function measFieldDragStart(e, idx) {
 function measFieldDragOver(e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
+  // Podświetl cel
+  document.querySelectorAll('.meas-field-row').forEach(function(r) { r.classList.remove('drag-over'); });
+  var row = e.currentTarget;
+  if (row) row.classList.add('drag-over');
+}
+function measFieldDragLeave(e) {
+  if (e.currentTarget) e.currentTarget.classList.remove('drag-over');
 }
 function measFieldDrop(e, idx) {
   e.preventDefault();
+  document.querySelectorAll('.meas-field-row').forEach(function(r) { r.classList.remove('drag-over'); });
   if (_measDragSrcIdx === null || _measDragSrcIdx === idx) return;
   var moved = _modalCtx.fields.splice(_measDragSrcIdx, 1)[0];
   _modalCtx.fields.splice(idx, 0, moved);
@@ -1456,6 +1467,7 @@ function renderManageFieldsModal() {
       html += '<div class="meas-field-row" draggable="true"'
         + ' ondragstart="measFieldDragStart(event,' + i + ')"'
         + ' ondragover="measFieldDragOver(event)"'
+        + ' ondragleave="measFieldDragLeave(event)"'
         + ' ondrop="measFieldDrop(event,' + i + ')">'
         + '<span class="drag-handle">⠷</span>'
         + '<input class="modal-input" style="flex:1;padding:6px 8px;font-size:13px" id="mff-name-' + i + '" value="' + esc(f.label) + '">'
@@ -2007,7 +2019,7 @@ function renderEditor() {
   var c = document.getElementById('editor-day-list');
   c.innerHTML = plan.days.map(function(day, di) {
     var exRows = day.exercises.map(function(ex, ei) {
-      return '<div class="editor-ex-row" draggable="true" data-di="' + di + '" data-ei="' + ei + '" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dragDrop(event)">'
+      return '<div class="editor-ex-row" draggable="true" data-di="' + di + '" data-ei="' + ei + '" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event)">'
         + '<span class="drag-handle">⠿</span>'
         + '<span class="editor-ex-name">' + esc(ex.name) + '</span>'
         + '<button class="btn-edit" onclick="editorEditEx(' + di + ',' + ei + ')">Edytuj</button>'
@@ -2038,9 +2050,16 @@ function renderEditorKeepOpen(openDi) {
 
 // Drag & drop kolejności ćwiczeń
 function dragStart(e) { _dragSrc = e.currentTarget; e.dataTransfer.effectAllowed = 'move'; }
-function dragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function dragOver(e)  {
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  // Podświetl cel
+  document.querySelectorAll('.editor-ex-row').forEach(function(r) { r.classList.remove('drag-over'); });
+  if (e.currentTarget) e.currentTarget.classList.add('drag-over');
+}
+function dragLeave(e) { if (e.currentTarget) e.currentTarget.classList.remove('drag-over'); }
 function dragDrop(e)  {
   e.preventDefault();
+  document.querySelectorAll('.editor-ex-row').forEach(function(r) { r.classList.remove('drag-over'); });
   if (!_dragSrc || _dragSrc === e.currentTarget) return;
   var di  = parseInt(_dragSrc.getAttribute('data-di'));
   var ei  = parseInt(_dragSrc.getAttribute('data-ei'));
@@ -2541,25 +2560,43 @@ function handleLogsFile(e) {
 }
 
 // Wspólna funkcja budująca sekcję pomiarów z trendami
-// v3.8: kolejność kolumn zgodna z loadMeasFields()
+// v3.9fix: kolejność kolumn: najpierw circ (waga+obwody), potem health (zdrowie)
+// Niezależna od stanu localStorage — sortuje według grupy
 function buildMeasSection(measArr) {
   if (!measArr || !measArr.length) return '';
-  var configFields = loadMeasFields();
-  var allMeasIds = []; var measLabelMap = {}; var measGoodDownMap = {};
-  // Najpierw pola w kolejności z konfiguracji
-  configFields.forEach(function(f) {
-    if (allMeasIds.indexOf(f.id) < 0) {
-      allMeasIds.push(f.id); measLabelMap[f.id] = f.label; measGoodDownMap[f.id] = f.goodDown;
-    }
+
+  // Zbierz wszystkie unikalne pola ze wszystkich pomiarów + aktualnej konfiguracji
+  var allFieldsMap = {}; // id → {id, label, group, goodDown}
+  // Najpierw aktualna konfiguracja (ma poprawne grupy po migracji)
+  loadMeasFields().forEach(function(f) {
+    allFieldsMap[f.id] = { id: f.id, label: f.label, group: f.group, goodDown: f.goodDown };
   });
-  // Potem pola z pomiarów których nie ma w konfiguracji (stare dane)
+  // Uzupełnij polami z pomiarów których nie ma w konfiguracji
   measArr.forEach(function(m) {
     var mf = m._fields || DEFAULT_MEAS_FIELDS;
     mf.forEach(function(f) {
-      if (allMeasIds.indexOf(f.id) < 0) {
-        allMeasIds.push(f.id); measLabelMap[f.id] = f.label; measGoodDownMap[f.id] = f.goodDown;
+      if (!allFieldsMap[f.id]) {
+        // Migracja: waga z body → circ
+        var grp = (f.id === 'waga' && f.group === 'body') ? 'circ' : f.group;
+        allFieldsMap[f.id] = { id: f.id, label: f.label, group: grp, goodDown: f.goodDown };
       }
     });
+  });
+
+  // Sortuj: circ najpierw, potem health, potem body, reszta na końcu
+  var groupOrder = { circ: 0, health: 1, body: 2 };
+  var allFields = Object.keys(allFieldsMap).map(function(id) { return allFieldsMap[id]; });
+  allFields.sort(function(a, b) {
+    var ga = groupOrder[a.group] !== undefined ? groupOrder[a.group] : 3;
+    var gb = groupOrder[b.group] !== undefined ? groupOrder[b.group] : 3;
+    return ga - gb;
+  });
+
+  var allMeasIds = allFields.map(function(f) { return f.id; });
+  var measLabelMap = {}; var measGoodDownMap = {};
+  allFields.forEach(function(f) {
+    measLabelMap[f.id] = f.label;
+    measGoodDownMap[f.id] = f.goodDown;
   });
   var hasBMI = measArr.some(function(m) { return m.bmi; });
   var sorted = measArr.slice().sort(function(a,b){ return parseDatePL(b.date) - parseDatePL(a.date); });
