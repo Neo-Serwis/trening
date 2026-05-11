@@ -347,6 +347,10 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <span class="sbtn-ico">📏</span>
         <div class="sbtn-txt"><div class="sbtn-name">Eksportuj pomiary CSV</div><div class="sbtn-desc">Pomiary tygodniowe do Excel / Sheets</div></div>
       </button>
+      <button class="sbtn" onclick="exportMeasReport()">
+        <span class="sbtn-ico">📊</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Raport C — Tylko pomiary</div><div class="sbtn-desc">Pełna historia pomiarów z trendami</div></div>
+      </button>
     </div>
 
     <div class="sct">
@@ -427,7 +431,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 4.8 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 4.9 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -491,7 +495,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '4.8';
+var APP_VERSION = '4.9';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -865,11 +869,23 @@ function isPR(dayId, exId, weight) {
 }
 
 // Podpowiedź ciężaru — standard i backoff (serie robocze)
+// v4.9: szuka ostatniego wykonanego tygodnia (nie currentWeek-1)
+function getLastSets(dayId, exId) {
+  var bestWeek = -1; var bestSets = null;
+  Object.keys(logs).forEach(function(key) {
+    var pk = parseLogKey(key);
+    if (pk[1] === dayId && pk[0] < currentWeek && logs[key][exId]) {
+      if (pk[0] > bestWeek) { bestWeek = pk[0]; bestSets = logs[key][exId]; }
+    }
+  });
+  return bestSets;
+}
+
 function getSuggestion(dayId, exId, scheme, schemeType) {
   if (!settings.suggest) return null;
   // Obsługujemy standard i backoff; exdrop/dropset pomijamy
   if (schemeType && schemeType !== 'standard' && schemeType !== 'backoff') return null;
-  var prev = getPrevSets(dayId, exId);
+  var prev = getLastSets(dayId, exId);
   if (!prev || !prev.length) return null;
   // Parsuj górną granicę powt. ze scheme np "4×5–8" → 8
   var m = scheme ? scheme.match(/(\d+)\s*[–\-]\s*(\d+)/) : null;
@@ -1099,28 +1115,34 @@ function renderWorkout() {
   }
 
   c.innerHTML = day.exercises.map(function(ex, idx) {
-    var prev = getPrevSets(currentDayId, ex.id);
     var curr = getCurrentSets(currentDayId, ex.id);
     var savedNote = dl['note_' + ex.id] || '';
 
-    // Poprzedni tydzień
+    // Poprzedni tydzień — v4.9: ostatni wykonany (nie currentWeek-1)
+    var prev = getLastSets(currentDayId, ex.id);
     var prevHTML = '';
-    if (currentWeek > 1) {
-      if (prev && prev.length) {
+    if (prev && prev.length) {
         var chips = prev.map(function(s, i) {
           var prMark = isPR(currentDayId, ex.id, s.w) ? ' 🏆' : '';
           return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (i+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + prMark + '</span>';
         }).join('');
         // Notatka per ćwiczenie z poprzedniego tygodnia — delikatnie pod chipami
-        var prevLogKey = logKey(currentWeek - 1, currentDayId);
-        var prevNote = logs[prevLogKey] ? (logs[prevLogKey]['note_' + ex.id] || '') : '';
+        // Szukaj notatki z ostatniego wykonanego tygodnia
+        var prevNote = '';
+        var bestPrevWeek = -1;
+        Object.keys(logs).forEach(function(k) {
+          var pk2 = parseLogKey(k);
+          if (pk2[1] === currentDayId && pk2[0] < currentWeek && pk2[0] > bestPrevWeek) bestPrevWeek = pk2[0];
+        });
+        if (bestPrevWeek > 0 && logs[logKey(bestPrevWeek, currentDayId)]) {
+          prevNote = logs[logKey(bestPrevWeek, currentDayId)]['note_' + ex.id] || '';
+        }
         var prevNoteHTML = prevNote
           ? '<div style="font-size:10px;color:var(--text3);font-style:italic;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">📝 ' + esc(prevNote) + '</div>'
           : '';
-        prevHTML = '<div class="ref-label">↑ Tydzień ' + (currentWeek-1) + '</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML;
-      } else {
-        prevHTML = '<div class="ref-label">↑ Tydzień ' + (currentWeek-1) + '</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
-      }
+        prevHTML = '<div class="ref-label">↑ Tydzień ' + bestPrevWeek + '</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML;
+    } else if (currentWeek > 1) {
+      prevHTML = '<div class="ref-label">↑ brak poprzedniego treningu</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
     }
 
     // Podpowiedź ciężaru — mały chip gdy osiągnięto max powt.
@@ -2780,6 +2802,22 @@ function handleLogsFile(e) {
     } catch(err) { toast('❌ Błąd odczytu JSON'); }
   };
   r.readAsText(f); e.target.value = '';
+}
+
+// Raport C — tylko pomiary
+function exportMeasReport() {
+  if (!measurements.length) { toast('⚠️ Brak pomiarów'); return; }
+  var measSection = buildMeasSection(measurements);
+  var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>Raport pomiarów</title>'
+    + '<style>' + reportCSS() + '</style></head><body>'
+    + '<h1>📏 Raport pomiarów</h1>'
+    + '<p class="sub">Wygenerowano: ' + new Date().toLocaleDateString('pl-PL') + ' · Wersja apki: ' + APP_VERSION + '</p>'
+    + measSection
+    + '<p class="tip">Aby zapisać jako PDF: Ctrl+P → Zapisz jako PDF</p>'
+    + '</body></html>';
+  var d = new Date().toISOString().split('T')[0];
+  downloadFile(html, 'pomiary_raport_' + d + '.html', 'text/html;charset=utf-8;');
+  toast('📏 Raport pomiarów pobrany');
 }
 
 // Wspólna funkcja budująca sekcję pomiarów z trendami
