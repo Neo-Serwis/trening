@@ -385,6 +385,30 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </div>
     </div>
     <div class="sct">
+      <div class="sct-title">Po ostatniej serii ćwiczenia</div>
+      <div class="stoggle">
+        <div class="stoggle-txt"><div class="stoggle-name">Chowaj klawiaturę</div><div class="stoggle-desc">Po wpisaniu ostatniej serii — blur, klawiatura znika</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-after-hide" onchange="setAfterLastSet('hide',this.checked)"><span class="sl"></span></label>
+      </div>
+      <div class="stoggle" style="border-bottom:none">
+        <div class="stoggle-txt"><div class="stoggle-name">Skocz do kolejnego ćwiczenia</div><div class="stoggle-desc">Focus na ciężar pierwszej serii następnego ćwiczenia</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-after-next" onchange="setAfterLastSet('next',this.checked)"><span class="sl"></span></label>
+      </div>
+    </div>
+    <div class="sct">
+      <div class="sct-title">Domyślne przeliczniki % (gdy brak w planie)</div>
+      <div class="sbtn" style="cursor:default">
+        <span class="sbtn-ico">🔽</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Back-off %</div><div class="sbtn-desc">Odejmowane od ostatniej serii roboczej</div></div>
+        <input class="sinput-sm" type="number" id="default-backoff-pct" value="25" min="5" max="60" onchange="saveSetting('defaultBackoffPct',parseInt(this.value))">
+      </div>
+      <div class="sbtn" style="cursor:default;border-bottom:none">
+        <span class="sbtn-ico">📉</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Drop / ExDrop %</div><div class="sbtn-desc">Odejmowane przy każdym dropie i dogrywce</div></div>
+        <input class="sinput-sm" type="number" id="default-drop-pct" value="25" min="5" max="60" onchange="saveSetting('defaultDropPct',parseInt(this.value))">
+      </div>
+    </div>
+    <div class="sct">
       <div class="sct-title">Pomiary</div>
       <button class="sbtn" onclick="measManageFields()">
         <span class="sbtn-ico">📏</span>
@@ -431,7 +455,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 4.9 · 2026-05-05 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.0 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -495,14 +519,14 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '4.9';
+var APP_VERSION = '5.0';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
 var prevView = 'home';
 var plan = null;
 var logs = {};
-var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false, deload:false, planCycleWeek:1 };
+var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false, deload:false, planCycleWeek:1, afterLastSet:'hide', defaultBackoffPct:25, defaultDropPct:25 };
 // planCycleWeek: od którego tygodnia startuje raport B (domyślnie 1 = cała historia)
 var _saveGuard = false;
 var _wakeLock = null;
@@ -544,7 +568,7 @@ function cleanEmptyLogs() {
   Object.keys(logs).forEach(function(key) {
     var dl = logs[key];
     var hasData = Object.keys(dl).some(function(k) {
-      return !META_KEYS[k] && k.indexOf('note_') !== 0;
+      return !META_KEYS[k] && k.indexOf('note_') !== 0 && k.indexOf('_bonus') < 0;
     });
     if (!hasData) { delete logs[key]; changed = true; }
   });
@@ -580,6 +604,16 @@ function applySettings() {
   if (bmiRow) bmiRow.style.display = settings.bmiEnabled ? 'block' : 'none';
   var hEl = document.getElementById('user-height');
   if (hEl && userHeight > 0) hEl.value = userHeight;
+  // Suwak po ostatniej serii
+  var togHide = document.getElementById('tog-after-hide');
+  var togNext = document.getElementById('tog-after-next');
+  if (togHide) togHide.checked = (settings.afterLastSet === 'hide');
+  if (togNext) togNext.checked = (settings.afterLastSet === 'next');
+  // Domyślne przeliczniki %
+  var boPctEl = document.getElementById('default-backoff-pct');
+  var drPctEl = document.getElementById('default-drop-pct');
+  if (boPctEl) boPctEl.value = settings.defaultBackoffPct || 25;
+  if (drPctEl) drPctEl.value = settings.defaultDropPct || 25;
   // Tryb wykresu obwodów
   var mode = settings.circChartMode || 'single';
   var btnS = document.getElementById('circ-mode-single');
@@ -592,6 +626,17 @@ function applySettings() {
     btnA.style.borderColor = mode === 'all' ? 'var(--accent)' : 'var(--border)';
     btnA.style.color = mode === 'all' ? '#fff' : 'var(--text2)';
   }
+}
+
+// Suwak: co robić po ostatniej serii ćwiczenia
+function setAfterLastSet(val, checked) {
+  if (!checked) {
+    // odznaczono — wyłącz
+    saveSetting('afterLastSet', 'off');
+  } else {
+    saveSetting('afterLastSet', val);
+  }
+  applySettings();
 }
 
 function setCircChartMode(mode) {
@@ -834,9 +879,9 @@ function dayProgress(week, dayId) {
   var dl = getLog(week, dayId);
   var total = 0; var done = 0;
   day.exercises.forEach(function(ex) {
+    // v5.0: serie bonus nie liczą się do paska postępu
     var sets = dl[ex.id] || [];
     if (ex.schemeType === 'exdrop') {
-      // exdrop: liczymy per drop (seria robocza)
       total += ex.setsCount;
       sets.forEach(function(s) { if (s.w || s.r) done++; });
     } else {
@@ -966,6 +1011,20 @@ function saveWorkout(silent) {
     var nEl = document.getElementById('note_' + ex.id);
     if (nEl && nEl.value.trim()) logs[key]['note_' + ex.id] = nEl.value.trim();
     else if (logs[key]['note_' + ex.id] !== undefined && nEl && !nEl.value.trim()) delete logs[key]['note_' + ex.id];
+    // v5.0: zapis serii bonus
+    var bonusKey = ex.id + '_bonus';
+    var existingBonus = logs[key][bonusKey] || [];
+    var savedBonus = existingBonus.map(function(bs, bi) {
+      var bwEl = document.getElementById('bonus_w_' + ex.id + '_' + bi);
+      var brEl = document.getElementById('bonus_r_' + ex.id + '_' + bi);
+      return {
+        w: bwEl ? normalizeNum(bwEl.value.trim()) : (bs.w || ''),
+        r: brEl ? brEl.value.trim() : (bs.r || ''),
+        bonus: true
+      };
+    });
+    if (savedBonus.length) logs[key][bonusKey] = savedBonus;
+    else delete logs[key][bonusKey];
   });
 
   // Sprawdź czy jest cokolwiek wpisane (seria lub notatka ogólna) — ignoruj metadane
@@ -1122,12 +1181,23 @@ function renderWorkout() {
     var prev = getLastSets(currentDayId, ex.id);
     var prevHTML = '';
     if (prev && prev.length) {
-        var chips = prev.map(function(s, i) {
-          var prMark = isPR(currentDayId, ex.id, s.w) ? ' 🏆' : '';
-          return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (i+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + prMark + '</span>';
+        // v5.0: podpowiedź per seria — dla każdej serii szukamy ostatniego tygodnia gdzie ta seria była wpisana
+        var chips = Array.from({ length: ex.setsCount }, function(_, si) {
+          var bestW = -1; var bestSets = null;
+          Object.keys(logs).forEach(function(k) {
+            var pk2 = parseLogKey(k);
+            if (pk2[1] === currentDayId && pk2[0] < currentWeek) {
+              var dl2 = logs[k];
+              if (dl2[ex.id] && dl2[ex.id][si] && (dl2[ex.id][si].w || dl2[ex.id][si].r)) {
+                if (pk2[0] > bestW) { bestW = pk2[0]; bestSets = dl2[ex.id][si]; }
+              }
+            }
+          });
+          if (!bestSets) return '<span class="ref-chip nd">S' + (si+1) + ': brak</span>';
+          var prMark = isPR(currentDayId, ex.id, bestSets.w) ? ' 🏆' : '';
+          var weekLabel = bestW !== -1 ? '<span style="font-size:9px;color:var(--text3)"> T' + bestW + '</span>' : '';
+          return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (si+1) + ': ' + (bestSets.w||'—') + ' kg×' + (bestSets.r||'—') + prMark + weekLabel + '</span>';
         }).join('');
-        // Notatka per ćwiczenie z poprzedniego tygodnia — delikatnie pod chipami
-        // Szukaj notatki z ostatniego wykonanego tygodnia
         var prevNote = '';
         var bestPrevWeek = -1;
         Object.keys(logs).forEach(function(k) {
@@ -1140,7 +1210,7 @@ function renderWorkout() {
         var prevNoteHTML = prevNote
           ? '<div style="font-size:10px;color:var(--text3);font-style:italic;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">📝 ' + esc(prevNote) + '</div>'
           : '';
-        prevHTML = '<div class="ref-label">↑ Tydzień ' + bestPrevWeek + '</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML;
+        prevHTML = '<div class="ref-label">↑ Ostatnie wyniki per seria</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML;
     } else if (currentWeek > 1) {
       prevHTML = '<div class="ref-label">↑ brak poprzedniego treningu</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
     }
@@ -1153,58 +1223,88 @@ function renderWorkout() {
     var timerBtn = settings.timer ? '<button class="btn-timer" onclick="timerStart(this)">⏱</button>' : '<span></span>';
     var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki</div>';
 
+    // Pobierz % dla tego ćwiczenia (per-ćwiczenie lub global default)
+    var exDropPct  = ex.dropPct     || settings.defaultDropPct    || 25;
+    var exBoPct    = ex.backoffPct  || settings.defaultBackoffPct || 25;
+
     if (ex.schemeType === 'exdrop') {
-      // EXTENDED DROP SET
-      inp += '<div class="set-hdr" style="grid-template-columns:auto 1fr 1fr 36px"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
+      // EXTENDED DROP SET — v5.0: grid ujednolicony 26px, auto-przeliczanie %
+      inp += '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
       for (var i = 0; i < ex.setsCount; i++) {
         var cd = curr && curr[i] ? curr[i] : {};
-        var prevD = prev && prev[i] ? prev[i] : {};
+        // Auto-przelicz wartości jeśli brak zapisanych
+        var autoW  = cd.w  || '';
+        var autoWd0 = cd.wd0 || '';
+        var autoWd1 = cd.wd1 || '';
+        var autoWd2 = cd.wd2 || '';
+        var autoWd3 = cd.wd3 || '';
+        var autoWd4 = cd.wd4 || '';
+        // Przy renderze: jeśli Rob. jest wpisane a reszta pusta — przelicz
+        if (autoW && !autoWd0) autoWd0 = autoW; // Dog.1 = Rob.
+        if (autoW && !autoWd1) autoWd1 = (Math.round(parseFloat(autoW)*(1-exDropPct/100)*2)/2).toFixed(1); // Drop1
+        if (autoWd1 && !autoWd2) autoWd2 = autoWd1; // Dog.2 = Drop1
+        if (autoWd1 && !autoWd3) autoWd3 = (Math.round(parseFloat(autoWd1)*(1-exDropPct/100)*2)/2).toFixed(1); // Drop2
+        if (autoWd3 && !autoWd4) autoWd4 = autoWd3; // Dog.3 = Drop2
+
         inp += '<div style="background:var(--bg2);border-radius:8px;padding:8px;margin-bottom:8px">';
         inp += '<div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Drop ' + (i+1) + '</div>';
-        // Seria robocza
-        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+        // Seria robocza — oninput auto-przelicza wszystkie pola
+        inp += '<div class="set-row">'
           + '<span class="set-lbl" style="font-size:10px">Rob.</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_w" value="' + (cd.w||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_w" value="' + (autoW) + '" placeholder="kg" oninput="updateExdropLive(\'' + ex.id + '\',' + i + ',' + exDropPct + ')">'
           + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_r" value="' + (cd.r||'') + '" placeholder="powt.">'
           + timerBtn + '</div>';
-        // Dogrywka 1
+        // Dogrywka 1 (= Rob.)
         inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">── 15-20s ──</div>';
-        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+        inp += '<div class="set-row">'
           + '<span class="set-lbl" style="font-size:10px">Dog.1</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd0" value="' + (cd.wd0||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd0" value="' + autoWd0 + '" placeholder="kg">'
           + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd0" value="' + (cd.rd0||'') + '" placeholder="powt.">'
           + '<span></span></div>';
-        // Drop 1 (-25%)
-        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
-          + '<span class="set-lbl" style="font-size:10px;color:var(--yellow)">-25%</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd1" value="' + (cd.wd1||'') + '" placeholder="kg">'
+        // Drop 1 (-exDropPct% od Rob.)
+        inp += '<div class="set-row">'
+          + '<span class="set-lbl" style="font-size:10px;color:var(--yellow)">-' + exDropPct + '%</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd1" value="' + autoWd1 + '" placeholder="kg">'
           + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd1" value="' + (cd.rd1||'') + '" placeholder="powt.">'
           + timerBtn + '</div>';
-        // Dogrywka 2
+        // Dogrywka 2 (= Drop1)
         inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">── 15-20s ──</div>';
-        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+        inp += '<div class="set-row">'
           + '<span class="set-lbl" style="font-size:10px">Dog.2</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd2" value="' + (cd.wd2||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd2" value="' + autoWd2 + '" placeholder="kg">'
           + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd2" value="' + (cd.rd2||'') + '" placeholder="powt.">'
           + '<span></span></div>';
-        // Drop 2 (-25% od drop1)
-        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
-          + '<span class="set-lbl" style="font-size:10px;color:var(--yellow)">-25%</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd3" value="' + (cd.wd3||'') + '" placeholder="kg">'
+        // Drop 2 (-exDropPct% od Drop1)
+        inp += '<div class="set-row">'
+          + '<span class="set-lbl" style="font-size:10px;color:var(--yellow)">-' + exDropPct + '%</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd3" value="' + autoWd3 + '" placeholder="kg">'
           + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd3" value="' + (cd.rd3||'') + '" placeholder="powt.">'
           + timerBtn + '</div>';
-        // Dogrywka 3
+        // Dogrywka 3 (= Drop2)
         inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">── 15-20s ──</div>';
-        inp += '<div class="set-row" style="grid-template-columns:auto 1fr 1fr 36px">'
+        inp += '<div class="set-row">'
           + '<span class="set-lbl" style="font-size:10px">Dog.3</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd4" value="' + (cd.wd4||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '_wd4" value="' + autoWd4 + '" placeholder="kg">'
           + '<input class="sinput" type="text" inputmode="numeric" id="w_' + ex.id + '_' + i + '_rd4" value="' + (cd.rd4||'') + '" placeholder="powt.">'
           + '<span></span></div>';
         inp += '</div>';
       }
+    } else if (ex.schemeType === 'dropset') {
+      // DROPSET zwykły — v5.0: auto-przeliczanie % między seriami
+      inp += '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
+      for (var i = 0; i < ex.setsCount; i++) {
+        var cw = curr && curr[i] ? curr[i].w : '';
+        var cr = curr && curr[i] ? curr[i].r : '';
+        var lbl = 'S' + (i+1);
+        var onInputAttr = i === 0 ? ' oninput="updateDropsetLive(\'' + ex.id + '\',' + ex.setsCount + ',' + exDropPct + ')"' : '';
+        inp += '<div class="set-row">'
+          + '<span class="set-lbl">' + lbl + '</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + onInputAttr + '>'
+          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8">'
+          + timerBtn + '</div>';
+      }
     } else {
       // STANDARD / BACKOFF
-      var backoffPct = ex.backoffPct || 25;
       inp += '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
       for (var i = 0; i < ex.setsCount; i++) {
         var isBO = (ex.schemeType === 'backoff' && i === ex.setsCount - 1);
@@ -1224,21 +1324,25 @@ function renderWorkout() {
           for (var j = ex.setsCount - 2; j >= 0; j--) {
             if (curr[j] && parseFloat(curr[j].w) > 0) { lastRoboczaW = parseFloat(curr[j].w); break; }
           }
-          if (lastRoboczaW > 0) cw = (Math.round(lastRoboczaW * (1 - backoffPct/100) * 2) / 2).toFixed(1);
+          if (lastRoboczaW > 0) cw = (Math.round(lastRoboczaW * (1 - exBoPct/100) * 2) / 2).toFixed(1);
         }
         var lbl = isBO ? 'BO' : 'S' + (i+1);
         var lblStyle = isBO ? 'color:var(--yellow)' : '';
-        // Dla serii roboczych (nie BO) dodaj oninput aktualizujący pole BO na żywo
         var onInputAttr = '';
         if (ex.schemeType === 'backoff' && !isBO) {
-          onInputAttr = ' oninput="updateBOLive(\'' + ex.id + '\',' + ex.setsCount + ',' + backoffPct + ')"';
+          onInputAttr = ' oninput="updateBOLive(\'' + ex.id + '\',' + ex.setsCount + ',' + exBoPct + ')"';
+        }
+        // v5.0: po ostatniej serii (ostatnie r_ w ćwiczeniu) — akcja wg ustawienia
+        var isLastSet = (i === ex.setsCount - 1);
+        var afterAttr = '';
+        if (isLastSet && settings.afterLastSet !== 'off') {
+          afterAttr = ' onblur="handleAfterLastSet(event,\'' + ex.id + '\',' + idx + ')"';
         }
         inp += '<div class="set-row">'
           + '<span class="set-lbl" style="' + lblStyle + '">' + lbl + '</span>'
           + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + onInputAttr + '>'
-          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8">'
-          + timerBtn
-          + '</div>';
+          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8"' + afterAttr + '>'
+          + timerBtn + '</div>';
       }
     }
 
@@ -1248,13 +1352,29 @@ function renderWorkout() {
     var optLabel = ex.optional ? '<span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-left:6px;font-weight:400">opcjonalne</span>' : '';
     var optBorder = ex.optional ? 'border-left:3px solid var(--blue);' : '';
 
+    // v5.0: seria bonus — wczytaj zapisane bonusy
+    var bonusSets = (dl[ex.id + '_bonus'] || []);
+    var bonusHTML = '';
+    if (bonusSets.length) {
+      bonusHTML = bonusSets.map(function(bs, bi) {
+        return '<div class="set-row" style="opacity:.75">'
+          + '<span class="set-lbl" style="color:var(--blue);font-size:10px">+' + (bi+1) + '</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="bonus_w_' + ex.id + '_' + bi + '" value="' + (bs.w||'') + '" placeholder="kg">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="bonus_r_' + ex.id + '_' + bi + '" value="' + (bs.r||'') + '" placeholder="powt.">'
+          + '<button onclick="removeBonusSet(\'' + ex.id + '\',' + bi + ')" style="background:none;border:none;color:#c44;font-size:16px;cursor:pointer;width:36px;flex-shrink:0">×</button>'
+          + '</div>';
+      }).join('');
+    }
+
     return '<div class="ex-card" style="' + optBorder + '">'
       + '<div class="ex-head"><span class="ex-num">' + (idx+1) + '.</span><span class="ex-name">' + esc(ex.name) + nt + optLabel + '</span>' + yt + '</div>'
       + '<div class="ex-meta">'
       + '<div class="em"><span class="em-l">Serie / Powt.</span><span class="em-v">' + esc(ex.scheme) + '</span></div>'
       + '<div class="em"><span class="em-l">TUT</span><span class="em-v">' + (ex.tut || '—') + '</span></div>'
       + '</div>'
-      + '<div class="sets-wrap">' + prevHTML + suggHTML + inp + '</div>'
+      + '<div class="sets-wrap">' + prevHTML + suggHTML + inp + bonusHTML
+      + '<button onclick="addBonusSet(\'' + ex.id + '\')" style="background:none;border:1px dashed var(--border);border-radius:8px;color:var(--blue);font-size:12px;padding:6px 12px;cursor:pointer;width:100%;margin-top:4px">+ seria bonus (nie liczy się do statystyk)</button>'
+      + '</div>'
       + '<button class="note-toggle" onclick="toggleNote(this)">📝 Notatka</button>'
       + '<div class="note-body' + (savedNote ? ' open' : '') + '">'
       + '<textarea class="note-input" id="note_' + ex.id + '" placeholder="np. bolało kolano, nowy PR, zmęczony...">' + esc(savedNote) + '</textarea>'
@@ -1288,6 +1408,88 @@ function updateBOLive(exId, setsCount, backoffPct) {
   } else {
     boInput.value = '';
   }
+}
+
+// v5.0: auto-przeliczanie exdrop na żywo po wpisaniu Rob.
+function updateExdropLive(exId, dropIdx, pct) {
+  var robEl = document.getElementById('w_' + exId + '_' + dropIdx + '_w');
+  if (!robEl) return;
+  var robW = parseFloat(robEl.value);
+  if (isNaN(robW) || robW <= 0) return;
+  // Dog.1 = Rob.
+  var wd0El = document.getElementById('w_' + exId + '_' + dropIdx + '_wd0');
+  if (wd0El) wd0El.value = robW.toFixed(1);
+  // Drop1 = Rob. * (1 - pct/100)
+  var drop1W = Math.round(robW * (1 - pct/100) * 2) / 2;
+  var wd1El = document.getElementById('w_' + exId + '_' + dropIdx + '_wd1');
+  if (wd1El) wd1El.value = drop1W.toFixed(1);
+  // Dog.2 = Drop1
+  var wd2El = document.getElementById('w_' + exId + '_' + dropIdx + '_wd2');
+  if (wd2El) wd2El.value = drop1W.toFixed(1);
+  // Drop2 = Drop1 * (1 - pct/100)
+  var drop2W = Math.round(drop1W * (1 - pct/100) * 2) / 2;
+  var wd3El = document.getElementById('w_' + exId + '_' + dropIdx + '_wd3');
+  if (wd3El) wd3El.value = drop2W.toFixed(1);
+  // Dog.3 = Drop2
+  var wd4El = document.getElementById('w_' + exId + '_' + dropIdx + '_wd4');
+  if (wd4El) wd4El.value = drop2W.toFixed(1);
+}
+
+// v5.0: auto-przeliczanie dropset zwykłego na żywo po wpisaniu S1
+function updateDropsetLive(exId, setsCount, pct) {
+  var s1El = document.getElementById('w_' + exId + '_0');
+  if (!s1El) return;
+  var w = parseFloat(s1El.value);
+  if (isNaN(w) || w <= 0) return;
+  for (var i = 1; i < setsCount; i++) {
+    w = Math.round(w * (1 - pct/100) * 2) / 2;
+    var el = document.getElementById('w_' + exId + '_' + i);
+    if (el) el.value = w.toFixed(1);
+  }
+}
+
+// v5.0: akcja po ostatniej serii ćwiczenia (hide/next)
+function handleAfterLastSet(event, exId, exIdx) {
+  var mode = settings.afterLastSet;
+  if (!mode || mode === 'off') return;
+  // Daj chwilę żeby blur się zakończył
+  setTimeout(function() {
+    if (mode === 'hide') {
+      // Chowaj klawiaturę — blur na aktywnym elemencie
+      if (document.activeElement) document.activeElement.blur();
+    } else if (mode === 'next') {
+      // Skocz do pola ciężaru pierwszej serii następnego ćwiczenia
+      if (!plan || !currentDayId) return;
+      var day = plan.days.find(function(d) { return d.id === currentDayId; });
+      if (!day) return;
+      var nextEx = day.exercises[exIdx + 1];
+      if (!nextEx) return;
+      var nextInput = document.getElementById('w_' + nextEx.id + '_0');
+      if (nextInput) { nextInput.focus(); nextInput.select(); }
+    }
+  }, 50);
+}
+
+// v5.0: dodaj serię bonus do ćwiczenia
+function addBonusSet(exId) {
+  if (!currentDayId) return;
+  var key = logKey(currentWeek, currentDayId);
+  if (!logs[key]) logs[key] = {};
+  if (!logs[key][exId + '_bonus']) logs[key][exId + '_bonus'] = [];
+  logs[key][exId + '_bonus'].push({ w: '', r: '' });
+  saveLogs();
+  renderWorkout();
+}
+
+// v5.0: usuń serię bonus
+function removeBonusSet(exId, idx) {
+  if (!currentDayId) return;
+  var key = logKey(currentWeek, currentDayId);
+  if (!logs[key] || !logs[key][exId + '_bonus']) return;
+  logs[key][exId + '_bonus'].splice(idx, 1);
+  if (!logs[key][exId + '_bonus'].length) delete logs[key][exId + '_bonus'];
+  saveLogs();
+  renderWorkout();
 }
 
 // ═══════════════════════════════════════════════
@@ -1899,9 +2101,17 @@ function renderHistory() {
         var cls = prMark ? ' pr' : '';
         return (s.w||s.r) ? '<span class="hist-chip' + cls + '">S' + (i+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + prMark + '</span>' : '';
       }).filter(Boolean).join('');
+      // v5.0: serie bonus w historii
+      var bonusChips = '';
+      var bonusArr = dl[exId + '_bonus'] || [];
+      if (bonusArr.length) {
+        bonusChips = bonusArr.map(function(bs, bi) {
+          return (bs.w||bs.r) ? '<span class="hist-chip" style="border:1px dashed var(--blue);color:var(--blue)">+' + (bi+1) + ': ' + (bs.w||'—') + ' kg×' + (bs.r||'—') + '</span>' : '';
+        }).filter(Boolean).join('');
+      }
       return '<div class="hist-ex">'
         + '<div class="hist-ex-name">' + esc(nm) + exTrendBadge + '</div>'
-        + '<div class="hist-chips">' + (chips || '<span style="color:var(--text3);font-size:12px">brak</span>') + '</div>'
+        + '<div class="hist-chips">' + (chips || '<span style="color:var(--text3);font-size:12px">brak</span>') + (bonusChips ? ' ' + bonusChips : '') + '</div>'
         + (noteVal ? '<div class="hist-note">📝 ' + esc(noteVal) + '</div>' : '')
         + '</div>';
     }).join('');
@@ -2006,21 +2216,23 @@ function renderProgress() {
       if (dd) exObj2 = dd.exercises.find(function(e) { return e.id === exId; });
     }
     var sType = exObj2 ? exObj2.schemeType : 'standard';
-    var boIdx = (sType === 'backoff') ? sets.length - 1 : -1;
-    sets.forEach(function(s, si) {
-      if (si === boIdx) return; // ignoruj serię BO
-      var w, r;
+    // v5.0: wszystkie serie liczone (BO, exdrop, drop, standard)
+    sets.forEach(function(s) {
       if (sType === 'exdrop') {
-        // Liczymy tylko serię roboczą (pierwsze pole)
-        w = parseFloat(s.w) || 0;
-        r = parseInt(s.r) || 0;
+        [['w','r'],['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(pair) {
+          var w = parseFloat(s[pair[0]]) || 0;
+          var r = parseInt(s[pair[1]]) || 0;
+          if (w > maxW) maxW = w;
+          totalVol += w * r;
+          totalReps += r;
+        });
       } else {
-        w = parseFloat(s.w) || 0;
-        r = parseInt(s.r) || 0;
+        var w = parseFloat(s.w) || 0;
+        var r = parseInt(s.r) || 0;
+        if (w > maxW) maxW = w;
+        totalVol += w * r;
+        totalReps += r;
       }
-      if (w > maxW) maxW = w;
-      totalVol += w * r;
-      totalReps += r;
     });
     dataPoints.push({ week: week, date: date, weight: maxW, volume: totalVol, reps: totalReps });
   });
@@ -2173,6 +2385,8 @@ function editorEditEx(di, ei) {
     + '<div class="modal-field"><div class="modal-label">Link YouTube</div><input class="modal-input" id="m-yt" value="' + esc(ex.youtube||'') + '"></div>'
     + '<div class="modal-field"><div class="modal-label">Liczba serii (setsCount)</div><input class="modal-input" type="number" id="m-sets" value="' + (ex.setsCount||3) + '" min="1" max="10"></div>'
     + '<div class="modal-field"><div class="modal-label">Notatka (notes)</div><input class="modal-input" id="m-notes" value="' + esc(ex.notes||'') + '"></div>'
+    + '<div class="modal-field"><div class="modal-label">% Back-off (puste = użyj globalnego)</div><input class="modal-input" type="number" id="m-bopct" value="' + (ex.backoffPct||'') + '" placeholder="np. 25" min="5" max="60"></div>'
+    + '<div class="modal-field"><div class="modal-label">% Drop/ExDrop (puste = użyj globalnego)</div><input class="modal-input" type="number" id="m-drpct" value="' + (ex.dropPct||'') + '" placeholder="np. 25" min="5" max="60"></div>'
     + '<div class="modal-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><input type="checkbox" id="m-optional"' + (ex.optional?' checked':'') + '> Ćwiczenie opcjonalne (np. rozgrzewkowe)</label></div>';
   openModal();
 }
@@ -2261,6 +2475,12 @@ function modalSave() {
     ex.youtube   = document.getElementById('m-yt').value.trim();
     ex.setsCount = parseInt(document.getElementById('m-sets').value) || ex.setsCount;
     ex.notes     = document.getElementById('m-notes').value.trim();
+    var boPctEl2 = document.getElementById('m-bopct');
+    var drPctEl2 = document.getElementById('m-drpct');
+    var boPctVal = boPctEl2 ? parseInt(boPctEl2.value) : NaN;
+    var drPctVal = drPctEl2 ? parseInt(drPctEl2.value) : NaN;
+    ex.backoffPct = (!isNaN(boPctVal) && boPctVal > 0) ? boPctVal : undefined;
+    ex.dropPct    = (!isNaN(drPctVal) && drPctVal > 0) ? drPctVal : undefined;
     var optEl    = document.getElementById('m-optional');
     ex.optional  = optEl ? optEl.checked : false;
     // v4.6: zachowaj otwarty dzień po zapisie ćwiczenia
@@ -2427,7 +2647,8 @@ function trendBadge(val, prev, goodDown) {
 
 // v3.10: pomocnicze — klucze metadanych w logu
 var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1 };
-function isExKey(k) { return !LOG_META[k] && k.indexOf('note_') !== 0; }
+// v5.0: klucze bonus (_bonus) i notatki są metadanymi — nie są seriami ćwiczeń
+function isExKey(k) { return !LOG_META[k] && k.indexOf('note_') !== 0 && k.indexOf('_bonus') < 0; }
 
 // v3.10: pobierz nazwę ćwiczenia z logu (snapshot) lub z aktualnego planu lub surowe ID
 function getExName(dl, dayId, exId) {
@@ -2476,15 +2697,28 @@ function collectExStats() {
       var exObj2 = null;
       if (plan && plan.days) { var fd2 = plan.days.find(function(d){return d.id===dayId;}); if (fd2) exObj2 = fd2.exercises.find(function(e){return e.id===exId;}); }
       var sType = exObj2 ? exObj2.schemeType : 'standard';
-      var boIdx = (sType === 'backoff') ? sets.length - 1 : -1;
       var wkMaxW = 0; var wkVol = 0;
-      sets.forEach(function(s, si) {
-        if (si === boIdx) return;
-        var w = parseFloat(s.w) || 0; var r = parseInt(s.r) || 0;
-        if (w > exStats[exKey].maxW) exStats[exKey].maxW = w;
-        if (w > wkMaxW) wkMaxW = w;
-        exStats[exKey].totalVol += w * r;
-        wkVol += w * r;
+      // v5.0: wszystkie serie liczone (BO, exdrop, drop, standard)
+      sets.forEach(function(s) {
+        if (sType === 'exdrop') {
+          // exdrop: seria robocza + dogrywki + dropy — wszystkie pola w/r
+          var fields = ['w','r','wd0','rd0','wd1','rd1','wd2','rd2','wd3','rd3','wd4','rd4'];
+          // Liczymy pary: (w,r), (wd0,rd0), (wd1,rd1), (wd2,rd2), (wd3,rd3), (wd4,rd4)
+          [['w','r'],['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(pair) {
+            var w = parseFloat(s[pair[0]]) || 0;
+            var r = parseInt(s[pair[1]]) || 0;
+            if (w > exStats[exKey].maxW) exStats[exKey].maxW = w;
+            if (w > wkMaxW) wkMaxW = w;
+            exStats[exKey].totalVol += w * r;
+            wkVol += w * r;
+          });
+        } else {
+          var w = parseFloat(s.w) || 0; var r = parseInt(s.r) || 0;
+          if (w > exStats[exKey].maxW) exStats[exKey].maxW = w;
+          if (w > wkMaxW) wkMaxW = w;
+          exStats[exKey].totalVol += w * r;
+          wkVol += w * r;
+        }
       });
       exStats[exKey].byWeek[week] = { maxW: wkMaxW, vol: wkVol };
     });
