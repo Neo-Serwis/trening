@@ -335,21 +335,21 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <span class="sbtn-ico">📊</span>
         <div class="sbtn-txt"><div class="sbtn-name">Eksportuj CSV</div><div class="sbtn-desc">Otwórz w Excel lub Google Sheets</div></div>
       </button>
-      <button class="sbtn" onclick="exportHTMLReport('full')">
-        <span class="sbtn-ico">📄</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Raport B — Pełny (od początku)</div><div class="sbtn-desc">Statystyki + pomiary + dziennik z trendami</div></div>
-      </button>
       <button class="sbtn" onclick="showReportAModal()">
         <span class="sbtn-ico">📊</span>
         <div class="sbtn-txt"><div class="sbtn-name">Raport A — Porównanie tygodni</div><div class="sbtn-desc">Wybierz dwa tygodnie i porównaj trendy</div></div>
       </button>
-      <button class="sbtn" onclick="exportMeasCSV()">
-        <span class="sbtn-ico">📏</span>
-        <div class="sbtn-txt"><div class="sbtn-name">Eksportuj pomiary CSV</div><div class="sbtn-desc">Pomiary tygodniowe do Excel / Sheets</div></div>
+      <button class="sbtn" onclick="exportHTMLReport('full')">
+        <span class="sbtn-ico">📄</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Raport B — Pełny (od początku)</div><div class="sbtn-desc">Statystyki + pomiary + dziennik z trendami</div></div>
       </button>
       <button class="sbtn" onclick="exportMeasReport()">
         <span class="sbtn-ico">📊</span>
         <div class="sbtn-txt"><div class="sbtn-name">Raport C — Tylko pomiary</div><div class="sbtn-desc">Pełna historia pomiarów z trendami</div></div>
+      </button>
+      <button class="sbtn" onclick="exportMeasCSV()">
+        <span class="sbtn-ico">📏</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Eksportuj pomiary CSV</div><div class="sbtn-desc">Pomiary tygodniowe do Excel / Sheets</div></div>
       </button>
     </div>
 
@@ -455,7 +455,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.0 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.1 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -519,7 +519,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.0';
+var APP_VERSION = '5.1';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1332,11 +1332,11 @@ function renderWorkout() {
         if (ex.schemeType === 'backoff' && !isBO) {
           onInputAttr = ' oninput="updateBOLive(\'' + ex.id + '\',' + ex.setsCount + ',' + exBoPct + ')"';
         }
-        // v5.0: po ostatniej serii (ostatnie r_ w ćwiczeniu) — akcja wg ustawienia
+        // v5.0: po ostatniej serii — akcja wg ustawienia (oninput gdy pole ma wartość)
         var isLastSet = (i === ex.setsCount - 1);
         var afterAttr = '';
         if (isLastSet && settings.afterLastSet !== 'off') {
-          afterAttr = ' onblur="handleAfterLastSet(event,\'' + ex.id + '\',' + idx + ')"';
+          afterAttr = ' oninput="handleAfterLastSetInput(this,\'' + ex.id + '\',' + idx + ')"';
         }
         inp += '<div class="set-row">'
           + '<span class="set-lbl" style="' + lblStyle + '">' + lbl + '</span>'
@@ -1448,17 +1448,20 @@ function updateDropsetLive(exId, setsCount, pct) {
   }
 }
 
-// v5.0: akcja po ostatniej serii ćwiczenia (hide/next)
-function handleAfterLastSet(event, exId, exIdx) {
+// v5.0: akcja po wpisaniu ostatniej serii ćwiczenia
+// Odpala się przez oninput — tylko gdy pole ma wartość i użytkownik skończył wpisywać
+var _afterLastSetTimer = null;
+function handleAfterLastSetInput(el, exId, exIdx) {
   var mode = settings.afterLastSet;
   if (!mode || mode === 'off') return;
-  // Daj chwilę żeby blur się zakończył
-  setTimeout(function() {
+  var val = el.value.trim();
+  if (!val) return; // nic nie wpisano — nie reaguj
+  // Debounce 800ms — czekamy aż użytkownik skończy wpisywać
+  clearTimeout(_afterLastSetTimer);
+  _afterLastSetTimer = setTimeout(function() {
     if (mode === 'hide') {
-      // Chowaj klawiaturę — blur na aktywnym elemencie
-      if (document.activeElement) document.activeElement.blur();
+      el.blur();
     } else if (mode === 'next') {
-      // Skocz do pola ciężaru pierwszej serii następnego ćwiczenia
       if (!plan || !currentDayId) return;
       var day = plan.days.find(function(d) { return d.id === currentDayId; });
       if (!day) return;
@@ -1467,7 +1470,7 @@ function handleAfterLastSet(event, exId, exIdx) {
       var nextInput = document.getElementById('w_' + nextEx.id + '_0');
       if (nextInput) { nextInput.focus(); nextInput.select(); }
     }
-  }, 50);
+  }, 800);
 }
 
 // v5.0: dodaj serię bonus do ćwiczenia
@@ -2051,9 +2054,15 @@ function renderHistory() {
       ? '<div class="hist-note" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">📋 <strong>Notatka ogólna:</strong> ' + esc(dl._note) + '</div>'
       : '';
 
-    // v4.3: trójkolorowa krawędź — zielony/pomarańczowy/czerwony na podstawie bilansu ćwiczeń
-    var prevWeekKey = logKey(week - 1, dayId);
-    var prevDl = logs[prevWeekKey] || null;
+    // v5.1: trójkolorowa krawędź — porównuje z ostatnim WYKONANYM tygodniem (nie week-1)
+    var prevDl = null;
+    var prevWeekFound = -1;
+    Object.keys(logs).forEach(function(k) {
+      var pk2 = parseLogKey(k);
+      if (pk2[1] === dayId && pk2[0] < week && pk2[0] > prevWeekFound) {
+        prevWeekFound = pk2[0]; prevDl = logs[k];
+      }
+    });
     var histBorderStyle = '';
     if (prevDl) {
       var exUp = 0; var exDown = 0;
@@ -2083,24 +2092,52 @@ function renderHistory() {
       var sets = dl[exId];
       var noteKey = 'note_' + exId;
       var noteVal = dl[noteKey] || '';
-      // v3.8: trend per ćwiczenie — porównaj max ciężar z poprzednim tygodniem
+      // v5.1: trend per ćwiczenie — ostatni WYKONANY tydzień dla tego ćwiczenia
       var exTrendBadge = '';
-      if (prevDl && prevDl[exId] && Array.isArray(prevDl[exId])) {
+      var exPrevWeek = -1; var exPrevSets = null;
+      Object.keys(logs).forEach(function(k) {
+        var pk3 = parseLogKey(k);
+        if (pk3[1] === dayId && pk3[0] < week && logs[k][exId] && Array.isArray(logs[k][exId])) {
+          if (pk3[0] > exPrevWeek) { exPrevWeek = pk3[0]; exPrevSets = logs[k][exId]; }
+        }
+      });
+      if (exPrevSets) {
         var cMax = 0; var pMax = 0;
         sets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>cMax) cMax=w; });
-        prevDl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pMax) pMax=w; });
+        exPrevSets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pMax) pMax=w; });
         if (cMax > 0 && pMax > 0 && cMax !== pMax) {
           var diff = cMax - pMax;
           var tCol = diff > 0 ? 'var(--green)' : 'var(--accent)';
           var tSign = diff > 0 ? '+' : '';
-          exTrendBadge = ' <span style="font-size:10px;color:' + tCol + ';font-weight:600">' + tSign + diff.toFixed(1) + ' kg</span>';
+          var vsLabel = exPrevWeek > 0 ? ' vs T' + exPrevWeek : '';
+          exTrendBadge = ' <span style="font-size:10px;color:' + tCol + ';font-weight:600">' + tSign + diff.toFixed(1) + ' kg<span style="color:var(--text3);font-weight:400">' + vsLabel + '</span></span>';
         }
       }
-      var chips = sets.map(function(s, i) {
-        var prMark = isPR(dayId, exId, s.w) ? ' 🏆' : '';
-        var cls = prMark ? ' pr' : '';
-        return (s.w||s.r) ? '<span class="hist-chip' + cls + '">S' + (i+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + prMark + '</span>' : '';
-      }).filter(Boolean).join('');
+      // v5.1: chipy — exdrop pokazuje wszystkie pola, standard/backoff/drop jak dotychczas
+      var exObjHist = dayExs.find(function(e) { return e.id === exId; });
+      var sTypeHist = exObjHist ? exObjHist.schemeType : 'standard';
+      var chips;
+      if (sTypeHist === 'exdrop') {
+        chips = sets.map(function(s, i) {
+          var parts = [];
+          if (s.w||s.r)   parts.push('Rob: '+(s.w||'—')+'×'+(s.r||'—'));
+          if (s.wd0||s.rd0) parts.push('D1: '+(s.wd0||'—')+'×'+(s.rd0||'—'));
+          if (s.wd1||s.rd1) parts.push('↓'+(s.wd1||'—')+'×'+(s.rd1||'—'));
+          if (s.wd2||s.rd2) parts.push('D2: '+(s.wd2||'—')+'×'+(s.rd2||'—'));
+          if (s.wd3||s.rd3) parts.push('↓'+(s.wd3||'—')+'×'+(s.rd3||'—'));
+          if (s.wd4||s.rd4) parts.push('D3: '+(s.wd4||'—')+'×'+(s.rd4||'—'));
+          return parts.length ? '<span class="hist-chip" style="font-size:10px">Drop'+(i+1)+': '+parts.join(' │ ')+'</span>' : '';
+        }).filter(Boolean).join('');
+      } else {
+        chips = sets.map(function(s, i) {
+          var isBO = (sTypeHist === 'backoff' && i === sets.length - 1);
+          var lbl = isBO ? 'BO' : 'S'+(i+1);
+          var style = isBO ? ' style="color:var(--yellow)"' : '';
+          var prMark = isPR(dayId, exId, s.w) ? ' 🏆' : '';
+          var cls = prMark ? ' pr' : '';
+          return (s.w||s.r) ? '<span class="hist-chip'+cls+'"'+style+'>'+lbl+': '+(s.w||'—')+' kg×'+(s.r||'—')+prMark+'</span>' : '';
+        }).filter(Boolean).join('');
+      }
       // v5.0: serie bonus w historii
       var bonusChips = '';
       var bonusArr = dl[exId + '_bonus'] || [];
@@ -2868,73 +2905,156 @@ function exportHTMLReport(mode) {
   }
   tableHdr += '<th style="text-align:center;padding:8px 10px;min-width:80px">Trend</th></tr>';
 
-  var tableRows = '';
-  keys.forEach(function(key) {
-    var pk = parseLogKey(key); var week = pk[0]; var dayId = pk[1];
-    var dl = logs[key];
-    var dayName = getDayName(dl, dayId);
-    var date = dl._date||'';
-    var sessionNote = dl._note || '';
-    var hasRows = false;
-    var sessionRows = '';
+  // v5.1: zbierz wszystkie dni z planu — do wykrywania opuszczonych sesji
+  var planDayIds = [];
+  if (plan && plan.days) plan.days.forEach(function(d) { planDayIds.push(d.id); });
 
-    Object.keys(dl).filter(isExKey).forEach(function(exId) {
-      var exName = getExName(dl, dayId, exId);
-      var exObj = null;
-      if (plan && plan.days) { var fd = plan.days.find(function(d){return d.id===dayId;}); if (fd) exObj = fd.exercises.find(function(e){return e.id===exId;}); }
-      var scheme = exObj ? exObj.scheme : '';
-      var tut = exObj ? exObj.tut : '';
-      var note = dl['note_'+exId]||'';
-      var sType = exObj ? exObj.schemeType : 'standard';
-      var boIdx = (sType === 'backoff') ? dl[exId].length - 1 : -1;
-
-      // Trend w osobnej kolumnie
-      var exKey = dayId + '|' + exId;
-      var exStat = exStatsB[exKey];
-      var sessionTrend = '<span style="color:#ccc">—</span>';
-      if (exStat && exStat.trendPrevW && exStat.trendLastW === week) {
-        var dCurr = exStat.byWeek[week];
-        var dPrev2 = exStat.byWeek[exStat.trendPrevW];
-        if (dCurr && dPrev2 && dCurr.maxW > 0 && dPrev2.maxW > 0) {
-          var diff2 = dCurr.maxW - dPrev2.maxW;
-          var sign2 = diff2 > 0 ? '+' : '';
-          var col2 = diff2 > 0 ? '#27ae60' : (diff2 < 0 ? '#e63946' : '#888');
-          sessionTrend = '<span style="color:' + col2 + ';font-weight:700;font-size:11px">' + sign2 + diff2.toFixed(1) + ' kg<br><small style="color:#aaa;font-weight:400">vs T' + exStat.trendPrevW + '</small></span>';
-        }
-      }
-
-      // Serie jako osobne <td>, dopełnione do globalMaxSets
-      var setsCells = dl[exId].map(function(s,i){
-        var lbl = (sType === 'backoff' && i === boIdx) ? 'BO' : 'S'+(i+1);
-        var style = (sType === 'backoff' && i === boIdx) ? ' style="color:#e9c46a"' : '';
-        return '<td' + style + '>' + lbl + ': '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
-      });
-      while (setsCells.length < globalMaxSets) { setsCells.push('<td style="color:#ddd">—</td>'); }
-
-      sessionRows += '<tr>'
-        + '<td style="text-align:left"><strong>' + htmlEsc(exName) + '</strong>'
-        + (scheme ? '<br><small style="color:#888">' + htmlEsc(scheme) + (tut?' · TUT: '+tut:'') + '</small>' : '')
-        + (note ? '<br><small style="color:#aaa;font-style:italic">📝 ' + htmlEsc(note) + '</small>' : '')
-        + '</td>'
-        + setsCells.join('')
-        + '<td style="text-align:center;white-space:nowrap">' + sessionTrend + '</td>'
-        + '</tr>';
-      hasRows = true;
-    });
-
-    if (hasRows) {
-      // Wiersz nagłówkowy sesji
-      tableRows += '<tr style="background:#f0f0f0">'
-        + '<td colspan="' + (globalMaxSets + 2) + '" style="padding:8px 10px;font-weight:700;color:#e63946;font-size:13px">'
-        + 'Tydzień ' + week + ' — ' + htmlEsc(dayName)
-        + ' <span style="font-size:11px;color:#aaa;font-weight:400">' + (date||'brak daty') + '</span>'
-        + '</td></tr>';
-      if (sessionNote) {
-        tableRows += '<tr><td colspan="' + (globalMaxSets + 2) + '" style="background:#f5f5f5;color:#555;font-style:italic;font-size:12px;padding:6px 10px">📋 ' + htmlEsc(sessionNote) + '</td></tr>';
-      }
-      tableRows += sessionRows;
-    }
+  // Zbierz wszystkie tygodnie z logów
+  var allWeeksInLogs = [];
+  keys.forEach(function(k) {
+    var w = parseLogKey(k)[0];
+    if (allWeeksInLogs.indexOf(w) < 0) allWeeksInLogs.push(w);
   });
+  allWeeksInLogs.sort(function(a,b){return a-b;});
+  var minWeek = allWeeksInLogs.length ? allWeeksInLogs[0] : 1;
+  var maxWeek = allWeeksInLogs.length ? allWeeksInLogs[allWeeksInLogs.length-1] : 1;
+
+  var tableRows = '';
+  // Iteruj tygodnie od max do min (malejąco jak sortowanie keys)
+  for (var wk = maxWeek; wk >= minWeek; wk--) {
+    planDayIds.forEach(function(dayId) {
+      var key = logKey(wk, dayId);
+      var dl = logs[key] || null;
+      var dayObj = plan && plan.days ? plan.days.find(function(d){return d.id===dayId;}) : null;
+      var dayName = (dl && dl._dayName) || (dayObj ? dayObj.name : dayId);
+      var date = dl ? (dl._date||'') : '';
+      var sessionNote = dl ? (dl._note||'') : '';
+
+      // Sprawdź czy sesja była wykonana w tym tygodniu
+      var sessionDone = dl && Object.keys(dl).some(isExKey);
+
+      // Sprawdź czy w ogóle ten dzień był kiedykolwiek wykonany (czy warto pokazywać opuszczony)
+      var everDone = Object.keys(logs).some(function(k) {
+        return parseLogKey(k)[1] === dayId;
+      });
+      if (!everDone) return; // dzień nigdy nie był wykonany — pomijamy
+
+      // Czy ten tydzień jest w zakresie historii tego dnia
+      var firstDoneWeek = 999;
+      Object.keys(logs).forEach(function(k) {
+        var pk = parseLogKey(k);
+        if (pk[1] === dayId && pk[0] < firstDoneWeek) firstDoneWeek = pk[0];
+      });
+      if (wk < firstDoneWeek) return; // przed pierwszym wykonaniem — pomijamy
+
+      if (!sessionDone) {
+        // Sesja opuszczona
+        tableRows += '<tr style="background:#fff8f0">'
+          + '<td colspan="' + (globalMaxSets + 2) + '" style="padding:6px 10px;color:#c0392b;font-size:12px;font-style:italic">'
+          + '⚠️ Tydzień ' + wk + ' — ' + htmlEsc(dayName) + ' — <strong>sesja opuszczona / nie wykonana</strong>'
+          + '</td></tr>';
+        return;
+      }
+
+      // Sesja wykonana — buduj wiersze
+      var sessionRows = '';
+      var hasRows = false;
+
+      // Iteruj ćwiczenia z planu (nie z logu) — żeby wykryć brakujące
+      var planExs = dayObj ? dayObj.exercises : [];
+      planExs.forEach(function(exObj) {
+        var exId = exObj.id;
+        var exName = (dl._exNames && dl._exNames[exId]) || exObj.name;
+        var scheme = exObj.scheme || '';
+        var tut = exObj.tut || '';
+        var note = dl['note_'+exId]||'';
+        var sType = exObj.schemeType || 'standard';
+        var exSets = dl[exId] || null;
+
+        // Trend
+        var exKey = dayId + '|' + exId;
+        var exStat = exStatsB[exKey];
+        var sessionTrend = '<span style="color:#ccc">—</span>';
+        if (exStat && exStat.trendPrevW && exStat.trendLastW === wk) {
+          var dCurr = exStat.byWeek[wk];
+          var dPrev2 = exStat.byWeek[exStat.trendPrevW];
+          if (dCurr && dPrev2 && dCurr.maxW > 0 && dPrev2.maxW > 0) {
+            var diff2 = dCurr.maxW - dPrev2.maxW;
+            var sign2 = diff2 > 0 ? '+' : '';
+            var col2 = diff2 > 0 ? '#27ae60' : (diff2 < 0 ? '#e63946' : '#888');
+            sessionTrend = '<span style="color:'+col2+';font-weight:700;font-size:11px">'+sign2+diff2.toFixed(1)+' kg<br><small style="color:#aaa;font-weight:400">vs T'+exStat.trendPrevW+'</small></span>';
+          }
+        }
+
+        if (!exSets) {
+          // Ćwiczenie opuszczone w tej sesji
+          var emptyCells = '';
+          for (var si2 = 0; si2 < globalMaxSets; si2++) emptyCells += '<td style="color:#c0392b;font-style:italic;font-size:11px">nie wykonano</td>';
+          sessionRows += '<tr style="background:#fff8f0">'
+            + '<td style="text-align:left;color:#c0392b"><strong>' + htmlEsc(exName) + '</strong>'
+            + (scheme ? '<br><small style="color:#aaa">' + htmlEsc(scheme) + '</small>' : '')
+            + '<br><small style="color:#c0392b;font-style:italic">⚠️ ćwiczenie opuszczone</small>'
+            + '</td>' + emptyCells
+            + '<td style="text-align:center">—</td></tr>';
+          hasRows = true;
+          return;
+        }
+
+        // Serie — exdrop osobno
+        var setsCells;
+        if (sType === 'exdrop') {
+          setsCells = exSets.map(function(s, i) {
+            var parts = [];
+            if (s.w||s.r)     parts.push('Rob: '+(s.w||'—')+'×'+(s.r||'—'));
+            if (s.wd0||s.rd0) parts.push('D1: '+(s.wd0||'—')+'×'+(s.rd0||'—'));
+            if (s.wd1||s.rd1) parts.push('↓'+(s.wd1||'—')+'×'+(s.rd1||'—'));
+            if (s.wd2||s.rd2) parts.push('D2: '+(s.wd2||'—')+'×'+(s.rd2||'—'));
+            if (s.wd3||s.rd3) parts.push('↓'+(s.wd3||'—')+'×'+(s.rd3||'—'));
+            if (s.wd4||s.rd4) parts.push('D3: '+(s.wd4||'—')+'×'+(s.rd4||'—'));
+            return '<td style="font-size:10px">Drop'+(i+1)+': '+parts.join(' │ ')+'</td>';
+          });
+        } else {
+          var boIdx2 = (sType === 'backoff') ? exSets.length - 1 : -1;
+          setsCells = exSets.map(function(s, i) {
+            var lbl = (sType === 'backoff' && i === boIdx2) ? 'BO' : 'S'+(i+1);
+            var style = (sType === 'backoff' && i === boIdx2) ? ' style="color:#e9c46a"' : '';
+            // Brakująca seria (puste pola)
+            if (!s.w && !s.r) return '<td style="color:#c0392b;font-style:italic;font-size:11px">'+lbl+': brak</td>';
+            return '<td'+style+'>'+lbl+': '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
+          });
+        }
+        // Dopełnij do globalMaxSets
+        while (setsCells.length < globalMaxSets) { setsCells.push('<td style="color:#ddd">—</td>'); }
+        // Sprawdź czy mniej serii niż w planie
+        var missingNote = (exSets.length < exObj.setsCount)
+          ? '<br><small style="color:#c0392b;font-style:italic">⚠️ ' + exSets.length + '/' + exObj.setsCount + ' serii</small>'
+          : '';
+
+        sessionRows += '<tr>'
+          + '<td style="text-align:left"><strong>' + htmlEsc(exName) + '</strong>'
+          + (scheme ? '<br><small style="color:#888">' + htmlEsc(scheme) + (tut?' · TUT: '+tut:'') + '</small>' : '')
+          + missingNote
+          + (note ? '<br><small style="color:#aaa;font-style:italic">📝 ' + htmlEsc(note) + '</small>' : '')
+          + '</td>'
+          + setsCells.join('')
+          + '<td style="text-align:center;white-space:nowrap">' + sessionTrend + '</td>'
+          + '</tr>';
+        hasRows = true;
+      });
+
+      if (hasRows) {
+        tableRows += '<tr style="background:#f0f0f0">'
+          + '<td colspan="' + (globalMaxSets + 2) + '" style="padding:8px 10px;font-weight:700;color:#e63946;font-size:13px">'
+          + 'Tydzień ' + wk + ' — ' + htmlEsc(dayName)
+          + ' <span style="font-size:11px;color:#aaa;font-weight:400">' + (date||'brak daty') + '</span>'
+          + '</td></tr>';
+        if (sessionNote) {
+          tableRows += '<tr><td colspan="' + (globalMaxSets + 2) + '" style="background:#f5f5f5;color:#555;font-style:italic;font-size:12px;padding:6px 10px">📋 ' + htmlEsc(sessionNote) + '</td></tr>';
+        }
+        tableRows += sessionRows;
+      }
+    });
+  }
 
   var trainingSections = tableRows
     ? '<div class="section"><h2>📋 Dziennik treningów</h2>'
