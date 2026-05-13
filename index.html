@@ -27,8 +27,8 @@ body.light{
   --input:#f0f0f0;
 }
 body.oled{
-  --bg:#000000;--bg2:#0a0a0a;--bg3:#111111;--card:#0d0d0d;
-  --border:#1a1a1a;--input:#080808;
+  --bg:#000000;--bg2:#000000;--bg3:#0a0a0a;--card:#000000;
+  --border:#111111;--input:#000000;
 }
 html,body{height:100%;max-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
 #app{height:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;}
@@ -489,7 +489,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.2 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.3 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -553,7 +553,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.2';
+var APP_VERSION = '5.3';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -904,16 +904,11 @@ window.addEventListener('popstate', function() {
     );
     var idx2 = allInputs.indexOf(el);
     if (idx2 <= 0) return;
-    // Szukaj wstecz pola powt. (inputmode=numeric)
-    for (var bi = idx2 - 1; bi >= 0; bi--) {
-      if (allInputs[bi].getAttribute('inputmode') === 'numeric') {
-        allInputs[bi].focus();
-        // Ustaw kursor na końcu
-        var v = allInputs[bi].value;
-        allInputs[bi].setSelectionRange(v.length, v.length);
-        break;
-      }
-    }
+    // Poprzednie pole w kolejności DOM (bez filtra — analogicznie jak Tab do przodu)
+    var prev = allInputs[idx2 - 1];
+    prev.focus();
+    var v = prev.value;
+    try { prev.setSelectionRange(v.length, v.length); } catch(e) {}
   });
 })();
 
@@ -1456,7 +1451,8 @@ function renderWorkout() {
           var dr2 = cd2[dKey + 'r'] || '';
           var isLastDrop = (di === lastDropIdx);
           var isVeryLast = (isLastSerie && isLastDrop);
-          var afterDropAttr = (isVeryLast && settings.afterLastSet !== 'off')
+          // v5.3: jeśli są bonusy — trigger na ostatnim bonusie
+          var afterDropAttr = (isVeryLast && settings.afterLastSet !== 'off' && bonusSets.length === 0)
             ? ' oninput="handleAfterLastSetInput(this,\'' + ex.id + '\',' + idx + ')"' : '';
           inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">' + dropRestLbl + '</div>';
           inp += '<div class="set-row">'
@@ -1496,10 +1492,11 @@ function renderWorkout() {
         if (ex.schemeType === 'backoff' && !isBO) {
           onInputAttr = ' oninput="updateBOLive(\'' + ex.id + '\',' + ex.setsCount + ',' + exBoPct + ')"';
         }
-        // v5.0: po ostatniej serii — akcja wg ustawienia (oninput gdy pole ma wartość)
+        // v5.0: po ostatniej serii — akcja wg ustawienia
+        // v5.3: jeśli są serie bonusowe — trigger przeniesiony na ostatni bonus, tu wyłączamy
         var isLastSet = (i === ex.setsCount - 1);
         var afterAttr = '';
-        if (isLastSet && settings.afterLastSet !== 'off') {
+        if (isLastSet && settings.afterLastSet !== 'off' && bonusSets.length === 0) {
           afterAttr = ' oninput="handleAfterLastSetInput(this,\'' + ex.id + '\',' + idx + ')"';
         }
         inp += '<div class="set-row">'
@@ -1521,10 +1518,14 @@ function renderWorkout() {
     var bonusHTML = '';
     if (bonusSets.length) {
       bonusHTML = bonusSets.map(function(bs, bi) {
+        var isLastBonus = (bi === bonusSets.length - 1);
+        // v5.3: afterLastSet na ostatnim polu bonusowym (nie na serii roboczej)
+        var afterBonusAttr = (isLastBonus && settings.afterLastSet !== 'off')
+          ? ' oninput="handleAfterLastSetInput(this,\'' + ex.id + '\',' + idx + ')"' : '';
         return '<div class="set-row" style="opacity:.75">'
           + '<span class="set-lbl" style="color:var(--blue);font-size:10px">+' + (bi+1) + '</span>'
           + '<input class="sinput" type="text" inputmode="decimal" id="bonus_w_' + ex.id + '_' + bi + '" value="' + (bs.w||'') + '" placeholder="kg">'
-          + '<input class="sinput" type="text" inputmode="numeric" id="bonus_r_' + ex.id + '_' + bi + '" value="' + (bs.r||'') + '" placeholder="powt.">'
+          + '<input class="sinput" type="text" inputmode="numeric" id="bonus_r_' + ex.id + '_' + bi + '" value="' + (bs.r||'') + '" placeholder="powt."' + afterBonusAttr + '>'
           + '<button onclick="removeBonusSet(\'' + ex.id + '\',' + bi + ')" style="background:none;border:none;color:#c44;font-size:16px;cursor:pointer;width:36px;flex-shrink:0">×</button>'
           + '</div>';
       }).join('');
@@ -2290,25 +2291,23 @@ function renderHistory() {
       });
       if (exPrevSets) {
         var tMode = settings.histTrendMode || 'weight';
-        var cVal = 0; var pVal = 0;
+        var dropsNH2 = exObjHist ? (exObjHist.dropsPerSet||1) : 1;
+        // Oblicz wartość dla porównania
+        var cVal, pVal;
         if (tMode === 'volume') {
-          // Objętość = suma w*r dla wszystkich serii (robocze + dropy)
-          function calcVol(sArr, sType2, dropsN3) {
+          var calcVolInline = function(sArr, st, dn) {
             var vol = 0;
             sArr.forEach(function(s) {
-              vol += (parseFloat(s.w)||0) * (parseInt(s.r)||0);
-              if (sType2 === 'dropset') {
-                for (var dv=0; dv<dropsN3; dv++) vol += (parseFloat(s['drop'+dv+'w'])||0)*(parseInt(s['drop'+dv+'r'])||0);
-              } else if (sType2 === 'exdrop') {
-                [['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(p){vol+=(parseFloat(s[p[0]])||0)*(parseInt(s[p[1]])||0);});
-              }
+              vol += (parseFloat(s.w)||0)*(parseInt(s.r)||0);
+              if (st === 'dropset') { for (var dv=0;dv<dn;dv++) vol+=(parseFloat(s['drop'+dv+'w'])||0)*(parseInt(s['drop'+dv+'r'])||0); }
+              else if (st === 'exdrop') { [['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(p){vol+=(parseFloat(s[p[0]])||0)*(parseInt(s[p[1]])||0);}); }
             });
             return vol;
-          }
-          var dropsNH2 = exObjHist ? (exObjHist.dropsPerSet||1) : 1;
-          cVal = calcVol(sets, sTypeHist, dropsNH2);
-          pVal = calcVol(exPrevSets, sTypeHist, dropsNH2);
+          };
+          cVal = calcVolInline(sets, sTypeHist, dropsNH2);
+          pVal = calcVolInline(exPrevSets, sTypeHist, dropsNH2);
         } else {
+          cVal = 0; pVal = 0;
           sets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>cVal) cVal=w; });
           exPrevSets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pVal) pVal=w; });
         }
@@ -2318,7 +2317,7 @@ function renderHistory() {
           var tSign = diff > 0 ? '+' : '';
           var vsLabel = exPrevWeek > 0 ? ' vs T' + exPrevWeek : '';
           var tUnit = tMode === 'volume' ? ' kg·r' : ' kg';
-          exTrendBadge = ' <span style="font-size:10px;color:' + tCol + ';font-weight:600">' + tSign + diff.toFixed(1) + tUnit + '<span style="color:var(--text3);font-weight:400">' + vsLabel + '</span></span>';
+          exTrendBadge = ' <span style="font-size:10px;color:' + tCol + ';font-weight:600">' + tSign + (tMode==='volume'?Math.round(diff):diff.toFixed(1)) + tUnit + '<span style="color:var(--text3);font-weight:400">' + vsLabel + '</span></span>';
         }
       }
       // v5.1: chipy — exdrop pokazuje wszystkie pola, standard/backoff/drop jak dotychczas
@@ -2681,11 +2680,15 @@ function editorAddEx(di) {
     '<div class="modal-field"><div class="modal-label">Nazwa</div><input class="modal-input" id="m-name" placeholder="np. Bench Press"></div>'
     + '<div class="modal-field"><div class="modal-label">Schemat serii</div><input class="modal-input" id="m-scheme" placeholder="np. 3×8–10"></div>'
     + '<div class="modal-field"><div class="modal-label">Typ schematu</div>'
-    + '<select class="modal-select" id="m-stype"><option value="standard">standard</option><option value="backoff">backoff</option><option value="dropset">dropset</option><option value="exdrop">exdrop</option></select></div>'
+    + '<select class="modal-select" id="m-stype" onchange="editorSchemeTypeChange(this.value)"><option value="standard">standard</option><option value="backoff">backoff</option><option value="dropset">dropset</option><option value="exdrop">exdrop</option></select></div>'
     + '<div class="modal-field"><div class="modal-label">TUT</div><input class="modal-input" id="m-tut" placeholder="np. 2010"></div>'
     + '<div class="modal-field"><div class="modal-label">Link YouTube</div><input class="modal-input" id="m-yt" placeholder="https://..."></div>'
     + '<div class="modal-field"><div class="modal-label">Liczba serii</div><input class="modal-input" type="number" id="m-sets" value="3" min="1" max="10"></div>'
     + '<div class="modal-field"><div class="modal-label">Notatka</div><input class="modal-input" id="m-notes" placeholder="opcjonalnie"></div>'
+    + '<div class="modal-field"><div class="modal-label">% Back-off (puste = użyj globalnego)</div><input class="modal-input" type="number" id="m-bopct" placeholder="np. 25" min="5" max="60"></div>'
+    + '<div class="modal-field"><div class="modal-label">% Drop/ExDrop (puste = użyj globalnego)</div><input class="modal-input" type="number" id="m-drpct" placeholder="np. 25" min="5" max="60"></div>'
+    + '<div class="modal-field" id="m-drops-row" style="display:none"><div class="modal-label">Liczba dropów per seria (dropset)</div><input class="modal-input" type="number" id="m-drops-per-set" value="1" placeholder="np. 2" min="1" max="5"></div>'
+    + '<div class="modal-field" id="m-drop-rest-row" style="display:none"><div class="modal-label">Przerwa między dropami (s, puste = globalna)</div><input class="modal-input" type="number" id="m-drop-rest" placeholder="np. 2" min="0" max="30"></div>'
     + '<div class="modal-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><input type="checkbox" id="m-optional"> Ćwiczenie opcjonalne (np. rozgrzewkowe)</label></div>';
   openModal();
 }
@@ -2769,6 +2772,10 @@ function modalSave() {
   } else if (ctx.type === 'newex') {
     var nm2 = document.getElementById('m-name').value.trim();
     if (!nm2) { toast('⚠️ Podaj nazwę'); return; }
+    var newBoPct = parseInt((document.getElementById('m-bopct')||{}).value);
+    var newDrPct = parseInt((document.getElementById('m-drpct')||{}).value);
+    var newDrops = parseInt((document.getElementById('m-drops-per-set')||{}).value);
+    var newDropRest = parseInt((document.getElementById('m-drop-rest')||{}).value);
     plan.days[ctx.di].exercises.push({
       id: 'e' + Date.now(),
       name: nm2,
@@ -2778,6 +2785,10 @@ function modalSave() {
       youtube: document.getElementById('m-yt').value.trim(),
       setsCount: parseInt(document.getElementById('m-sets').value) || 3,
       notes: document.getElementById('m-notes').value.trim(),
+      backoffPct: (!isNaN(newBoPct) && newBoPct > 0) ? newBoPct : undefined,
+      dropPct:    (!isNaN(newDrPct) && newDrPct > 0) ? newDrPct : undefined,
+      dropsPerSet: (!isNaN(newDrops) && newDrops >= 1) ? newDrops : undefined,
+      dropRestSecs: (!isNaN(newDropRest) && newDropRest >= 0) ? newDropRest : undefined,
       optional: (function(){ var el = document.getElementById('m-optional'); return el ? el.checked : false; })()
     });
     // v4.6: zachowaj otwarty dzień po dodaniu ćwiczenia
