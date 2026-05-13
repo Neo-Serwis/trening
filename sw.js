@@ -1,5 +1,5 @@
 // Service Worker — auto-inwalidacja cache przez timestamp
-const CACHE = 'trening-v3-20260511b';
+const CACHE = 'trening-v3-20260511c';
 
 self.addEventListener('install', e => {
   e.waitUntil(
