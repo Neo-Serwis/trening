@@ -19,11 +19,16 @@
   --green-bg:#1a3a2a;--green:#52b788;
   --input:#1c1c1c;--radius:10px;
   --pr:#f4a261;
+  --drop:#c77dff;
 }
 body.light{
   --bg:#f5f5f5;--bg2:#ffffff;--bg3:#e8e8e8;--card:#ffffff;
   --border:#ddd;--text:#1a1a1a;--text2:#555;--text3:#aaa;
   --input:#f0f0f0;
+}
+body.oled{
+  --bg:#000000;--bg2:#0a0a0a;--bg3:#111111;--card:#0d0d0d;
+  --border:#1a1a1a;--input:#080808;
 }
 html,body{height:100%;max-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
 #app{height:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;}
@@ -409,6 +414,31 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </div>
     </div>
     <div class="sct">
+      <div class="sct-title">Przerwa między dropami (globalna)</div>
+      <div class="sbtn" style="cursor:default;border-bottom:none">
+        <span class="sbtn-ico">⏱</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Przerwa między dropami</div><div class="sbtn-desc">Sekundy — nadpisywalne per ćwiczenie</div></div>
+        <input class="sinput-sm" type="number" id="drop-rest-secs" value="2" min="0" max="30" onchange="saveSetting('dropRestSecs',parseInt(this.value))">
+      </div>
+    </div>
+    <div class="sct">
+      <div class="sct-title">Historia — trend</div>
+      <div class="stoggle" style="border-bottom:none">
+        <div class="stoggle-txt"><div class="stoggle-name">Co pokazywać w historii</div><div class="stoggle-desc">Różnica ciężaru lub objętość (kg×powt.)</div></div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button id="hist-trend-weight" onclick="setHistTrend('weight')" style="background:var(--accent);border:1px solid var(--accent);border-radius:6px;color:#fff;font-size:11px;padding:5px 8px;cursor:pointer">kg</button>
+          <button id="hist-trend-volume" onclick="setHistTrend('volume')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:5px 8px;cursor:pointer">Obj.</button>
+        </div>
+      </div>
+    </div>
+    <div class="sct">
+      <div class="sct-title">Nawigacja klawiaturą</div>
+      <div class="stoggle" style="border-bottom:none">
+        <div class="stoggle-txt"><div class="stoggle-name">Backspace cofa do poprzedniego pola</div><div class="stoggle-desc">Gdy pole puste — Backspace skacze do powt. poprzedniej serii</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-backspace-nav" onchange="saveSetting('backspaceNav',this.checked)"><span class="sl"></span></label>
+      </div>
+    </div>
+    <div class="sct">
       <div class="sct-title">Pomiary</div>
       <button class="sbtn" onclick="measManageFields()">
         <span class="sbtn-ico">📏</span>
@@ -440,10 +470,14 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </div>
     </div>
     <div class="sct">
-      <div class="sct-title">Wygląd</div>
+      <div class="sct-title">Motyw</div>
       <div class="stoggle" style="border-bottom:none">
-        <div class="stoggle-txt"><div class="stoggle-name">Jasny motyw</div><div class="stoggle-desc">Lepszy w słońcu</div></div>
-        <label class="toggle-sw"><input type="checkbox" id="tog-light" onchange="toggleTheme(this.checked)"><span class="sl"></span></label>
+        <div class="stoggle-txt"><div class="stoggle-name">Wybór motywu</div><div class="stoggle-desc">Ciemny · OLED (czarne tło) · Jasny</div></div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button id="theme-dark" onclick="setTheme('dark')" style="background:var(--accent);border:1px solid var(--accent);border-radius:6px;color:#fff;font-size:11px;padding:5px 8px;cursor:pointer">Ciemny</button>
+          <button id="theme-oled" onclick="setTheme('oled')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:5px 8px;cursor:pointer">OLED</button>
+          <button id="theme-light" onclick="setTheme('light')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:5px 8px;cursor:pointer">Jasny</button>
+        </div>
       </div>
     </div>
     <div class="sct">
@@ -455,7 +489,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.1 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.2 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -519,14 +553,14 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.1';
+var APP_VERSION = '5.2';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
 var prevView = 'home';
 var plan = null;
 var logs = {};
-var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, circChartMode:'single', bmiEnabled:false, deload:false, planCycleWeek:1, afterLastSet:'hide', defaultBackoffPct:25, defaultDropPct:25 };
+var settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false, oled:false, circChartMode:'single', bmiEnabled:false, deload:false, planCycleWeek:1, afterLastSet:'hide', defaultBackoffPct:25, defaultDropPct:25, dropRestSecs:2, histTrendMode:'weight', backspaceNav:false };
 // planCycleWeek: od którego tygodnia startuje raport B (domyślnie 1 = cała historia)
 var _saveGuard = false;
 var _wakeLock = null;
@@ -591,9 +625,20 @@ function applySettings() {
   document.getElementById('tog-pr').checked      = settings.pr;
   document.getElementById('tog-suggest').checked = settings.suggest;
   document.getElementById('tog-wake').checked    = settings.wake;
-  document.getElementById('tog-light').checked   = settings.light;
   document.getElementById('timer-secs').value    = settings.timerSecs;
-  if (settings.light) document.body.classList.add('light');
+  // Motyw
+  document.body.classList.remove('light','oled');
+  if (settings.oled) document.body.classList.add('oled');
+  else if (settings.light) document.body.classList.add('light');
+  var themeMode = settings.oled ? 'oled' : (settings.light ? 'light' : 'dark');
+  ['dark','oled','light'].forEach(function(t) {
+    var btn = document.getElementById('theme-'+t);
+    if (!btn) return;
+    var active = (t === themeMode);
+    btn.style.background = active ? 'var(--accent)' : 'var(--bg3)';
+    btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
+    btn.style.color = active ? '#fff' : 'var(--text2)';
+  });
   // Deload toggle
   var togDeload = document.getElementById('tog-deload');
   if (togDeload) togDeload.checked = !!settings.deload;
@@ -614,6 +659,22 @@ function applySettings() {
   var drPctEl = document.getElementById('default-drop-pct');
   if (boPctEl) boPctEl.value = settings.defaultBackoffPct || 25;
   if (drPctEl) drPctEl.value = settings.defaultDropPct || 25;
+  // Przerwa między dropami
+  var drRestEl = document.getElementById('drop-rest-secs');
+  if (drRestEl) drRestEl.value = settings.dropRestSecs !== undefined ? settings.dropRestSecs : 2;
+  // Trend historii
+  var htm = settings.histTrendMode || 'weight';
+  ['weight','volume'].forEach(function(m) {
+    var btn = document.getElementById('hist-trend-'+m);
+    if (!btn) return;
+    var active = (m === htm);
+    btn.style.background = active ? 'var(--accent)' : 'var(--bg3)';
+    btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
+    btn.style.color = active ? '#fff' : 'var(--text2)';
+  });
+  // Backspace nav
+  var togBsNav = document.getElementById('tog-backspace-nav');
+  if (togBsNav) togBsNav.checked = !!settings.backspaceNav;
   // Tryb wykresu obwodów
   var mode = settings.circChartMode || 'single';
   var btnS = document.getElementById('circ-mode-single');
@@ -648,8 +709,20 @@ function setCircChartMode(mode) {
 }
 
 function toggleTheme(on) {
-  document.body.classList.toggle('light', on);
-  saveSetting('light', on);
+  // zachowane dla kompatybilności backupów
+  setTheme(on ? 'light' : 'dark');
+}
+function setTheme(mode) {
+  settings.light = (mode === 'light');
+  settings.oled  = (mode === 'oled');
+  saveSettings();
+  applySettings();
+  toast(mode === 'oled' ? '⚫ OLED' : mode === 'light' ? '☀️ Jasny' : '🌙 Ciemny');
+}
+function setHistTrend(mode) {
+  saveSetting('histTrendMode', mode);
+  applySettings();
+  toast(mode === 'volume' ? '📊 Trend: objętość' : '📊 Trend: kg');
 }
 
 // Toggle BMI
@@ -718,6 +791,10 @@ function handleWakeLock() {
 // NAWIGACJA
 // ═══════════════════════════════════════════════
 function showView(name) {
+  // v5.2: zapisz trening przed przejściem do ustawień lub innego widoku
+  if (name === 'settings' && currentView === 'workout') {
+    saveWorkout(true);
+  }
   prevView = currentView;
   currentView = name;
 
@@ -811,6 +888,52 @@ window.addEventListener('popstate', function() {
   setTimeout(function() { _saveGuard = false; }, 300);
 });
 
+// v5.2: Backspace nav — event delegation na view-workout
+(function() {
+  document.addEventListener('keydown', function(e) {
+    if (!settings.backspaceNav) return;
+    if (e.key !== 'Backspace') return;
+    if (currentView !== 'workout') return;
+    var el = document.activeElement;
+    if (!el || !el.classList.contains('sinput')) return;
+    if (el.value !== '') return; // pole ma wartość — normalne kasowanie
+    e.preventDefault();
+    // Zbierz wszystkie pola sinput w workout w kolejności DOM
+    var allInputs = Array.prototype.slice.call(
+      document.getElementById('view-workout').querySelectorAll('input.sinput')
+    );
+    var idx2 = allInputs.indexOf(el);
+    if (idx2 <= 0) return;
+    // Szukaj wstecz pola powt. (inputmode=numeric)
+    for (var bi = idx2 - 1; bi >= 0; bi--) {
+      if (allInputs[bi].getAttribute('inputmode') === 'numeric') {
+        allInputs[bi].focus();
+        // Ustaw kursor na końcu
+        var v = allInputs[bi].value;
+        allInputs[bi].setSelectionRange(v.length, v.length);
+        break;
+      }
+    }
+  });
+})();
+
+// v5.2: Swipe lewo/prawo na home = zmiana tygodnia
+(function() {
+  var _swipeStartX = 0; var _swipeStartY = 0;
+  document.addEventListener('touchstart', function(e) {
+    if (currentView !== 'home') return;
+    _swipeStartX = e.touches[0].clientX;
+    _swipeStartY = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    if (currentView !== 'home') return;
+    var dx = e.changedTouches[0].clientX - _swipeStartX;
+    var dy = e.changedTouches[0].clientY - _swipeStartY;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return; // za krótki lub pionowy
+    changeWeek(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
+
 // Home Android — apka schodzi w tło
 document.addEventListener('visibilitychange', function() {
   if (document.hidden && currentView === 'workout' && !_saveGuard) {
@@ -879,9 +1002,10 @@ function dayProgress(week, dayId) {
   var dl = getLog(week, dayId);
   var total = 0; var done = 0;
   day.exercises.forEach(function(ex) {
-    // v5.0: serie bonus nie liczą się do paska postępu
+    // serie bonus nie liczą się do paska postępu
     var sets = dl[ex.id] || [];
-    if (ex.schemeType === 'exdrop') {
+    if (ex.schemeType === 'exdrop' || ex.schemeType === 'dropset') {
+      // liczymy serie robocze (nie dropy)
       total += ex.setsCount;
       sets.forEach(function(s) { if (s.w || s.r) done++; });
     } else {
@@ -998,6 +1122,21 @@ function saveWorkout(silent) {
       for (var i = 0; i < ex.setsCount; i++) {
         var g = function(sfx) { var el = document.getElementById('w_' + ex.id + '_' + i + '_' + sfx); return el ? normalizeNum(el.value.trim()) : ''; };
         sets.push({ w:g('w'), r:g('r'), wd0:g('wd0'), rd0:g('rd0'), wd1:g('wd1'), rd1:g('rd1'), wd2:g('wd2'), rd2:g('rd2'), wd3:g('wd3'), rd3:g('rd3'), wd4:g('wd4'), rd4:g('rd4') });
+      }
+    } else if (ex.schemeType === 'dropset') {
+      // Zapis dropset — seria robocza + dropy
+      var dropsN = ex.dropsPerSet || 1;
+      for (var i = 0; i < ex.setsCount; i++) {
+        var wEl2 = document.getElementById('w_' + ex.id + '_' + i);
+        var rEl2 = document.getElementById('r_' + ex.id + '_' + i);
+        var setObj = { w: wEl2 ? normalizeNum(wEl2.value.trim()) : '', r: rEl2 ? rEl2.value.trim() : '' };
+        for (var di2 = 0; di2 < dropsN; di2++) {
+          var dwEl = document.getElementById('dw_' + ex.id + '_' + i + '_' + di2);
+          var drEl = document.getElementById('dr_' + ex.id + '_' + i + '_' + di2);
+          setObj['drop' + di2 + 'w'] = dwEl ? normalizeNum(dwEl.value.trim()) : '';
+          setObj['drop' + di2 + 'r'] = drEl ? drEl.value.trim() : '';
+        }
+        sets.push(setObj);
       }
     } else {
       for (var i = 0; i < ex.setsCount; i++) {
@@ -1290,18 +1429,43 @@ function renderWorkout() {
         inp += '</div>';
       }
     } else if (ex.schemeType === 'dropset') {
-      // DROPSET zwykły — v5.0: auto-przeliczanie % między seriami
+      // DROPSET v5.2: każda seria ma N dropów, przerwa między dropami konfigurowalna
+      var dropsPerSet = ex.dropsPerSet || 1;
+      var dropRestS   = ex.dropRestSecs !== undefined ? ex.dropRestSecs : (settings.dropRestSecs !== undefined ? settings.dropRestSecs : 2);
+      var dropRestLbl = dropRestS > 0 ? ('── ' + dropRestS + 's ──') : '── bez przerwy ──';
       inp += '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
       for (var i = 0; i < ex.setsCount; i++) {
-        var cw = curr && curr[i] ? curr[i].w : '';
-        var cr = curr && curr[i] ? curr[i].r : '';
-        var lbl = 'S' + (i+1);
-        var onInputAttr = i === 0 ? ' oninput="updateDropsetLive(\'' + ex.id + '\',' + ex.setsCount + ',' + exDropPct + ')"' : '';
+        var cd2 = curr && curr[i] ? curr[i] : {};
+        var cw = cd2.w || '';
+        var cr = cd2.r || '';
+        // Seria robocza — oninput przelicza dropy
+        var isLastSerie = (i === ex.setsCount - 1);
+        var lastDropIdx = dropsPerSet - 1;
+        var onRobAttr = ' oninput="updateDropsetSeriaLive(\'' + ex.id + '\',' + i + ',' + dropsPerSet + ',' + exDropPct + ')"';
+        inp += '<div style="background:var(--bg2);border-radius:8px;padding:8px;margin-bottom:8px">';
+        inp += '<div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Seria ' + (i+1) + '</div>';
         inp += '<div class="set-row">'
-          + '<span class="set-lbl">' + lbl + '</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + onInputAttr + '>'
-          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8">'
+          + '<span class="set-lbl">S' + (i+1) + '</span>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="kg"' + onRobAttr + '>'
+          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="powt.">'
           + timerBtn + '</div>';
+        // Dropy
+        for (var di = 0; di < dropsPerSet; di++) {
+          var dKey = 'drop' + di;
+          var dw = cd2[dKey + 'w'] || '';
+          var dr2 = cd2[dKey + 'r'] || '';
+          var isLastDrop = (di === lastDropIdx);
+          var isVeryLast = (isLastSerie && isLastDrop);
+          var afterDropAttr = (isVeryLast && settings.afterLastSet !== 'off')
+            ? ' oninput="handleAfterLastSetInput(this,\'' + ex.id + '\',' + idx + ')"' : '';
+          inp += '<div style="font-size:9px;color:var(--text3);text-align:center;margin:3px 0">' + dropRestLbl + '</div>';
+          inp += '<div class="set-row">'
+            + '<span class="set-lbl" style="color:var(--drop);font-size:10px">↓' + (di+1) + '</span>'
+            + '<input class="sinput" type="text" inputmode="decimal" id="dw_' + ex.id + '_' + i + '_' + di + '" value="' + dw + '" placeholder="kg">'
+            + '<input class="sinput" type="text" inputmode="numeric" id="dr_' + ex.id + '_' + i + '_' + di + '" value="' + dr2 + '" placeholder="powt."' + afterDropAttr + '>'
+            + (isLastDrop ? timerBtn : '<span></span>') + '</div>';
+        }
+        inp += '</div>';
       }
     } else {
       // STANDARD / BACKOFF
@@ -1435,7 +1599,7 @@ function updateExdropLive(exId, dropIdx, pct) {
   if (wd4El) wd4El.value = drop2W.toFixed(1);
 }
 
-// v5.0: auto-przeliczanie dropset zwykłego na żywo po wpisaniu S1
+// v5.0: auto-przeliczanie dropset zwykłego na żywo po wpisaniu S1 (stara wersja — zachowana)
 function updateDropsetLive(exId, setsCount, pct) {
   var s1El = document.getElementById('w_' + exId + '_0');
   if (!s1El) return;
@@ -1445,6 +1609,19 @@ function updateDropsetLive(exId, setsCount, pct) {
     w = Math.round(w * (1 - pct/100) * 2) / 2;
     var el = document.getElementById('w_' + exId + '_' + i);
     if (el) el.value = w.toFixed(1);
+  }
+}
+
+// v5.2: auto-przeliczanie dropów w dropset na żywo po wpisaniu serii roboczej
+function updateDropsetSeriaLive(exId, seriaIdx, dropsPerSet, pct) {
+  var robEl = document.getElementById('w_' + exId + '_' + seriaIdx);
+  if (!robEl) return;
+  var w = parseFloat(robEl.value);
+  if (isNaN(w) || w <= 0) return;
+  for (var di = 0; di < dropsPerSet; di++) {
+    w = Math.round(w * (1 - pct/100) * 2) / 2;
+    var dwEl = document.getElementById('dw_' + exId + '_' + seriaIdx + '_' + di);
+    if (dwEl) dwEl.value = w.toFixed(1);
   }
 }
 
@@ -1476,12 +1653,22 @@ function handleAfterLastSetInput(el, exId, exIdx) {
 // v5.0: dodaj serię bonus do ćwiczenia
 function addBonusSet(exId) {
   if (!currentDayId) return;
+  // v5.2: zapisz aktualne dane przed rerenderem — zapobiega utracie wpisanych wartości
+  clearTimeout(_afterLastSetTimer);
+  saveWorkout(true);
   var key = logKey(currentWeek, currentDayId);
   if (!logs[key]) logs[key] = {};
   if (!logs[key][exId + '_bonus']) logs[key][exId + '_bonus'] = [];
   logs[key][exId + '_bonus'].push({ w: '', r: '' });
   saveLogs();
   renderWorkout();
+  // Po rerenderze — focus na nowe pole bonus
+  setTimeout(function() {
+    var bonusArr = logs[key][exId + '_bonus'] || [];
+    var newIdx = bonusArr.length - 1;
+    var bonusW = document.getElementById('bonus_w_' + exId + '_' + newIdx);
+    if (bonusW) { bonusW.focus(); bonusW.select(); }
+  }, 50);
 }
 
 // v5.0: usuń serię bonus
@@ -2102,15 +2289,36 @@ function renderHistory() {
         }
       });
       if (exPrevSets) {
-        var cMax = 0; var pMax = 0;
-        sets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>cMax) cMax=w; });
-        exPrevSets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pMax) pMax=w; });
-        if (cMax > 0 && pMax > 0 && cMax !== pMax) {
-          var diff = cMax - pMax;
+        var tMode = settings.histTrendMode || 'weight';
+        var cVal = 0; var pVal = 0;
+        if (tMode === 'volume') {
+          // Objętość = suma w*r dla wszystkich serii (robocze + dropy)
+          function calcVol(sArr, sType2, dropsN3) {
+            var vol = 0;
+            sArr.forEach(function(s) {
+              vol += (parseFloat(s.w)||0) * (parseInt(s.r)||0);
+              if (sType2 === 'dropset') {
+                for (var dv=0; dv<dropsN3; dv++) vol += (parseFloat(s['drop'+dv+'w'])||0)*(parseInt(s['drop'+dv+'r'])||0);
+              } else if (sType2 === 'exdrop') {
+                [['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(p){vol+=(parseFloat(s[p[0]])||0)*(parseInt(s[p[1]])||0);});
+              }
+            });
+            return vol;
+          }
+          var dropsNH2 = exObjHist ? (exObjHist.dropsPerSet||1) : 1;
+          cVal = calcVol(sets, sTypeHist, dropsNH2);
+          pVal = calcVol(exPrevSets, sTypeHist, dropsNH2);
+        } else {
+          sets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>cVal) cVal=w; });
+          exPrevSets.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pVal) pVal=w; });
+        }
+        if (cVal > 0 && pVal > 0 && cVal !== pVal) {
+          var diff = cVal - pVal;
           var tCol = diff > 0 ? 'var(--green)' : 'var(--accent)';
           var tSign = diff > 0 ? '+' : '';
           var vsLabel = exPrevWeek > 0 ? ' vs T' + exPrevWeek : '';
-          exTrendBadge = ' <span style="font-size:10px;color:' + tCol + ';font-weight:600">' + tSign + diff.toFixed(1) + ' kg<span style="color:var(--text3);font-weight:400">' + vsLabel + '</span></span>';
+          var tUnit = tMode === 'volume' ? ' kg·r' : ' kg';
+          exTrendBadge = ' <span style="font-size:10px;color:' + tCol + ';font-weight:600">' + tSign + diff.toFixed(1) + tUnit + '<span style="color:var(--text3);font-weight:400">' + vsLabel + '</span></span>';
         }
       }
       // v5.1: chipy — exdrop pokazuje wszystkie pola, standard/backoff/drop jak dotychczas
@@ -2127,6 +2335,18 @@ function renderHistory() {
           if (s.wd3||s.rd3) parts.push('↓'+(s.wd3||'—')+'×'+(s.rd3||'—'));
           if (s.wd4||s.rd4) parts.push('D3: '+(s.wd4||'—')+'×'+(s.rd4||'—'));
           return parts.length ? '<span class="hist-chip" style="font-size:10px">Drop'+(i+1)+': '+parts.join(' │ ')+'</span>' : '';
+        }).filter(Boolean).join('');
+      } else if (sTypeHist === 'dropset') {
+        // v5.2: dropset — seria robocza + dropy fioletowe
+        var dropsNH = exObjHist ? (exObjHist.dropsPerSet || 1) : 1;
+        chips = sets.map(function(s, i) {
+          var parts = [];
+          if (s.w||s.r) parts.push('S'+(i+1)+': '+(s.w||'—')+'×'+(s.r||'—'));
+          for (var dih = 0; dih < dropsNH; dih++) {
+            var dhw = s['drop'+dih+'w']; var dhr = s['drop'+dih+'r'];
+            if (dhw||dhr) parts.push('<span style="color:var(--drop)">↓'+(dih+1)+': '+(dhw||'—')+'×'+(dhr||'—')+'</span>');
+          }
+          return parts.length ? '<span class="hist-chip" style="font-size:10px">'+parts.join(' │ ')+'</span>' : '';
         }).filter(Boolean).join('');
       } else {
         chips = sets.map(function(s, i) {
@@ -2253,22 +2473,30 @@ function renderProgress() {
       if (dd) exObj2 = dd.exercises.find(function(e) { return e.id === exId; });
     }
     var sType = exObj2 ? exObj2.schemeType : 'standard';
-    // v5.0: wszystkie serie liczone (BO, exdrop, drop, standard)
+    // v5.2: wszystkie serie liczone (BO, exdrop, dropset, standard)
+    var dropsNP = exObj2 ? (exObj2.dropsPerSet || 1) : 1;
     sets.forEach(function(s) {
       if (sType === 'exdrop') {
         [['w','r'],['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(pair) {
           var w = parseFloat(s[pair[0]]) || 0;
           var r = parseInt(s[pair[1]]) || 0;
           if (w > maxW) maxW = w;
-          totalVol += w * r;
-          totalReps += r;
+          totalVol += w * r; totalReps += r;
         });
+      } else if (sType === 'dropset') {
+        var w0p = parseFloat(s.w) || 0; var r0p = parseInt(s.r) || 0;
+        if (w0p > maxW) maxW = w0p;
+        totalVol += w0p * r0p; totalReps += r0p;
+        for (var dip = 0; dip < dropsNP; dip++) {
+          var dwp = parseFloat(s['drop'+dip+'w']) || 0;
+          var drp = parseInt(s['drop'+dip+'r']) || 0;
+          totalVol += dwp * drp; totalReps += drp;
+        }
       } else {
         var w = parseFloat(s.w) || 0;
         var r = parseInt(s.r) || 0;
         if (w > maxW) maxW = w;
-        totalVol += w * r;
-        totalReps += r;
+        totalVol += w * r; totalReps += r;
       }
     });
     dataPoints.push({ week: week, date: date, weight: maxW, volume: totalVol, reps: totalReps });
@@ -2364,6 +2592,14 @@ function renderEditor() {
 
 function toggleEditorDay(hdr) { hdr.nextElementSibling.classList.toggle('open'); }
 
+// v5.2: pokaż/ukryj pola dropset w edytorze przy zmianie typu
+function editorSchemeTypeChange(val) {
+  var dropsRow = document.getElementById('m-drops-row');
+  var dropRestRow = document.getElementById('m-drop-rest-row');
+  if (dropsRow) dropsRow.style.display = (val === 'dropset') ? '' : 'none';
+  if (dropRestRow) dropRestRow.style.display = (val === 'dropset' || val === 'exdrop') ? '' : 'none';
+}
+
 // v3.9: renderEditor z zachowaniem stanu open konkretnego dnia
 function renderEditorKeepOpen(openDi) {
   renderEditor();
@@ -2415,7 +2651,7 @@ function editorEditEx(di, ei) {
     '<div class="modal-field"><div class="modal-label">Nazwa</div><input class="modal-input" id="m-name" value="' + esc(ex.name) + '"></div>'
     + '<div class="modal-field"><div class="modal-label">Schemat serii</div><input class="modal-input" id="m-scheme" value="' + esc(ex.scheme||'') + '"></div>'
     + '<div class="modal-field"><div class="modal-label">Typ schematu</div>'
-    + '<select class="modal-select" id="m-stype">'
+    + '<select class="modal-select" id="m-stype" onchange="editorSchemeTypeChange(this.value)">'
     + ['standard','backoff','dropset','exdrop'].map(function(t) { return '<option value="' + t + '"' + (ex.schemeType===t?' selected':'') + '>' + t + '</option>'; }).join('')
     + '</select></div>'
     + '<div class="modal-field"><div class="modal-label">TUT</div><input class="modal-input" id="m-tut" value="' + esc(ex.tut||'') + '"></div>'
@@ -2424,6 +2660,8 @@ function editorEditEx(di, ei) {
     + '<div class="modal-field"><div class="modal-label">Notatka (notes)</div><input class="modal-input" id="m-notes" value="' + esc(ex.notes||'') + '"></div>'
     + '<div class="modal-field"><div class="modal-label">% Back-off (puste = użyj globalnego)</div><input class="modal-input" type="number" id="m-bopct" value="' + (ex.backoffPct||'') + '" placeholder="np. 25" min="5" max="60"></div>'
     + '<div class="modal-field"><div class="modal-label">% Drop/ExDrop (puste = użyj globalnego)</div><input class="modal-input" type="number" id="m-drpct" value="' + (ex.dropPct||'') + '" placeholder="np. 25" min="5" max="60"></div>'
+    + '<div class="modal-field" id="m-drops-row" style="' + (ex.schemeType==='dropset'?'':'display:none') + '"><div class="modal-label">Liczba dropów per seria (dropset)</div><input class="modal-input" type="number" id="m-drops-per-set" value="' + (ex.dropsPerSet||1) + '" placeholder="np. 2" min="1" max="5"></div>'
+    + '<div class="modal-field" id="m-drop-rest-row" style="' + (ex.schemeType==='dropset'||ex.schemeType==='exdrop'?'':'display:none') + '"><div class="modal-label">Przerwa między dropami (s, puste = globalna)</div><input class="modal-input" type="number" id="m-drop-rest" value="' + (ex.dropRestSecs!==undefined?ex.dropRestSecs:'') + '" placeholder="np. 2" min="0" max="30"></div>'
     + '<div class="modal-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><input type="checkbox" id="m-optional"' + (ex.optional?' checked':'') + '> Ćwiczenie opcjonalne (np. rozgrzewkowe)</label></div>';
   openModal();
 }
@@ -2518,6 +2756,12 @@ function modalSave() {
     var drPctVal = drPctEl2 ? parseInt(drPctEl2.value) : NaN;
     ex.backoffPct = (!isNaN(boPctVal) && boPctVal > 0) ? boPctVal : undefined;
     ex.dropPct    = (!isNaN(drPctVal) && drPctVal > 0) ? drPctVal : undefined;
+    var dropsEl   = document.getElementById('m-drops-per-set');
+    var dropRestEl2 = document.getElementById('m-drop-rest');
+    var dropsVal  = dropsEl ? parseInt(dropsEl.value) : NaN;
+    var dropRestVal = dropRestEl2 ? parseInt(dropRestEl2.value) : NaN;
+    ex.dropsPerSet  = (!isNaN(dropsVal) && dropsVal >= 1) ? dropsVal : undefined;
+    ex.dropRestSecs = (!isNaN(dropRestVal) && dropRestVal >= 0) ? dropRestVal : undefined;
     var optEl    = document.getElementById('m-optional');
     ex.optional  = optEl ? optEl.checked : false;
     // v4.6: zachowaj otwarty dzień po zapisie ćwiczenia
@@ -2735,12 +2979,10 @@ function collectExStats() {
       if (plan && plan.days) { var fd2 = plan.days.find(function(d){return d.id===dayId;}); if (fd2) exObj2 = fd2.exercises.find(function(e){return e.id===exId;}); }
       var sType = exObj2 ? exObj2.schemeType : 'standard';
       var wkMaxW = 0; var wkVol = 0;
-      // v5.0: wszystkie serie liczone (BO, exdrop, drop, standard)
+      // v5.2: wszystkie serie liczone (BO, exdrop, dropset, standard)
+      var dropsN2 = exObj2 ? (exObj2.dropsPerSet || 1) : 1;
       sets.forEach(function(s) {
         if (sType === 'exdrop') {
-          // exdrop: seria robocza + dogrywki + dropy — wszystkie pola w/r
-          var fields = ['w','r','wd0','rd0','wd1','rd1','wd2','rd2','wd3','rd3','wd4','rd4'];
-          // Liczymy pary: (w,r), (wd0,rd0), (wd1,rd1), (wd2,rd2), (wd3,rd3), (wd4,rd4)
           [['w','r'],['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(pair) {
             var w = parseFloat(s[pair[0]]) || 0;
             var r = parseInt(s[pair[1]]) || 0;
@@ -2749,6 +2991,18 @@ function collectExStats() {
             exStats[exKey].totalVol += w * r;
             wkVol += w * r;
           });
+        } else if (sType === 'dropset') {
+          // seria robocza
+          var w0 = parseFloat(s.w) || 0; var r0 = parseInt(s.r) || 0;
+          if (w0 > exStats[exKey].maxW) exStats[exKey].maxW = w0;
+          if (w0 > wkMaxW) wkMaxW = w0;
+          exStats[exKey].totalVol += w0 * r0; wkVol += w0 * r0;
+          // dropy
+          for (var di3 = 0; di3 < dropsN2; di3++) {
+            var dw3 = parseFloat(s['drop'+di3+'w']) || 0;
+            var dr3 = parseInt(s['drop'+di3+'r']) || 0;
+            exStats[exKey].totalVol += dw3 * dr3; wkVol += dw3 * dr3;
+          }
         } else {
           var w = parseFloat(s.w) || 0; var r = parseInt(s.r) || 0;
           if (w > exStats[exKey].maxW) exStats[exKey].maxW = w;
@@ -2978,11 +3232,23 @@ function exportHTMLReport(mode) {
         if (exStat && exStat.trendPrevW && exStat.trendLastW === wk) {
           var dCurr = exStat.byWeek[wk];
           var dPrev2 = exStat.byWeek[exStat.trendPrevW];
-          if (dCurr && dPrev2 && dCurr.maxW > 0 && dPrev2.maxW > 0) {
-            var diff2 = dCurr.maxW - dPrev2.maxW;
-            var sign2 = diff2 > 0 ? '+' : '';
-            var col2 = diff2 > 0 ? '#27ae60' : (diff2 < 0 ? '#e63946' : '#888');
-            sessionTrend = '<span style="color:'+col2+';font-weight:700;font-size:11px">'+sign2+diff2.toFixed(1)+' kg<br><small style="color:#aaa;font-weight:400">vs T'+exStat.trendPrevW+'</small></span>';
+          if (dCurr && dPrev2) {
+            var tParts = [];
+            if (dCurr.maxW > 0 && dPrev2.maxW > 0) {
+              var dW = dCurr.maxW - dPrev2.maxW;
+              var sW = dW >= 0 ? '+' : '';
+              var cW = dW > 0 ? '#27ae60' : (dW < 0 ? '#e63946' : '#888');
+              tParts.push('<span style="color:'+cW+';font-weight:700">'+sW+dW.toFixed(1)+' kg</span>');
+            }
+            if (dCurr.vol > 0 && dPrev2.vol > 0) {
+              var dV = dCurr.vol - dPrev2.vol;
+              var sV = dV >= 0 ? '+' : '';
+              var cV = dV > 0 ? '#27ae60' : (dV < 0 ? '#e63946' : '#888');
+              tParts.push('<span style="color:'+cV+'">'+sV+Math.round(dV)+' kg·r</span>');
+            }
+            if (tParts.length) {
+              sessionTrend = tParts.join('<br>') + '<br><small style="color:#aaa;font-weight:400">vs T'+exStat.trendPrevW+'</small>';
+            }
           }
         }
 
@@ -3000,8 +3266,9 @@ function exportHTMLReport(mode) {
           return;
         }
 
-        // Serie — exdrop osobno
+        // Serie — exdrop/dropset/standard
         var setsCells;
+        var dropsNR = exObj.dropsPerSet || 1;
         if (sType === 'exdrop') {
           setsCells = exSets.map(function(s, i) {
             var parts = [];
@@ -3013,12 +3280,20 @@ function exportHTMLReport(mode) {
             if (s.wd4||s.rd4) parts.push('D3: '+(s.wd4||'—')+'×'+(s.rd4||'—'));
             return '<td style="font-size:10px">Drop'+(i+1)+': '+parts.join(' │ ')+'</td>';
           });
+        } else if (sType === 'dropset') {
+          setsCells = exSets.map(function(s, i) {
+            var parts = ['S'+(i+1)+': '+(s.w||'—')+'×'+(s.r||'—')];
+            for (var dir=0; dir<dropsNR; dir++) {
+              var drw=s['drop'+dir+'w']; var drr=s['drop'+dir+'r'];
+              if (drw||drr) parts.push('<span style="color:#c77dff">↓'+(dir+1)+': '+(drw||'—')+'×'+(drr||'—')+'</span>');
+            }
+            return '<td style="font-size:10px">'+parts.join(' │ ')+'</td>';
+          });
         } else {
           var boIdx2 = (sType === 'backoff') ? exSets.length - 1 : -1;
           setsCells = exSets.map(function(s, i) {
             var lbl = (sType === 'backoff' && i === boIdx2) ? 'BO' : 'S'+(i+1);
             var style = (sType === 'backoff' && i === boIdx2) ? ' style="color:#e9c46a"' : '';
-            // Brakująca seria (puste pola)
             if (!s.w && !s.r) return '<td style="color:#c0392b;font-style:italic;font-size:11px">'+lbl+': brak</td>';
             return '<td'+style+'>'+lbl+': '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
           });
