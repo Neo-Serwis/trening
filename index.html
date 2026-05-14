@@ -23,12 +23,13 @@
 }
 body.light{
   --bg:#f5f5f5;--bg2:#ffffff;--bg3:#e8e8e8;--card:#ffffff;
-  --border:#ddd;--text:#1a1a1a;--text2:#555;--text3:#aaa;
+  --border:#ddd;--text:#1a1a1a;--text2:#444;--text3:#777;
   --input:#f0f0f0;
 }
 body.oled{
   --bg:#000000;--bg2:#000000;--bg3:#0a0a0a;--card:#000000;
-  --border:#111111;--input:#000000;
+  --border:#222222;--input:#000000;
+  --text:#ffffff;--text2:#cccccc;--text3:#888888;
 }
 html,body{height:100%;max-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
 #app{height:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;}
@@ -489,7 +490,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.3 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.4 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -553,7 +554,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.3';
+var APP_VERSION = '5.4';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1353,6 +1354,9 @@ function renderWorkout() {
     var sugg = getSuggestion(currentDayId, ex.id, ex.scheme, ex.schemeType);
     var suggHTML = sugg ? '<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;margin-bottom:6px;background:var(--green-bg);border:1px solid var(--green);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--green)">💡 +2.5 kg → ' + sugg + '</div>' : '';
 
+    // v5.3: bonusSets musi być znane przed pętlami serii (używane w afterAttr)
+    var bonusSets = (dl[ex.id + '_bonus'] || []);
+
     // Inputy serii
     var timerBtn = settings.timer ? '<button class="btn-timer" onclick="timerStart(this)">⏱</button>' : '<span></span>';
     var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki</div>';
@@ -1513,8 +1517,7 @@ function renderWorkout() {
     var optLabel = ex.optional ? '<span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-left:6px;font-weight:400">opcjonalne</span>' : '';
     var optBorder = ex.optional ? 'border-left:3px solid var(--blue);' : '';
 
-    // v5.0: seria bonus — wczytaj zapisane bonusy
-    var bonusSets = (dl[ex.id + '_bonus'] || []);
+    // v5.0: seria bonus — bonusSets zadeklarowane wyżej, tu tylko bonusHTML
     var bonusHTML = '';
     if (bonusSets.length) {
       bonusHTML = bonusSets.map(function(bs, bi) {
@@ -2242,7 +2245,7 @@ function renderHistory() {
       ? '<div class="hist-note" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">📋 <strong>Notatka ogólna:</strong> ' + esc(dl._note) + '</div>'
       : '';
 
-    // v5.1: trójkolorowa krawędź — porównuje z ostatnim WYKONANYM tygodniem (nie week-1)
+    // v5.4: trójkolorowa krawędź — ostatni wykonany tydzień + metryka wg histTrendMode
     var prevDl = null;
     var prevWeekFound = -1;
     Object.keys(logs).forEach(function(k) {
@@ -2254,15 +2257,36 @@ function renderHistory() {
     var histBorderStyle = '';
     if (prevDl) {
       var exUp = 0; var exDown = 0;
+      var tModeHist = settings.histTrendMode || 'weight';
       Object.keys(dl).filter(isExKey).forEach(function(exId) {
         if (!Array.isArray(dl[exId])) return;
         if (!prevDl[exId] || !Array.isArray(prevDl[exId])) return;
-        var cMax = 0; var pMax = 0;
-        dl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>cMax) cMax=w; });
-        prevDl[exId].forEach(function(s){ var w=parseFloat(s.w)||0; if(w>pMax) pMax=w; });
-        if (cMax > 0 && pMax > 0) {
-          if (cMax > pMax) exUp++;
-          else if (cMax < pMax) exDown++;
+        // Pobierz typ serii z planu
+        var exObjB = null;
+        if (plan && plan.days) { var fdB = plan.days.find(function(d){return d.id===dayId;}); if (fdB) exObjB = fdB.exercises.find(function(e){return e.id===exId;}); }
+        var sTypeB = exObjB ? exObjB.schemeType : 'standard';
+        var dropsNB = exObjB ? (exObjB.dropsPerSet||1) : 1;
+        // Funkcja liczenia wartości wg metryki
+        var calcMetric = function(sArr) {
+          if (tModeHist === 'volume') {
+            var vol = 0;
+            sArr.forEach(function(s) {
+              vol += (parseFloat(s.w)||0)*(parseInt(s.r)||0);
+              if (sTypeB === 'dropset') { for (var dv=0;dv<dropsNB;dv++) vol+=(parseFloat(s['drop'+dv+'w'])||0)*(parseInt(s['drop'+dv+'r'])||0); }
+              else if (sTypeB === 'exdrop') { [['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(p){vol+=(parseFloat(s[p[0]])||0)*(parseInt(s[p[1]])||0);}); }
+            });
+            return vol;
+          } else {
+            var mx = 0;
+            sArr.forEach(function(s){ var w=parseFloat(s.w)||0; if(w>mx) mx=w; });
+            return mx;
+          }
+        };
+        var cVal2 = calcMetric(dl[exId]);
+        var pVal2 = calcMetric(prevDl[exId]);
+        if (cVal2 > 0 && pVal2 > 0) {
+          if (cVal2 > pVal2) exUp++;
+          else if (cVal2 < pVal2) exDown++;
         }
       });
       if (exUp > 0 || exDown > 0) {
