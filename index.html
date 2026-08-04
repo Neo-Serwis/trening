@@ -490,7 +490,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.5 · 2026-08-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.6 · 2026-08-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -554,7 +554,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.5';
+var APP_VERSION = '5.6';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -598,12 +598,13 @@ function loadAll() {
 // Usuń puste wpisy z logs (tylko metadane bez serii ćwiczeń)
 function cleanEmptyLogs() {
   var changed = false;
-  // Klucze metadanych które nie są seriami ćwiczeń
-  var META_KEYS = { '_date':1, '_note':1, '_dayName':1, '_exNames':1 };
+  // Klucze metadanych które nie są danymi użytkownika.
+  // Notatki (_note/note_*) i serie bonus SĄ danymi — spójnie z saveWorkout.
+  var META_KEYS = { '_date':1, '_dayName':1, '_exNames':1 };
   Object.keys(logs).forEach(function(key) {
     var dl = logs[key];
     var hasData = Object.keys(dl).some(function(k) {
-      return !META_KEYS[k] && k.indexOf('note_') !== 0 && k.indexOf('_bonus') < 0;
+      return !META_KEYS[k];
     });
     if (!hasData) { delete logs[key]; changed = true; }
   });
@@ -882,7 +883,7 @@ window.addEventListener('popstate', function() {
     toast('✅ Zapisano!');
   } else if (currentView === 'editor') {
     showView('settings');
-  } else if (currentView === 'settings' || currentView === 'history' || currentView === 'progress') {
+  } else if (currentView === 'settings' || currentView === 'history' || currentView === 'progress' || currentView === 'measurements') {
     showView('home');
   }
   // Na home — pozwól wyjść z apki normalnie
@@ -959,6 +960,12 @@ window.addEventListener('popstate', function() {
       var v = prev.value;
       try { prev.setSelectionRange(v.length, v.length); } catch(err) {}
     }
+  });
+
+  // Deload: edycja pola kasuje znacznik auto-propozycji — wartość staje się realna
+  document.addEventListener('input', function(e) {
+    var t = e.target;
+    if (t && t.getAttribute && t.getAttribute('data-dl')) t.removeAttribute('data-dl');
   });
 
   // Klawiatura Android: strzałka "następne pole" na klawiszu Enter
@@ -1193,7 +1200,11 @@ function saveWorkout(silent) {
       for (var i = 0; i < ex.setsCount; i++) {
         var wEl = document.getElementById('w_' + ex.id + '_' + i);
         var rEl = document.getElementById('r_' + ex.id + '_' + i);
-        sets.push({ w: wEl ? normalizeNum(wEl.value.trim()) : '', r: rEl ? rEl.value.trim() : '' });
+        var wv = wEl ? normalizeNum(wEl.value.trim()) : '';
+        var rv = rEl ? rEl.value.trim() : '';
+        // Deload: nietknięta auto-propozycja bez powtórzeń to nie jest wykonana seria
+        if (wv && !rv && wEl && wEl.getAttribute('data-dl') === '1') wv = '';
+        sets.push({ w: wv, r: rv });
       }
     }
     if (sets.some(function(s) { return s.w || s.r; })) logs[key][ex.id] = sets;
@@ -1222,6 +1233,7 @@ function saveWorkout(silent) {
   day.exercises.forEach(function(ex) {
     if (logs[key][ex.id]) hasAnyData = true;
     if (logs[key]['note_' + ex.id]) hasAnyData = true;
+    if (logs[key][ex.id + '_bonus']) hasAnyData = true;
   });
   if (logs[key]._note) hasAnyData = true;
 
@@ -1530,11 +1542,15 @@ function renderWorkout() {
         var cw = curr && curr[i] ? curr[i].w : '';
         var cr = curr && curr[i] ? curr[i].r : '';
         // Deload: auto-propozycja -40% od poprzedniego tygodnia (tylko gdy brak aktualnych danych)
+        // Oznaczana data-dl="1" — saveWorkout nie zapisze jej jako wykonanej serii, dopóki
+        // użytkownik nie edytuje ciężaru albo nie wpisze powtórzeń
+        var dlAuto = false;
         if (settings.deload && !cw && !isBO) {
           var prevSets = getPrevSets(currentDayId, ex.id);
           if (prevSets && prevSets[i] && prevSets[i].w) {
             var deloadW = parseFloat(prevSets[i].w) * 0.6;
             cw = (Math.round(deloadW * 2) / 2).toFixed(1);
+            dlAuto = true;
           }
         }
         // Auto-propozycja back-off przy renderze — ciężar ostatniej serii roboczej (nie max)
@@ -1560,7 +1576,7 @@ function renderWorkout() {
         }
         inp += '<div class="set-row">'
           + '<span class="set-lbl" style="' + lblStyle + '">' + lbl + '</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + onInputAttr + '>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + (dlAuto ? ' data-dl="1"' : '') + onInputAttr + '>'
           + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8"' + afterAttr + '>'
           + timerBtn + '</div>';
       }
@@ -1734,6 +1750,9 @@ function addBonusSet(exId) {
 // v5.0: usuń serię bonus
 function removeBonusSet(exId, idx) {
   if (!currentDayId) return;
+  // Zapisz aktualne pola przed rerenderem — jak w addBonusSet, inaczej wpisane dane przepadają
+  clearTimeout(_afterLastSetTimer);
+  saveWorkout(true);
   var key = logKey(currentWeek, currentDayId);
   if (!logs[key] || !logs[key][exId + '_bonus']) return;
   logs[key][exId + '_bonus'].splice(idx, 1);
@@ -2961,7 +2980,8 @@ function exportCSV() {
       if (found) { dayName = found.name; dayExs = found.exercises||[]; }
     }
     var dl = logs[key]; var date = dl._date||'';
-    Object.keys(dl).filter(function(k){ return k!=='_date'&&k!=='_note'&&k.indexOf('note_')!==0; }).forEach(function(exId) {
+    Object.keys(dl).filter(isExKey).forEach(function(exId) {
+      if (!Array.isArray(dl[exId])) return;
       var exObj = dayExs.find(function(e){ return e.id===exId; });
       var exName = exObj ? exObj.name : exId;
       var note = dl['note_'+exId]||'';
