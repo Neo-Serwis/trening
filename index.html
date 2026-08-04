@@ -31,6 +31,22 @@ body.oled{
   --border:#222222;--input:#000000;
   --text:#ffffff;--text2:#cccccc;--text3:#888888;
 }
+body.navy{
+  --bg:#0b1626;--bg2:#101f36;--bg3:#1a2c4a;--card:#12213a;
+  --border:#23375a;--input:#0e1c30;--accent:#3a86ff;
+}
+body.forest{
+  --bg:#0c1512;--bg2:#12201b;--bg3:#1b2f27;--card:#132320;
+  --border:#274238;--input:#101d18;--accent:#2a9d8f;
+}
+body.violet{
+  --bg:#120f1c;--bg2:#1a1530;--bg3:#262045;--card:#1c1734;
+  --border:#322a55;--input:#161228;--accent:#9b5de5;
+}
+body.amber{
+  --bg:#171310;--bg2:#221b15;--bg3:#2f261d;--card:#241c15;
+  --border:#3a2f22;--input:#1c1712;--accent:#e08e45;
+}
 html,body{height:100%;max-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
 #app{height:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;}
 
@@ -368,7 +384,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       <div class="sbtn" style="cursor:default">
         <span class="sbtn-ico">⏱</span>
         <div class="sbtn-txt"><div class="sbtn-name">Czas odpoczynku</div><div class="sbtn-desc">sekundy</div></div>
-        <input class="sinput-sm" type="number" id="timer-secs" value="90" min="10" max="600" onchange="saveSetting('timerSecs',parseInt(this.value))">
+        <input class="sinput-sm" type="number" id="timer-secs" value="90" min="10" max="600" onchange="saveSetting('timerSecs',intOr(this.value,90))">
       </div>
     </div>
     <div class="sct">
@@ -406,12 +422,12 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       <div class="sbtn" style="cursor:default">
         <span class="sbtn-ico">🔽</span>
         <div class="sbtn-txt"><div class="sbtn-name">Back-off %</div><div class="sbtn-desc">Odejmowane od ostatniej serii roboczej</div></div>
-        <input class="sinput-sm" type="number" id="default-backoff-pct" value="25" min="5" max="60" onchange="saveSetting('defaultBackoffPct',parseInt(this.value))">
+        <input class="sinput-sm" type="number" id="default-backoff-pct" value="25" min="5" max="60" onchange="saveSetting('defaultBackoffPct',intOr(this.value,25))">
       </div>
       <div class="sbtn" style="cursor:default;border-bottom:none">
         <span class="sbtn-ico">📉</span>
         <div class="sbtn-txt"><div class="sbtn-name">Drop / ExDrop %</div><div class="sbtn-desc">Odejmowane przy każdym dropie i dogrywce</div></div>
-        <input class="sinput-sm" type="number" id="default-drop-pct" value="25" min="5" max="60" onchange="saveSetting('defaultDropPct',parseInt(this.value))">
+        <input class="sinput-sm" type="number" id="default-drop-pct" value="25" min="5" max="60" onchange="saveSetting('defaultDropPct',intOr(this.value,25))">
       </div>
     </div>
     <div class="sct">
@@ -419,7 +435,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       <div class="sbtn" style="cursor:default;border-bottom:none">
         <span class="sbtn-ico">⏱</span>
         <div class="sbtn-txt"><div class="sbtn-name">Przerwa między dropami</div><div class="sbtn-desc">Sekundy — nadpisywalne per ćwiczenie</div></div>
-        <input class="sinput-sm" type="number" id="drop-rest-secs" value="2" min="0" max="30" onchange="saveSetting('dropRestSecs',parseInt(this.value))">
+        <input class="sinput-sm" type="number" id="drop-rest-secs" value="2" min="0" max="30" onchange="saveSetting('dropRestSecs',intOr(this.value,2))">
       </div>
     </div>
     <div class="sct">
@@ -472,12 +488,16 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Motyw</div>
-      <div class="stoggle" style="border-bottom:none">
-        <div class="stoggle-txt"><div class="stoggle-name">Wybór motywu</div><div class="stoggle-desc">Ciemny · OLED (czarne tło) · Jasny</div></div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button id="theme-dark" onclick="setTheme('dark')" style="background:var(--accent);border:1px solid var(--accent);border-radius:6px;color:#fff;font-size:11px;padding:5px 8px;cursor:pointer">Ciemny</button>
-          <button id="theme-oled" onclick="setTheme('oled')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:5px 8px;cursor:pointer">OLED</button>
-          <button id="theme-light" onclick="setTheme('light')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:5px 8px;cursor:pointer">Jasny</button>
+      <div style="padding:11px 0">
+        <div class="stoggle-desc" style="margin-bottom:8px">Wybierz wygląd apki — zapisuje się od razu</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button id="theme-dark" onclick="setTheme('dark')" style="background:var(--accent);border:1px solid var(--accent);border-radius:6px;color:#fff;font-size:11px;padding:6px 10px;cursor:pointer">🌙 Ciemny</button>
+          <button id="theme-oled" onclick="setTheme('oled')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">⚫ OLED</button>
+          <button id="theme-light" onclick="setTheme('light')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">☀️ Jasny</button>
+          <button id="theme-navy" onclick="setTheme('navy')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🌊 Ocean</button>
+          <button id="theme-forest" onclick="setTheme('forest')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🌲 Las</button>
+          <button id="theme-violet" onclick="setTheme('violet')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🔮 Fiolet</button>
+          <button id="theme-amber" onclick="setTheme('amber')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🔥 Bursztyn</button>
         </div>
       </div>
     </div>
@@ -490,7 +510,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.6 · 2026-08-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.7 · 2026-08-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -554,7 +574,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.6';
+var APP_VERSION = '5.7';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -628,12 +648,13 @@ function applySettings() {
   document.getElementById('tog-suggest').checked = settings.suggest;
   document.getElementById('tog-wake').checked    = settings.wake;
   document.getElementById('timer-secs').value    = settings.timerSecs;
-  // Motyw
-  document.body.classList.remove('light','oled');
-  if (settings.oled) document.body.classList.add('oled');
-  else if (settings.light) document.body.classList.add('light');
-  var themeMode = settings.oled ? 'oled' : (settings.light ? 'light' : 'dark');
-  ['dark','oled','light'].forEach(function(t) {
+  // Motyw — v5.7: settings.theme; stare backupy mają tylko pola light/oled
+  var themeMode = settings.theme || (settings.oled ? 'oled' : (settings.light ? 'light' : 'dark'));
+  var ALL_THEMES = ['dark','oled','light','navy','forest','violet','amber'];
+  if (ALL_THEMES.indexOf(themeMode) < 0) themeMode = 'dark';
+  document.body.classList.remove('light','oled','navy','forest','violet','amber');
+  if (themeMode !== 'dark') document.body.classList.add(themeMode);
+  ALL_THEMES.forEach(function(t) {
     var btn = document.getElementById('theme-'+t);
     if (!btn) return;
     var active = (t === themeMode);
@@ -714,12 +735,16 @@ function toggleTheme(on) {
   // zachowane dla kompatybilności backupów
   setTheme(on ? 'light' : 'dark');
 }
+var THEME_NAMES = { dark:'🌙 Ciemny', oled:'⚫ OLED', light:'☀️ Jasny', navy:'🌊 Ocean', forest:'🌲 Las', violet:'🔮 Fiolet', amber:'🔥 Bursztyn' };
 function setTheme(mode) {
+  if (!THEME_NAMES[mode]) mode = 'dark';
+  settings.theme = mode;
+  // zgodność wstecz ze starymi backupami (pola light/oled)
   settings.light = (mode === 'light');
   settings.oled  = (mode === 'oled');
   saveSettings();
   applySettings();
-  toast(mode === 'oled' ? '⚫ OLED' : mode === 'light' ? '☀️ Jasny' : '🌙 Ciemny');
+  toast(THEME_NAMES[mode]);
 }
 function setHistTrend(mode) {
   saveSetting('histTrendMode', mode);
@@ -792,7 +817,7 @@ function handleWakeLock() {
 // ═══════════════════════════════════════════════
 // NAWIGACJA
 // ═══════════════════════════════════════════════
-function showView(name) {
+function showView(name, fromPop) {
   // v5.2: zapisz trening przed przejściem do ustawień lub innego widoku
   if (name === 'settings' && currentView === 'workout') {
     saveWorkout(true);
@@ -820,8 +845,10 @@ function showView(name) {
   }
 
   // Każde przejście poza home dodaje wpis do historii przeglądarki
-  // dzięki temu Wstecz Android zawsze trafia do popstate zamiast wyjść z apki
-  if (name !== 'home') {
+  // dzięki temu Wstecz Android zawsze trafia do popstate zamiast wyjść z apki.
+  // fromPop = wywołanie z popstate — wtedy NIE dokładamy wpisu (historia by puchła
+  // i Wstecz trzeba było klikać wielokrotnie "w próżnię")
+  if (name !== 'home' && !fromPop) {
     history.pushState({ view: name }, '');
   }
   handleWakeLock();
@@ -842,17 +869,8 @@ function showView(name) {
 }
 
 function navBack() {
-  if (currentView === 'workout') {
-    saveWorkout(true);
-    toast('✅ Zapisano!');
-    showView('home');
-  } else if (currentView === 'editor') {
-    showView('settings');
-  } else if (currentView === 'settings') {
-    showView('home');
-  } else {
-    showView('home');
-  }
+  // ← w headerze działa jak systemowy Wstecz — cofa wpis historii, obsługa w popstate
+  history.back();
 }
 
 function openDay(id) {
@@ -873,18 +891,18 @@ window.addEventListener('popstate', function() {
   // Jeśli modal jest otwarty — zamknij go (równoznaczne z Anuluj)
   var modal = document.getElementById('modal-overlay');
   if (modal.classList.contains('show')) {
-    closeModal();
+    closeModal(true);
     setTimeout(function() { _saveGuard = false; }, 300);
     return;
   }
   if (currentView === 'workout') {
     saveWorkout(true);
-    showView('home');
+    showView('home', true);
     toast('✅ Zapisano!');
   } else if (currentView === 'editor') {
-    showView('settings');
+    showView('settings', true);
   } else if (currentView === 'settings' || currentView === 'history' || currentView === 'progress' || currentView === 'measurements') {
-    showView('home');
+    showView('home', true);
   }
   // Na home — pozwól wyjść z apki normalnie
   setTimeout(function() { _saveGuard = false; }, 300);
@@ -1022,10 +1040,13 @@ function weekLabelClick() {
   inp.focus();
   inp.select();
 }
+var _weekJumpCancelled = false;
 function weekJumpCommit() {
   var inp = document.getElementById('week-jump-input');
   var lbl = document.getElementById('week-label');
   if (!inp || !lbl) return;
+  // Escape anulował — schowanie inputu odpala blur, który woła commit; nie zatwierdzaj
+  if (_weekJumpCancelled) { _weekJumpCancelled = false; return; }
   var val = parseInt(inp.value);
   if (!isNaN(val) && val >= 1) {
     currentWeek = val;
@@ -1039,6 +1060,7 @@ function weekJumpCancel() {
   var inp = document.getElementById('week-jump-input');
   var lbl = document.getElementById('week-label');
   if (!inp || !lbl) return;
+  _weekJumpCancelled = true;
   inp.style.display = 'none';
   lbl.style.display = '';
 }
@@ -1050,7 +1072,7 @@ function logKey(w, d)        { return 'w' + w + '_' + d; }
 function getLog(w, d)        { return logs[logKey(w, d)] || {}; }
 function getPrevSets(d, e)   { return getLog(currentWeek - 1, d)[e] || null; }
 function getCurrentSets(d,e) { return getLog(currentWeek, d)[e] || null; }
-function isDayDone(w, d)     { return Object.keys(getLog(w,d)).filter(function(k){return k!=='_date'&&k!=='_note';}).length > 0; }
+function isDayDone(w, d)     { return Object.keys(getLog(w,d)).filter(isExKey).length > 0; }
 
 // Procent ukończenia dnia — ile serii ma wpisane dane / ile łącznie
 function dayProgress(week, dayId) {
@@ -1062,37 +1084,40 @@ function dayProgress(week, dayId) {
   day.exercises.forEach(function(ex) {
     // serie bonus nie liczą się do paska postępu
     var sets = dl[ex.id] || [];
-    if (ex.schemeType === 'exdrop' || ex.schemeType === 'dropset') {
-      // liczymy serie robocze (nie dropy)
-      total += ex.setsCount;
-      sets.forEach(function(s) { if (s.w || s.r) done++; });
-    } else {
-      total += ex.setsCount;
-      for (var i = 0; i < ex.setsCount; i++) {
-        if (sets[i] && (sets[i].w || sets[i].r)) done++;
-      }
+    // liczymy serie robocze (nie dropy), maksymalnie setsCount — po zmniejszeniu
+    // liczby serii w edytorze stare zapisy nie mogą dać wyniku >100%
+    total += ex.setsCount;
+    for (var i = 0; i < ex.setsCount; i++) {
+      if (sets[i] && (sets[i].w || sets[i].r)) done++;
     }
   });
   return { done: done, total: total, pct: total > 0 ? Math.round(done / total * 100) : 0 };
 }
 
 // Sprawdź PR dla ćwiczenia — czy dany ciężar to rekord
-function isPR(dayId, exId, weight) {
+// v5.7: porównanie tylko z WCZEŚNIEJSZYMI tygodniami (uptoWeek) — wcześniej ciężar
+// "znajdował sam siebie" i 🏆 nigdy się nie pokazywało
+function isPR(dayId, exId, weight, uptoWeek) {
   if (!settings.pr) return false;
   var w = parseFloat(weight);
   if (isNaN(w) || w <= 0) return false;
+  var foundPrev = false;
   for (var key in logs) {
     var pk = parseLogKey(key);
     if (pk[1] !== dayId) continue;
+    if (pk[0] >= uptoWeek) continue;
     var dl = logs[key];
     if (!dl[exId]) continue;
     var sets = dl[exId];
     for (var i = 0; i < sets.length; i++) {
       var pw = parseFloat(sets[i].w);
-      if (!isNaN(pw) && pw >= w) return false;
+      if (!isNaN(pw) && pw > 0) {
+        foundPrev = true;
+        if (pw >= w) return false;
+      }
     }
   }
-  return true;
+  return foundPrev;
 }
 
 // Podpowiedź ciężaru — standard i backoff (serie robocze)
@@ -1178,7 +1203,7 @@ function saveWorkout(silent) {
     if (ex.schemeType === 'exdrop') {
       // Zapis exdrop — per drop z wszystkimi polami
       for (var i = 0; i < ex.setsCount; i++) {
-        var g = function(sfx) { var el = document.getElementById('w_' + ex.id + '_' + i + '_' + sfx); return el ? normalizeNum(el.value.trim()) : ''; };
+        var g = function(sfx) { var el = document.getElementById('w_' + ex.id + '_' + i + '_' + sfx); return el ? cleanVal(normalizeNum(el.value.trim())) : ''; };
         sets.push({ w:g('w'), r:g('r'), wd0:g('wd0'), rd0:g('rd0'), wd1:g('wd1'), rd1:g('rd1'), wd2:g('wd2'), rd2:g('rd2'), wd3:g('wd3'), rd3:g('rd3'), wd4:g('wd4'), rd4:g('rd4') });
       }
     } else if (ex.schemeType === 'dropset') {
@@ -1187,12 +1212,12 @@ function saveWorkout(silent) {
       for (var i = 0; i < ex.setsCount; i++) {
         var wEl2 = document.getElementById('w_' + ex.id + '_' + i);
         var rEl2 = document.getElementById('r_' + ex.id + '_' + i);
-        var setObj = { w: wEl2 ? normalizeNum(wEl2.value.trim()) : '', r: rEl2 ? rEl2.value.trim() : '' };
+        var setObj = { w: wEl2 ? cleanVal(normalizeNum(wEl2.value.trim())) : '', r: rEl2 ? cleanVal(rEl2.value.trim()) : '' };
         for (var di2 = 0; di2 < dropsN; di2++) {
           var dwEl = document.getElementById('dw_' + ex.id + '_' + i + '_' + di2);
           var drEl = document.getElementById('dr_' + ex.id + '_' + i + '_' + di2);
-          setObj['drop' + di2 + 'w'] = dwEl ? normalizeNum(dwEl.value.trim()) : '';
-          setObj['drop' + di2 + 'r'] = drEl ? drEl.value.trim() : '';
+          setObj['drop' + di2 + 'w'] = dwEl ? cleanVal(normalizeNum(dwEl.value.trim())) : '';
+          setObj['drop' + di2 + 'r'] = drEl ? cleanVal(drEl.value.trim()) : '';
         }
         sets.push(setObj);
       }
@@ -1200,8 +1225,8 @@ function saveWorkout(silent) {
       for (var i = 0; i < ex.setsCount; i++) {
         var wEl = document.getElementById('w_' + ex.id + '_' + i);
         var rEl = document.getElementById('r_' + ex.id + '_' + i);
-        var wv = wEl ? normalizeNum(wEl.value.trim()) : '';
-        var rv = rEl ? rEl.value.trim() : '';
+        var wv = wEl ? cleanVal(normalizeNum(wEl.value.trim())) : '';
+        var rv = rEl ? cleanVal(rEl.value.trim()) : '';
         // Deload: nietknięta auto-propozycja bez powtórzeń to nie jest wykonana seria
         if (wv && !rv && wEl && wEl.getAttribute('data-dl') === '1') wv = '';
         sets.push({ w: wv, r: rv });
@@ -1219,8 +1244,8 @@ function saveWorkout(silent) {
       var bwEl = document.getElementById('bonus_w_' + ex.id + '_' + bi);
       var brEl = document.getElementById('bonus_r_' + ex.id + '_' + bi);
       return {
-        w: bwEl ? normalizeNum(bwEl.value.trim()) : (bs.w || ''),
-        r: brEl ? brEl.value.trim() : (bs.r || ''),
+        w: bwEl ? cleanVal(normalizeNum(bwEl.value.trim())) : (bs.w || ''),
+        r: brEl ? cleanVal(brEl.value.trim()) : (bs.r || ''),
         bonus: true
       };
     });
@@ -1306,8 +1331,9 @@ function renderHome() {
     } else {
       badgeCls = 'badge-prog'; badgeTxt = prog.pct + '% (' + prog.done + '/' + prog.total + ')';
     }
-    return '<div class="day-card dc-' + i + '" onclick="openDay(\'' + day.id + '\')">'
-      + '<div><div class="day-card-name">' + day.name + '</div>'
+    var safeDayId = String(day.id).replace(/[^\w-]/g, '');
+    return '<div class="day-card dc-' + i + '" onclick="openDay(\'' + safeDayId + '\')">'
+      + '<div><div class="day-card-name">' + esc(day.name) + '</div>'
       + '<div class="day-card-sub">' + day.exercises.length + ' ćwiczeń</div></div>'
       + '<div class="day-card-right">'
       + (settings.deload ? '<span class="badge" style="background:rgba(233,196,106,0.15);color:var(--yellow);margin-right:2px">🔄 DELOAD</span>' : '')
@@ -1396,7 +1422,7 @@ function renderWorkout() {
             }
           });
           if (!bestSets) return '<span class="ref-chip nd">S' + (si+1) + ': brak</span>';
-          var prMark = isPR(currentDayId, ex.id, bestSets.w) ? ' 🏆' : '';
+          var prMark = isPR(currentDayId, ex.id, bestSets.w, bestW) ? ' 🏆' : '';
           var weekLabel = bestW !== -1 ? '<span style="font-size:9px;color:var(--text3)"> T' + bestW + '</span>' : '';
           return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (si+1) + ': ' + (bestSets.w||'—') + ' kg×' + (bestSets.r||'—') + prMark + weekLabel + '</span>';
         }).join('');
@@ -1582,8 +1608,9 @@ function renderWorkout() {
       }
     }
 
-    var yt = ex.youtube ? '<a class="btn-yt" href="' + ex.youtube + '" target="_blank">▶ YT</a>' : '';
-    var nt = ex.notes ? '<span style="color:var(--text3);font-weight:400;font-size:12px"> (' + ex.notes + ')</span>' : '';
+    var ytUrl = (ex.youtube && /^https?:\/\//i.test(ex.youtube)) ? ex.youtube : '';
+    var yt = ytUrl ? '<a class="btn-yt" href="' + esc(ytUrl) + '" target="_blank">▶ YT</a>' : '';
+    var nt = ex.notes ? '<span style="color:var(--text3);font-weight:400;font-size:12px"> (' + esc(ex.notes) + ')</span>' : '';
     // Opcjonalne ćwiczenie — subtelna etykieta i jasnoniebieska lewa krawędź
     var optLabel = ex.optional ? '<span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-left:6px;font-weight:400">opcjonalne</span>' : '';
     var optBorder = ex.optional ? 'border-left:3px solid var(--blue);' : '';
@@ -1609,7 +1636,7 @@ function renderWorkout() {
       + '<div class="ex-head"><span class="ex-num">' + (idx+1) + '.</span><span class="ex-name">' + esc(ex.name) + nt + optLabel + '</span>' + yt + '</div>'
       + '<div class="ex-meta">'
       + '<div class="em"><span class="em-l">Serie / Powt.</span><span class="em-v">' + esc(ex.scheme) + '</span></div>'
-      + '<div class="em"><span class="em-l">TUT</span><span class="em-v">' + (ex.tut || '—') + '</span></div>'
+      + '<div class="em"><span class="em-l">TUT</span><span class="em-v">' + esc(ex.tut || '—') + '</span></div>'
       + '</div>'
       + '<div class="sets-wrap">' + prevHTML + suggHTML + inp + bonusHTML
       + '<button onclick="addBonusSet(\'' + ex.id + '\')" style="background:none;border:1px dashed var(--border);border-radius:8px;color:var(--blue);font-size:12px;padding:6px 12px;cursor:pointer;width:100%;margin-top:4px">+ seria bonus (nie liczy się do statystyk)</button>'
@@ -1720,7 +1747,8 @@ function handleAfterLastSetInput(el, exId, exIdx) {
       if (!day) return;
       var nextEx = day.exercises[exIdx + 1];
       if (!nextEx) return;
-      var nextInput = document.getElementById('w_' + nextEx.id + '_0');
+      // exdrop ma inne id pól (w_<id>_0_w) — bez fallbacku skok cicho nie działał
+      var nextInput = document.getElementById('w_' + nextEx.id + '_0') || document.getElementById('w_' + nextEx.id + '_0_w');
       if (nextInput) { nextInput.focus(); nextInput.select(); }
     }
   }, 800);
@@ -2073,7 +2101,7 @@ function renderMeasurements() {
           diffHtml = '<br><span class="' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
         }
       }
-      return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + val + diffHtml + '</span></div>';
+      return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + esc(val) + diffHtml + '</span></div>';
     }
 
     // Grupuj chipy
@@ -2097,7 +2125,7 @@ function renderMeasurements() {
           bmiDiff = '<br><span class="' + (bd < 0 ? 'diff-neg' : 'diff-pos') + '">' + (bd > 0 ? '+' : '') + bd.toFixed(1) + '</span>';
         }
       }
-      bodyChips += '<div class="meas-chip"><span class="meas-chip-lbl">BMI</span><span class="meas-chip-val">' + m.bmi + bmiDiff + '</span><span style="font-size:9px;color:var(--text3)">' + bmiCat + '</span></div>';
+      bodyChips += '<div class="meas-chip"><span class="meas-chip-lbl">BMI</span><span class="meas-chip-val">' + esc(m.bmi) + bmiDiff + '</span><span style="font-size:9px;color:var(--text3)">' + bmiCat + '</span></div>';
     }
 
     // Obsługa starych pomiarów (bez _fields) — stare klucze
@@ -2116,9 +2144,9 @@ function renderMeasurements() {
     // Nagłówek
     var subParts = [];
     var wagaVal = m.waga || (m._fields && m._fields.find(function(f){return f.id==='waga';}) ? m.waga : '');
-    if (wagaVal) subParts.push(wagaVal + ' kg');
-    if (m.bmi) subParts.push('BMI ' + m.bmi);
-    if (m.cisnienie) subParts.push('♥ ' + m.cisnienie);
+    if (wagaVal) subParts.push(esc(wagaVal) + ' kg');
+    if (m.bmi) subParts.push('BMI ' + esc(m.bmi));
+    if (m.cisnienie) subParts.push('♥ ' + esc(m.cisnienie));
     var sub = subParts.join(' · ');
 
     // v3.8: kolejność — Ciało (jeśli jest), Waga+Obwody, Zdrowie
@@ -2135,7 +2163,7 @@ function renderMeasurements() {
 
     return '<div class="meas-item">'
       + '<div class="meas-item-hdr" onclick="toggleMeasItem(this)">'
-      + '<div><div class="meas-item-date">' + m.date + '</div>' + (sub ? '<div class="meas-item-sub">' + sub + '</div>' : '') + '</div>'
+      + '<div><div class="meas-item-date">' + esc(m.date) + '</div>' + (sub ? '<div class="meas-item-sub">' + sub + '</div>' : '') + '</div>'
       + '<div style="display:flex;align-items:center;gap:6px">'
       + '<button class="btn-edit" onclick="event.stopPropagation();measEdit(' + i + ')">✏️</button>'
       + '<button class="meas-del-btn" onclick="event.stopPropagation();measDelete(' + i + ')">🗑</button>'
@@ -2247,13 +2275,13 @@ function exportMeasCSV() {
       if (allIds.indexOf(f.id) < 0) { allIds.push(f.id); labelMap[f.id] = f.label; }
     });
   });
-  var hdrs = ['Data'].concat(allIds.map(function(id){return labelMap[id]||id;}));
+  var hdrs = ['Data'].concat(allIds.map(function(id){return csvEsc(labelMap[id]||id);}));
   if (measurements.some(function(m){return m.bmi;})) hdrs.push('BMI');
   hdrs.push('Notatka');
   var rows = hdrs.join(';') + '\n';
   measurements.forEach(function(m) {
     var cells = [csvEsc(m.date)];
-    allIds.forEach(function(id) { cells.push(m[id]||''); });
+    allIds.forEach(function(id) { cells.push(csvEsc(m[id]||'')); });
     if (measurements.some(function(x){return x.bmi;})) cells.push(m.bmi||'');
     cells.push(csvEsc(m._note||''));
     rows += cells.join(';') + '\n';
@@ -2284,7 +2312,8 @@ function renderHistory() {
 
   fc.innerHTML = '<div class="fchip' + (activeFilter==='all'?' active':'') + '" onclick="setHistFilter(\'all\',this)">Wszystkie</div>'
     + dayIds.map(function(d) {
-      return '<div class="fchip' + (activeFilter===d.id?' active':'') + '" onclick="setHistFilter(\'' + d.id + '\',this)">' + d.name + '</div>';
+      var safeFid = String(d.id).replace(/[^\w-]/g, '');
+      return '<div class="fchip' + (activeFilter===d.id?' active':'') + '" onclick="setHistFilter(\'' + safeFid + '\',this)">' + esc(d.name) + '</div>';
     }).join('');
 
   // Sortuj po dacie malejąco
@@ -2380,6 +2409,10 @@ function renderHistory() {
       var sets = dl[exId];
       var noteKey = 'note_' + exId;
       var noteVal = dl[noteKey] || '';
+      // v5.7: deklaracje przeniesione przed blok trendu (wcześniej hoisting dawał undefined
+      // i trend objętości liczył dropset/exdrop bez dropów)
+      var exObjHist = dayExs.find(function(e) { return e.id === exId; });
+      var sTypeHist = exObjHist ? exObjHist.schemeType : 'standard';
       // v5.1: trend per ćwiczenie — ostatni WYKONANY tydzień dla tego ćwiczenia
       var exTrendBadge = '';
       var exPrevWeek = -1; var exPrevSets = null;
@@ -2421,8 +2454,6 @@ function renderHistory() {
         }
       }
       // v5.1: chipy — exdrop pokazuje wszystkie pola, standard/backoff/drop jak dotychczas
-      var exObjHist = dayExs.find(function(e) { return e.id === exId; });
-      var sTypeHist = exObjHist ? exObjHist.schemeType : 'standard';
       var chips;
       if (sTypeHist === 'exdrop') {
         chips = sets.map(function(s, i) {
@@ -2452,7 +2483,7 @@ function renderHistory() {
           var isBO = (sTypeHist === 'backoff' && i === sets.length - 1);
           var lbl = isBO ? 'BO' : 'S'+(i+1);
           var style = isBO ? ' style="color:var(--yellow)"' : '';
-          var prMark = isPR(dayId, exId, s.w) ? ' 🏆' : '';
+          var prMark = isPR(dayId, exId, s.w, week) ? ' 🏆' : '';
           var cls = prMark ? ' pr' : '';
           return (s.w||s.r) ? '<span class="hist-chip'+cls+'"'+style+'>'+lbl+': '+(s.w||'—')+' kg×'+(s.r||'—')+prMark+'</span>' : '';
         }).filter(Boolean).join('');
@@ -2476,7 +2507,7 @@ function renderHistory() {
       + '<div class="hist-hdr" onclick="toggleHist(this)">'
       + '<span>Tydz.' + week + ' — ' + esc(dayName) + '</span>'
       + '<div style="display:flex;align-items:center;gap:8px">'
-      + '<span class="hist-hdr-sub" data-date="' + date + '">' + (date ? date + ' ' : 'brak daty ') + '▼</span>'
+      + '<span class="hist-hdr-sub" data-date="' + esc(date) + '">' + (date ? esc(date) + ' ' : 'brak daty ') + '▼</span>'
       + '<button class="meas-del-btn" onclick="event.stopPropagation();deleteHistEntry(\'' + key + '\')" style="font-size:14px;padding:0 4px">🗑</button>'
       + '</div>'
       + '</div><div class="hist-body">' + sessionNoteHtml + items + '</div></div>';
@@ -2899,12 +2930,21 @@ function modalSave() {
 }
 
 function openModal()  {
-  document.getElementById('modal-overlay').classList.add('show');
-  applyEnterHints(document.getElementById('modal-overlay'));
-  history.pushState({ view: 'modal' }, '');
+  var ov = document.getElementById('modal-overlay');
+  var wasOpen = ov.classList.contains('show');
+  ov.classList.add('show');
+  applyEnterHints(ov);
+  // Modal na modalu nie dokłada drugiego wpisu — jedno zamknięcie = jeden Wstecz
+  if (!wasOpen) history.pushState({ view: 'modal' }, '');
 }
-function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('show');
+function closeModal(fromPop) {
+  var ov = document.getElementById('modal-overlay');
+  if (!fromPop && ov.classList.contains('show')) {
+    // Zamknięcie przyciskiem/tłem — cofnij wpis historii z openModal; popstate domknie modal
+    history.back();
+    return;
+  }
+  ov.classList.remove('show');
   _modalCtx = null;
 }
 function modalClose(e){ if (e.target === document.getElementById('modal-overlay')) closeModal(); }
@@ -2931,7 +2971,8 @@ function createBackup() {
     measFields: loadMeasFields(),
     plan: plan,
     settings: settings,
-    week: currentWeek
+    week: currentWeek,
+    userHeight: userHeight
   };
   var d = new Date().toISOString().split('T')[0];
   downloadFile(JSON.stringify(data, null, 2), 'backup_v' + APP_VERSION + '_' + d + '.json', 'application/json');
@@ -2947,7 +2988,8 @@ function exportPlan() {
 function resetPlan() {
   if (!confirm('Usunąć aktualny plan? Dane treningowe pozostaną.')) return;
   plan = null;
-  localStorage.removeItem('trening_plan');
+  // Marker "plan skasowany przez użytkownika" — init nie może auto-wczytać plan.json z serwera
+  localStorage.setItem(LS_PLAN, 'null');
   renderHome();
   toast('🗑 Plan usunięty — wgraj nowy');
 }
@@ -2961,6 +3003,8 @@ function resetApp() {
   localStorage.removeItem('trening_settings');
   localStorage.removeItem('trening_measurements');
   localStorage.removeItem('trening_user');
+  localStorage.removeItem('trening_meas_fields2');
+  localStorage.removeItem('trening_meas_fields');
   plan = null; logs = {}; currentWeek = 1; measurements = []; userHeight = 0;
   settings = { timer:false, timerSecs:90, pr:true, suggest:false, wake:false, light:false };
   applySettings();
@@ -3155,6 +3199,9 @@ function exportHTMLReport(mode) {
     logs = logsFiltered;
   }
 
+  // v5.7: try/finally — wyjątek w środku nie może zostawić globalnych logs odfiltrowanych
+  try {
+
   var exStatsB = collectExStats();
 
   // Znajdź dwa ostatnie tygodnie z danymi
@@ -3294,7 +3341,7 @@ function exportHTMLReport(mode) {
       var dl = logs[key] || null;
       var dayObj = plan && plan.days ? plan.days.find(function(d){return d.id===dayId;}) : null;
       var dayName = (dl && dl._dayName) || (dayObj ? dayObj.name : dayId);
-      var date = dl ? (dl._date||'') : '';
+      var date = dl ? htmlEsc(dl._date||'') : '';
       var sessionNote = dl ? (dl._note||'') : '';
 
       // Sprawdź czy sesja była wykonana w tym tygodniu
@@ -3333,7 +3380,7 @@ function exportHTMLReport(mode) {
         var exId = exObj.id;
         var exName = (dl._exNames && dl._exNames[exId]) || exObj.name;
         var scheme = exObj.scheme || '';
-        var tut = exObj.tut || '';
+        var tut = htmlEsc(exObj.tut || '');
         var note = dl['note_'+exId]||'';
         var sType = exObj.schemeType || 'standard';
         var exSets = dl[exId] || null;
@@ -3464,11 +3511,13 @@ function exportHTMLReport(mode) {
     + '</body></html>';
 
   var d = new Date().toISOString().split('T')[0];
-  // v4.0: przywroć oryginalne logi po generowaniu raportu
-  logs = logsOrig;
-
   downloadFile(html, 'trening_raport_' + d + '.html', 'text/html;charset=utf-8;');
   toast('📄 Raport pobrany');
+
+  } finally {
+    // v4.0/v5.7: przywróć oryginalne logi po generowaniu raportu — zawsze
+    logs = logsOrig;
+  }
 }
 
 // v4.0: przy wgraniu planu pytamy czy to nowy cykl treningowy
@@ -3534,13 +3583,26 @@ function handleLogsFile(e) {
         if (p.week && typeof p.week === 'number') {
           currentWeek = p.week; saveWeek();
         }
+        // v5.7: wzrost do BMI — wcześniej backup go pomijał
+        if (p.userHeight && typeof p.userHeight === 'number') {
+          userHeight = p.userHeight;
+          localStorage.setItem(LS_USER, JSON.stringify({ height: p.userHeight }));
+        }
         renderHome();
         toast('✅ Backup przywrócony!');
         return;
       }
-      // Zwykły JSON logów (stary format)
+      // Zwykły JSON logów (stary format) — przyjmij tylko klucze wyglądające jak logi (wN_dzien),
+      // inaczej np. omyłkowo wybrany plan.json robił śmieciowe wpisy w historii
       if (typeof p !== 'object' || Array.isArray(p)) { toast('❌ Zły format'); return; }
-      Object.assign(logs, p); saveLogs(); toast('✅ Dane zaimportowane!');
+      var validLogs = {}; var validCount = 0;
+      Object.keys(p).forEach(function(k) {
+        if (/^w\d+_/.test(k) && p[k] && typeof p[k] === 'object' && !Array.isArray(p[k])) {
+          validLogs[k] = p[k]; validCount++;
+        }
+      });
+      if (!validCount) { toast('❌ Zły format — to nie jest plik z danymi treningowymi'); return; }
+      Object.assign(logs, validLogs); saveLogs(); toast('✅ Dane zaimportowane!');
     } catch(err) { toast('❌ Błąd odczytu JSON'); }
   };
   r.readAsText(f); e.target.value = '';
@@ -3758,6 +3820,17 @@ function normalizeNum(s) {
   return String(s || '').replace(',', '.');
 }
 
+// parseInt z wartością domyślną — puste pole w ustawieniach nie zapisze NaN
+function intOr(v, def) {
+  var n = parseInt(v, 10);
+  return isNaN(n) ? def : n;
+}
+
+// Wartości serii trafiają do HTML (value="", chipy, raporty) — wycinamy znaki łamiące znaczniki
+function cleanVal(s) {
+  return String(s || '').replace(/[<>"'&\\]/g, '');
+}
+
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -3786,7 +3859,9 @@ function init() {
   loadAll();
   applySettings();
   applyEnterHints();
-  if (!plan) {
+  // Auto-wczytanie plan.json tylko przy PIERWSZYM uruchomieniu (brak klucza w localStorage);
+  // po "Resetuj plan" klucz istnieje z wartością null i plan nie może wrócić sam
+  if (!plan && localStorage.getItem(LS_PLAN) === null) {
     fetch('./plan.json')
       .then(function(r) { return r.json(); })
       .then(function(p) { if (p && p.days) { plan = p; savePlan(); } renderHome(); })
