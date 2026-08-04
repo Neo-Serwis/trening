@@ -32,3 +32,8 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Pliki lokalne — nie publikujemy
+plan_aktualny.json
+plan_ana.json
+plan_szablon.json

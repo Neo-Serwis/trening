@@ -435,7 +435,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     <div class="sct">
       <div class="sct-title">Nawigacja klawiaturą</div>
       <div class="stoggle" style="border-bottom:none">
-        <div class="stoggle-txt"><div class="stoggle-name">Backspace cofa do poprzedniego pola</div><div class="stoggle-desc">Gdy pole puste — Backspace skacze do powt. poprzedniej serii</div></div>
+        <div class="stoggle-txt"><div class="stoggle-name">Backspace cofa do poprzedniego pola</div><div class="stoggle-desc">Gdy pole puste — Backspace wraca do poprzedniego pola (trening, pomiary, edytor)</div></div>
         <label class="toggle-sw"><input type="checkbox" id="tog-backspace-nav" onchange="saveSetting('backspaceNav',this.checked)"><span class="sl"></span></label>
       </div>
     </div>
@@ -490,7 +490,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.4 · 2026-05-11 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.5 · 2026-08-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -554,7 +554,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.4';
+var APP_VERSION = '5.5';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -889,28 +889,83 @@ window.addEventListener('popstate', function() {
   setTimeout(function() { _saveGuard = false; }, 300);
 });
 
-// v5.2: Backspace nav — event delegation na view-workout
+// v5.5: Nawigacja klawiaturą — Enter/→ = następne pole, Backspace na pustym = poprzednie.
+// Obejmuje trening, pomiary, daty i modale (edytor ćwiczenia, pola pomiarowe).
 (function() {
+  var NAV_SEL = 'input.sinput, input.meas-input, input.meas-date-input, input.modal-input';
+
+  function isNavInput(el) {
+    if (!el || el.tagName !== 'INPUT' || !el.classList) return false;
+    return el.classList.contains('sinput') || el.classList.contains('meas-input')
+        || el.classList.contains('meas-date-input') || el.classList.contains('modal-input');
+  }
+
+  // Kontener nawigacji: otwarty modal ma pierwszeństwo, potem bieżący widok .view
+  function navRoot(el) {
+    var modal = document.getElementById('modal-overlay');
+    if (modal && modal.classList.contains('show') && modal.contains(el)) return modal;
+    var p = el.parentNode;
+    while (p && p !== document.body) {
+      if (p.classList && p.classList.contains('view')) return p;
+      p = p.parentNode;
+    }
+    return document;
+  }
+
+  // Widoczne, aktywne pola w kolejności DOM (pomija ukryte sekcje i pola readonly, np. BMI)
+  function navInputs(root) {
+    var all = Array.prototype.slice.call(root.querySelectorAll(NAV_SEL));
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].offsetParent !== null && !all[i].disabled && !all[i].readOnly) out.push(all[i]);
+    }
+    return out;
+  }
+
   document.addEventListener('keydown', function(e) {
-    if (!settings.backspaceNav) return;
-    if (e.key !== 'Backspace') return;
-    if (currentView !== 'workout') return;
     var el = document.activeElement;
-    if (!el || !el.classList.contains('sinput')) return;
-    if (el.value !== '') return; // pole ma wartość — normalne kasowanie
-    e.preventDefault();
-    // Zbierz wszystkie pola sinput w workout w kolejności DOM
-    var allInputs = Array.prototype.slice.call(
-      document.getElementById('view-workout').querySelectorAll('input.sinput')
-    );
-    var idx2 = allInputs.indexOf(el);
-    if (idx2 <= 0) return;
-    // Poprzednie pole w kolejności DOM (bez filtra — analogicznie jak Tab do przodu)
-    var prev = allInputs[idx2 - 1];
-    prev.focus();
-    var v = prev.value;
-    try { prev.setSelectionRange(v.length, v.length); } catch(e) {}
+
+    if (e.key === 'Enter') {
+      // Pola ustawień: Enter zatwierdza wartość i chowa klawiaturę
+      if (el && el.tagName === 'INPUT' && el.classList && el.classList.contains('sinput-sm')) {
+        el.blur();
+        return;
+      }
+      if (!isNavInput(el)) return;
+      e.preventDefault();
+      var inputs = navInputs(navRoot(el));
+      var idx2 = inputs.indexOf(el);
+      if (idx2 === -1) return;
+      var next = inputs[idx2 + 1];
+      if (next) {
+        next.focus();
+        try { next.select(); } catch(err) {}
+      } else {
+        el.blur(); // ostatnie pole — schowaj klawiaturę
+      }
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      if (!settings.backspaceNav) return;
+      if (!isNavInput(el)) return;
+      if (el.value !== '') return; // pole ma wartość — normalne kasowanie
+      e.preventDefault();
+      var inputs3 = navInputs(navRoot(el));
+      var idx3 = inputs3.indexOf(el);
+      if (idx3 <= 0) return;
+      var prev = inputs3[idx3 - 1];
+      prev.focus();
+      var v = prev.value;
+      try { prev.setSelectionRange(v.length, v.length); } catch(err) {}
+    }
   });
+
+  // Klawiatura Android: strzałka "następne pole" na klawiszu Enter
+  window.applyEnterHints = function(root) {
+    var list = (root || document).querySelectorAll(NAV_SEL);
+    for (var i = 0; i < list.length; i++) list[i].setAttribute('enterkeyhint', 'next');
+  };
 })();
 
 // v5.2: Swipe lewo/prawo na home = zmiana tygodnia
@@ -1549,6 +1604,7 @@ function renderWorkout() {
       + '</div>'
       + '</div>';
   }).join('');
+  applyEnterHints(document.getElementById('view-workout'));
 }
 
 function toggleNote(btn) {
@@ -1798,6 +1854,7 @@ function renderMeasForm(editEntry) {
 
   var formBody = document.getElementById('meas-form-body');
   if (formBody) formBody.innerHTML = html;
+  applyEnterHints(document.getElementById('view-measurements'));
 }
 
 // Zapisz / zaktualizuj pomiar
@@ -2824,6 +2881,7 @@ function modalSave() {
 
 function openModal()  {
   document.getElementById('modal-overlay').classList.add('show');
+  applyEnterHints(document.getElementById('modal-overlay'));
   history.pushState({ view: 'modal' }, '');
 }
 function closeModal() {
@@ -3707,6 +3765,7 @@ function toast(msg) {
 function init() {
   loadAll();
   applySettings();
+  applyEnterHints();
   if (!plan) {
     fetch('./plan.json')
       .then(function(r) { return r.json(); })
