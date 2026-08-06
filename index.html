@@ -2,10 +2,14 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="theme-color" content="#0f0f0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trening">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <title>Trening v3</title>
 <style>
@@ -20,11 +24,14 @@
   --input:#1c1c1c;--radius:10px;
   --pr:#f4a261;
   --drop:#c77dff;
+  --accent-fg:#fff;
 }
 body.light{
   --bg:#f5f5f5;--bg2:#ffffff;--bg3:#e8e8e8;--card:#ffffff;
   --border:#ddd;--text:#1a1a1a;--text2:#444;--text3:#777;
   --input:#f0f0f0;
+  --yellow:#9a7b00;--green:#2f9e6e;--green-bg:#e2f3ea;
+  --pr:#b45309;--drop:#7b2fbf;
 }
 body.oled{
   --bg:#000000;--bg2:#000000;--bg3:#0a0a0a;--card:#000000;
@@ -45,13 +52,38 @@ body.violet{
 }
 body.amber{
   --bg:#171310;--bg2:#221b15;--bg3:#2f261d;--card:#241c15;
-  --border:#3a2f22;--input:#1c1712;--accent:#e08e45;
+  --border:#3a2f22;--input:#1c1712;--accent:#e08e45;--accent-fg:#201406;
 }
+body.rose{
+  --bg:#1a1216;--bg2:#231822;--bg3:#31222e;--card:#251a23;
+  --border:#3d2a38;--input:#1e141c;--accent:#f06595;
+}
+body.blush{
+  --bg:#fdf0f5;--bg2:#ffffff;--bg3:#f6dfe9;--card:#ffffff;
+  --border:#eccbd9;--text:#2b1f27;--text2:#6d5462;--text3:#a58a99;
+  --input:#faeef4;--accent:#d6336c;
+  --yellow:#9a7b00;--green:#2f9e6e;--green-bg:#e2f3ea;
+  --pr:#b45309;--drop:#7b2fbf;
+}
+body.nord{
+  --bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--card:#3b4252;
+  --border:#4c566a;--input:#333a48;--accent:#88c0d0;--accent-fg:#0e1a20;
+}
+body.dracula{
+  --bg:#282a36;--bg2:#313342;--bg3:#3c3f52;--card:#313342;
+  --border:#44475a;--input:#2c2e3b;--accent:#bd93f9;--accent-fg:#17182b;
+}
+body.plex{
+  --bg:#11161d;--bg2:#1a212b;--bg3:#232c39;--card:#1a212b;
+  --border:#2a3441;--input:#141b24;--accent:#f5a623;--accent-fg:#1a1200;
+}
+body.plex,body.plex input,body.plex textarea,body.plex button{font-family:'IBM Plex Sans',-apple-system,'Segoe UI',Roboto,sans-serif;}
+body.plex .sinput,body.plex .sinput-sm,body.plex .meas-input,body.plex .meas-chip-val,body.plex .em-v,body.plex #week-label,body.plex #timer-num,body.plex .ref-chip,body.plex .hist-chip{font-family:'IBM Plex Mono',Consolas,monospace;}
 html,body{height:100%;max-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
 #app{height:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;}
 
 /* HEADER */
-header{height:54px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 6px;flex-shrink:0;gap:2px;}
+header{height:calc(54px + env(safe-area-inset-top,0px));background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:env(safe-area-inset-top,0px) 6px 0 6px;flex-shrink:0;gap:2px;}
 header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;}
 .hbtn{background:none;border:none;color:var(--text);font-size:22px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:8px;flex-shrink:0;}
 .hbtn:active{background:var(--bg3)}.hbtn.hidden{visibility:hidden;pointer-events:none}
@@ -94,6 +126,11 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .ref-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px}
 .ref-chip{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:12px;color:var(--text2);}.ref-chip.nd{color:var(--text3);font-style:italic}
 .ref-chip.pr-chip{border-color:var(--pr);color:var(--pr);}
+.prev-box{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.prev-box .ref-chip{color:var(--text)}
+.prev-box .ref-chips{margin-bottom:0}
+.prev-note-hl{display:flex;gap:6px;align-items:flex-start;background:rgba(233,196,106,0.12);border:1px solid var(--yellow);border-radius:6px;padding:6px 9px;margin-top:7px;font-size:12px;color:var(--yellow);line-height:1.35}
+@keyframes confetti-fall{to{transform:translateY(110vh) rotate(240deg);opacity:.9}}
 .set-hdr{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:4px;}.set-hdr span{text-align:center;font-size:10px;color:var(--text3);text-transform:uppercase}
 .set-row{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:7px;align-items:center;}
 .set-lbl{font-size:12px;color:var(--text3);font-weight:600;text-align:center}
@@ -113,19 +150,19 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .suggestion.show{display:block}
 
 /* SAVE BUTTON */
-.btn-save{background:var(--accent);border:none;color:#fff;font-size:16px;font-weight:700;padding:15px;border-radius:var(--radius);width:100%;cursor:pointer;margin-top:6px;margin-bottom:24px;}.btn-save:active{opacity:.85}
+.btn-save{background:var(--accent);border:none;color:var(--accent-fg);font-size:16px;font-weight:700;padding:15px;border-radius:var(--radius);width:100%;cursor:pointer;margin-top:6px;margin-bottom:24px;}.btn-save:active{opacity:.85}
 
 /* TIMER OVERLAY */
 #timer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
 #timer-overlay.show{display:flex}
 #timer-circle{width:180px;height:180px;border-radius:50%;border:6px solid var(--accent);display:flex;align-items:center;justify-content:center;flex-direction:column;}
-#timer-num{font-size:52px;font-weight:700;color:var(--text)}
-#timer-label{font-size:13px;color:var(--text3)}
+#timer-num{font-size:52px;font-weight:700;color:#fff}
+#timer-label{font-size:13px;color:#bbb}
 .btn-timer-skip{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:12px 32px;border-radius:var(--radius);font-size:15px;cursor:pointer;}
 
 /* HISTORIA */
 .hist-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
-.fchip{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--text2);}.fchip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.fchip{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--text2);}.fchip.active{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);}
 .hist-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;}
 .hist-hdr{padding:11px 13px;background:var(--bg2);font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;}
 .hist-hdr-sub{color:var(--text3);font-size:12px;font-weight:400}
@@ -141,7 +178,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .prog-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
 .prog-select{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:9px 10px;width:100%;margin-bottom:10px;-webkit-appearance:none;appearance:none;}
 .prog-tabs{display:flex;gap:6px;margin-bottom:10px;}
-.ptab{flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;text-align:center;}.ptab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.ptab{flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;text-align:center;}.ptab.active{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);}
 .range-tabs{display:flex;gap:6px;}
 .rtab{flex:1;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:11px;cursor:pointer;text-align:center;}.rtab.active{background:var(--blue);border-color:var(--blue);color:#fff;}
 .prog-stats{display:flex;gap:8px;margin-bottom:12px;}
@@ -191,11 +228,11 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .modal-input:focus{outline:none;border-color:var(--accent)}
 .modal-select{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;padding:10px;width:100%;-webkit-appearance:none;appearance:none;}
 .modal-btns{display:flex;gap:10px;margin-top:16px;}
-.btn-primary{flex:1;background:var(--accent);border:none;color:#fff;font-size:15px;font-weight:700;padding:13px;border-radius:var(--radius);cursor:pointer;}.btn-primary:active{opacity:.85}
+.btn-primary{flex:1;background:var(--accent);border:none;color:var(--accent-fg);font-size:15px;font-weight:700;padding:13px;border-radius:var(--radius);cursor:pointer;}.btn-primary:active{opacity:.85}
 .btn-secondary{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:15px;padding:13px;border-radius:var(--radius);cursor:pointer;}
 
 /* TOAST */
-#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(100px);background:#2e2e2e;border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:20px;font-size:13px;transition:transform .3s ease,opacity .3s ease;z-index:999;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;}
+#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(100px);background:#2e2e2e;border:1px solid #444;color:#f0f0f0;padding:9px 18px;border-radius:20px;font-size:13px;transition:transform .3s ease,opacity .3s ease;z-index:999;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;}
 
 /* EMPTY */
@@ -407,6 +444,25 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       </div>
     </div>
     <div class="sct">
+      <div class="sct-title">Bajery ✨</div>
+      <div class="stoggle">
+        <div class="stoggle-txt"><div class="stoggle-name">Objętość sesji na żywo</div><div class="stoggle-desc">Suma kg×powt. w pasku postępu treningu</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-session-volume" onchange="saveSetting('sessionVolume',this.checked);renderWorkoutProgress()"><span class="sl"></span></label>
+      </div>
+      <div class="stoggle">
+        <div class="stoggle-txt"><div class="stoggle-name">Efekt ukończenia 🎉</div><div class="stoggle-desc">Krótka animacja gdy trening dobije do 100%</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-finish-fx" onchange="saveSetting('finishFx',this.checked)"><span class="sl"></span></label>
+      </div>
+      <div class="stoggle">
+        <div class="stoggle-txt"><div class="stoggle-name">Auto-timer po serii</div><div class="stoggle-desc">Wpisanie powtórzeń startuje odliczanie przerwy</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-auto-timer" onchange="saveSetting('autoTimer',this.checked)"><span class="sl"></span></label>
+      </div>
+      <div class="stoggle" style="border-bottom:none">
+        <div class="stoggle-txt"><div class="stoggle-name">Podpowiedzi między dniami</div><div class="stoggle-desc">To samo ćwiczenie (po nazwie) w innym dniu zaciąga ostatnie wyniki, np. z PUSH do PULL</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-cross-day" onchange="saveSetting('crossDaySuggest',this.checked)"><span class="sl"></span></label>
+      </div>
+    </div>
+    <div class="sct">
       <div class="sct-title">Po ostatniej serii ćwiczenia</div>
       <div class="stoggle">
         <div class="stoggle-txt"><div class="stoggle-name">Chowaj klawiaturę</div><div class="stoggle-desc">Po wpisaniu ostatniej serii — blur, klawiatura znika</div></div>
@@ -498,6 +554,11 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
           <button id="theme-forest" onclick="setTheme('forest')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🌲 Las</button>
           <button id="theme-violet" onclick="setTheme('violet')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🔮 Fiolet</button>
           <button id="theme-amber" onclick="setTheme('amber')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🔥 Bursztyn</button>
+          <button id="theme-rose" onclick="setTheme('rose')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🌸 Róż</button>
+          <button id="theme-blush" onclick="setTheme('blush')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🌷 Pudrowy</button>
+          <button id="theme-nord" onclick="setTheme('nord')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🧊 Nord</button>
+          <button id="theme-dracula" onclick="setTheme('dracula')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🧛 Dracula</button>
+          <button id="theme-plex" onclick="setTheme('plex')" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:6px 10px;cursor:pointer">🟧 IBM Plex</button>
         </div>
       </div>
     </div>
@@ -510,7 +571,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.7 · 2026-08-04 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.8 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -574,7 +635,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.7';
+var APP_VERSION = '5.8';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -590,6 +651,7 @@ var _timerRemaining = 0;
 var _progTab = 'weight';
 var _progRange = 4;
 var _modalCtx = null;
+var _modalClosing = false; // blokada podwójnego history.back() zanim przyjdzie popstate
 var _dragSrc = null;
 
 var LS_PLAN = 'trening_plan';
@@ -650,17 +712,21 @@ function applySettings() {
   document.getElementById('timer-secs').value    = settings.timerSecs;
   // Motyw — v5.7: settings.theme; stare backupy mają tylko pola light/oled
   var themeMode = settings.theme || (settings.oled ? 'oled' : (settings.light ? 'light' : 'dark'));
-  var ALL_THEMES = ['dark','oled','light','navy','forest','violet','amber'];
+  var ALL_THEMES = ['dark','oled','light','navy','forest','violet','amber','rose','blush','nord','dracula','plex'];
   if (ALL_THEMES.indexOf(themeMode) < 0) themeMode = 'dark';
-  document.body.classList.remove('light','oled','navy','forest','violet','amber');
+  document.body.classList.remove('light','oled','navy','forest','violet','amber','rose','blush','nord','dracula','plex');
   if (themeMode !== 'dark') document.body.classList.add(themeMode);
+  if (themeMode === 'plex') ensurePlexFonts();
+  // Pasek systemowy w kolorze motywu (Android/iOS PWA)
+  var tcMeta = document.querySelector('meta[name="theme-color"]');
+  if (tcMeta) tcMeta.setAttribute('content', getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0f0f0f');
   ALL_THEMES.forEach(function(t) {
     var btn = document.getElementById('theme-'+t);
     if (!btn) return;
     var active = (t === themeMode);
     btn.style.background = active ? 'var(--accent)' : 'var(--bg3)';
     btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
-    btn.style.color = active ? '#fff' : 'var(--text2)';
+    btn.style.color = active ? 'var(--accent-fg)' : 'var(--text2)';
   });
   // Deload toggle
   var togDeload = document.getElementById('tog-deload');
@@ -693,11 +759,20 @@ function applySettings() {
     var active = (m === htm);
     btn.style.background = active ? 'var(--accent)' : 'var(--bg3)';
     btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
-    btn.style.color = active ? '#fff' : 'var(--text2)';
+    btn.style.color = active ? 'var(--accent-fg)' : 'var(--text2)';
   });
   // Backspace nav
   var togBsNav = document.getElementById('tog-backspace-nav');
   if (togBsNav) togBsNav.checked = !!settings.backspaceNav;
+  // v5.8: bajery
+  var togSV = document.getElementById('tog-session-volume');
+  if (togSV) togSV.checked = settings.sessionVolume !== false;
+  var togFX = document.getElementById('tog-finish-fx');
+  if (togFX) togFX.checked = settings.finishFx !== false;
+  var togAT = document.getElementById('tog-auto-timer');
+  if (togAT) togAT.checked = !!settings.autoTimer;
+  var togCD = document.getElementById('tog-cross-day');
+  if (togCD) togCD.checked = !!settings.crossDaySuggest;
   // Tryb wykresu obwodów
   var mode = settings.circChartMode || 'single';
   var btnS = document.getElementById('circ-mode-single');
@@ -735,7 +810,18 @@ function toggleTheme(on) {
   // zachowane dla kompatybilności backupów
   setTheme(on ? 'light' : 'dark');
 }
-var THEME_NAMES = { dark:'🌙 Ciemny', oled:'⚫ OLED', light:'☀️ Jasny', navy:'🌊 Ocean', forest:'🌲 Las', violet:'🔮 Fiolet', amber:'🔥 Bursztyn' };
+var THEME_NAMES = { dark:'🌙 Ciemny', oled:'⚫ OLED', light:'☀️ Jasny', navy:'🌊 Ocean', forest:'🌲 Las', violet:'🔮 Fiolet', amber:'🔥 Bursztyn', rose:'🌸 Róż', blush:'🌷 Pudrowy', nord:'🧊 Nord', dracula:'🧛 Dracula', plex:'🟧 IBM Plex' };
+
+// Czcionki IBM Plex — doładowywane tylko gdy motyw Plex aktywny (offline: fallback systemowy)
+var _plexFontsLoaded = false;
+function ensurePlexFonts() {
+  if (_plexFontsLoaded) return;
+  _plexFontsLoaded = true;
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap';
+  document.head.appendChild(l);
+}
 function setTheme(mode) {
   if (!THEME_NAMES[mode]) mode = 'dark';
   settings.theme = mode;
@@ -818,6 +904,12 @@ function handleWakeLock() {
 // NAWIGACJA
 // ═══════════════════════════════════════════════
 function showView(name, fromPop) {
+  // Powrót na home z zakładki konsumuje wpis historii (history.back -> popstate dokończy),
+  // żeby Wstecz nie zbierał potem martwych kliknięć "w próżnię"
+  if (name === 'home' && !fromPop && currentView !== 'home' && history.state && history.state.view) {
+    history.back();
+    return;
+  }
   // v5.2: zapisz trening przed przejściem do ustawień lub innego widoku
   if (name === 'settings' && currentView === 'workout') {
     saveWorkout(true);
@@ -846,10 +938,13 @@ function showView(name, fromPop) {
 
   // Każde przejście poza home dodaje wpis do historii przeglądarki
   // dzięki temu Wstecz Android zawsze trafia do popstate zamiast wyjść z apki.
-  // fromPop = wywołanie z popstate — wtedy NIE dokładamy wpisu (historia by puchła
-  // i Wstecz trzeba było klikać wielokrotnie "w próżnię")
-  if (name !== 'home' && !fromPop) {
-    history.pushState({ view: name }, '');
+  // fromPop = wywołanie z popstate — wtedy NIE dokładamy wpisu (historia by puchła);
+  // prevView !== name — ponowny tap w aktywną zakładkę nie dubluje wpisu;
+  // zakładka -> zakładka PODMIENIA wpis (replaceState) — Wstecz zawsze wraca prosto na home
+  if (name !== 'home' && !fromPop && prevView !== name) {
+    var TAB_VIEWS = { history: 1, progress: 1, measurements: 1 };
+    if (TAB_VIEWS[name] && TAB_VIEWS[prevView]) history.replaceState({ view: name }, '');
+    else history.pushState({ view: name }, '');
   }
   handleWakeLock();
 
@@ -875,6 +970,7 @@ function navBack() {
 
 function openDay(id) {
   currentDayId = id;
+  _lastProgressPct = -1; // nie odpalaj efektu ukończenia przy wejściu w gotowy trening
   showView('workout');
   renderWorkout();
   // Przewiń widok workout na górę przy każdym otwarciu treningu
@@ -886,22 +982,29 @@ function showEditorView() { showView('editor'); }
 
 // Przycisk Wstecz Android
 window.addEventListener('popstate', function() {
-  if (_saveGuard) return;
-  _saveGuard = true;
+  // Pełnoekranowy timer: Wstecz zamyka odliczanie, nie nawiguje pod overlayem
+  var tOv = document.getElementById('timer-overlay');
+  if (tOv && tOv.classList.contains('show')) {
+    timerStop();
+    history.pushState({ view: currentView }, ''); // odłóż zdjęty wpis
+    return;
+  }
   // Jeśli modal jest otwarty — zamknij go (równoznaczne z Anuluj)
   var modal = document.getElementById('modal-overlay');
   if (modal.classList.contains('show')) {
     closeModal(true);
-    setTimeout(function() { _saveGuard = false; }, 300);
     return;
   }
+  // Guard blokuje tylko skutki uboczne (zapis, toast) — przełączenie widoku wykonuje się
+  // ZAWSZE, inaczej szybki podwójny Wstecz rozjeżdżał widok ze stosem historii
+  var guarded = _saveGuard;
+  _saveGuard = true;
   if (currentView === 'workout') {
-    saveWorkout(true);
+    if (!guarded) { saveWorkout(true); toast('✅ Zapisano!'); }
     showView('home', true);
-    toast('✅ Zapisano!');
   } else if (currentView === 'editor') {
     showView('settings', true);
-  } else if (currentView === 'settings' || currentView === 'history' || currentView === 'progress' || currentView === 'measurements') {
+  } else if (currentView !== 'home') {
     showView('home', true);
   }
   // Na home — pozwól wyjść z apki normalnie
@@ -992,6 +1095,119 @@ window.addEventListener('popstate', function() {
     for (var i = 0; i < list.length; i++) list[i].setAttribute('enterkeyhint', 'next');
   };
 })();
+
+// ═══════════════════════════════════════════════
+// v5.8: ŻYWY PASEK POSTĘPU, OBJĘTOŚĆ SESJI, EFEKT UKOŃCZENIA, AUTO-TIMER
+// ═══════════════════════════════════════════════
+
+// Objętość bieżącej sesji (kg×powt.) — z zapisanych danych, razem z dropami i bonusami
+function computeSessionVolume() {
+  if (!currentDayId) return 0;
+  var dl = logs[logKey(currentWeek, currentDayId)];
+  if (!dl) return 0;
+  var vol = 0;
+  Object.keys(dl).forEach(function(k) {
+    if (!(isExKey(k) || k.indexOf('_bonus') >= 0)) return;
+    var arr = dl[k];
+    if (!Array.isArray(arr)) return;
+    arr.forEach(function(s) {
+      vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
+      for (var dv = 0; dv < 6; dv++) {
+        if (s['drop' + dv + 'w'] !== undefined) vol += (parseFloat(s['drop' + dv + 'w']) || 0) * (parseInt(s['drop' + dv + 'r'], 10) || 0);
+      }
+      [['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(p) {
+        if (s[p[0]] !== undefined) vol += (parseFloat(s[p[0]]) || 0) * (parseInt(s[p[1]], 10) || 0);
+      });
+    });
+  });
+  return Math.round(vol);
+}
+
+// Pasek postępu treningu — wołany z renderWorkout i na żywo przy wpisywaniu
+var _lastProgressPct = -1;
+function renderWorkoutProgress() {
+  var pb = document.getElementById('workout-progress-bar');
+  if (!pb || !currentDayId || currentView !== 'workout') return;
+  var prog = dayProgress(currentWeek, currentDayId);
+  if (prog.total > 0) {
+    pb.style.display = 'block';
+    var pct = prog.pct;
+    var pctColor = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--bg3)';
+    var pctLabel = pct >= 100 ? '✓ Trening ukończony!' : pct + '% ukończono (' + prog.done + '/' + prog.total + ' serii)';
+    var volHtml = '';
+    if (settings.sessionVolume !== false) {
+      var vol = computeSessionVolume();
+      if (vol > 0) volHtml = '<span style="font-size:12px;color:var(--text2);font-weight:600">' + vol + ' kg</span>';
+    }
+    pb.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 13px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      + '<span style="font-size:12px;color:var(--text2)">' + pctLabel + '</span>'
+      + volHtml
+      + '</div>'
+      + '<div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">'
+      + '<div style="background:' + pctColor + ';height:100%;width:' + pct + '%;border-radius:4px;transition:width .3s"></div>'
+      + '</div></div>';
+    // Efekt ukończenia — tylko przy przejściu z <100% na 100% w trakcie sesji
+    if (settings.finishFx !== false && pct >= 100 && _lastProgressPct >= 0 && _lastProgressPct < 100) finishCelebrate();
+    _lastProgressPct = pct;
+  } else {
+    pb.style.display = 'none';
+    _lastProgressPct = 0;
+  }
+}
+
+// Krótka animacja ukończenia treningu (bez bibliotek, deterministyczna)
+function finishCelebrate() {
+  toast('💪 Trening ukończony!');
+  if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  var host = document.createElement('div');
+  host.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden';
+  var emo = ['🎉','💪','🔥','⭐','🏆'];
+  for (var i = 0; i < 18; i++) {
+    var sp = document.createElement('span');
+    sp.textContent = emo[i % emo.length];
+    var dur = 1.4 + ((i * 7) % 10) / 10;
+    var delay = ((i * 13) % 40) / 100;
+    sp.style.cssText = 'position:absolute;top:-30px;left:' + ((i * 53) % 100) + '%;font-size:' + (16 + (i * 5) % 14) + 'px;animation:confetti-fall ' + dur + 's ' + delay + 's ease-in forwards';
+    host.appendChild(sp);
+  }
+  document.body.appendChild(host);
+  setTimeout(function() { if (host.parentNode) host.parentNode.removeChild(host); }, 2600);
+}
+
+// Autozapis + żywa aktualizacja paska podczas wpisywania (debounce)
+var _liveProgressTimer = null;
+document.addEventListener('input', function(e) {
+  if (currentView !== 'workout') return;
+  var t = e.target;
+  if (!t || !t.classList || !t.classList.contains('sinput')) return;
+  clearTimeout(_liveProgressTimer);
+  _liveProgressTimer = setTimeout(function() {
+    if (currentView !== 'workout') return;
+    saveWorkout(true);
+    renderWorkoutProgress();
+  }, 600);
+});
+
+// Auto-timer: zatwierdzenie pola powtórzeń (change = blur/Enter) startuje przerwę
+document.addEventListener('change', function(e) {
+  if (!settings.autoTimer || currentView !== 'workout') return;
+  var t = e.target;
+  if (!t || !t.id || !t.classList || !t.classList.contains('sinput')) return;
+  var isReps = /^r_|^dr_|^bonus_r_/.test(t.id) || /_r$/.test(t.id) || /_rd\d$/.test(t.id);
+  if (!isReps || !t.value.trim()) return;
+  if (_timerInterval) return; // timer już chodzi
+  timerStart(null);
+});
+
+// Notatki: po otwarciu klawiatury delikatnie doscrolluj pole w widoczne miejsce
+document.addEventListener('focusin', function(e) {
+  var t = e.target;
+  if (!t || !t.classList || !t.classList.contains('note-input')) return;
+  setTimeout(function() {
+    try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(err) { t.scrollIntoView(false); }
+  }, 300);
+});
 
 // v5.2: Swipe lewo/prawo na home = zmiana tygodnia
 (function() {
@@ -1120,31 +1336,76 @@ function isPR(dayId, exId, weight, uptoWeek) {
   return foundPrev;
 }
 
+// v5.8: to samo ćwiczenie (po nazwie) w innych dniach planu — opcjonalne źródło podpowiedzi
+// Zwraca listę {dayId, exId}; przy wyłączonym toggle'u tylko bieżące ćwiczenie
+function exRefsFor(dayId, exId) {
+  var refs = [{ dayId: dayId, exId: exId }];
+  if (!settings.crossDaySuggest || !plan || !plan.days) return refs;
+  var day = plan.days.find(function(d) { return d.id === dayId; });
+  var ex = day && day.exercises.find(function(e) { return e.id === exId; });
+  if (!ex || !ex.name) return refs;
+  var norm = String(ex.name).trim().toLowerCase();
+  plan.days.forEach(function(d) {
+    d.exercises.forEach(function(e2) {
+      if ((d.id !== dayId || e2.id !== exId) && e2.name && String(e2.name).trim().toLowerCase() === norm) {
+        refs.push({ dayId: d.id, exId: e2.id });
+      }
+    });
+  });
+  return refs;
+}
+
+// Czy log (week, srcDayId) może być źródłem podpowiedzi dla dnia forDayId:
+// wcześniejsze tygodnie zawsze; bieżący tydzień tylko z INNEGO dnia (np. PUSH zrobiony przed PULL)
+function isSuggestSource(week, srcDayId, forDayId) {
+  return week < currentWeek || (week === currentWeek && srcDayId !== forDayId);
+}
+
 // Podpowiedź ciężaru — standard i backoff (serie robocze)
 // v4.9: szuka ostatniego wykonanego tygodnia (nie currentWeek-1)
-function getLastSets(dayId, exId) {
-  var bestWeek = -1; var bestSets = null;
-  Object.keys(logs).forEach(function(key) {
-    var pk = parseLogKey(key);
-    if (pk[1] === dayId && pk[0] < currentWeek && logs[key][exId]) {
-      if (pk[0] > bestWeek) { bestWeek = pk[0]; bestSets = logs[key][exId]; }
-    }
+// v5.8: z toggle'em crossDaySuggest zagląda też do tego samego ćwiczenia w innych dniach
+function getLastSetsRef(dayId, exId) {
+  var best = null; var bestScore = -1; var bestRef = null;
+  exRefsFor(dayId, exId).forEach(function(ref) {
+    Object.keys(logs).forEach(function(key) {
+      var pk = parseLogKey(key);
+      if (pk[1] !== ref.dayId) return;
+      if (!isSuggestSource(pk[0], ref.dayId, dayId)) return;
+      if (!logs[key][ref.exId]) return;
+      // ranga: nowszy tydzień wygrywa, przy remisie ten sam dzień ma pierwszeństwo
+      var score = pk[0] * 2 + (ref.dayId === dayId ? 1 : 0);
+      if (score > bestScore) { bestScore = score; best = logs[key][ref.exId]; bestRef = ref; }
+    });
   });
-  return bestSets;
+  return best ? { sets: best, ref: bestRef } : null;
+}
+function getLastSets(dayId, exId) {
+  var r = getLastSetsRef(dayId, exId);
+  return r ? r.sets : null;
 }
 
 function getSuggestion(dayId, exId, scheme, schemeType) {
   if (!settings.suggest) return null;
   // Obsługujemy standard i backoff; exdrop/dropset pomijamy
   if (schemeType && schemeType !== 'standard' && schemeType !== 'backoff') return null;
-  var prev = getLastSets(dayId, exId);
-  if (!prev || !prev.length) return null;
+  var lastRef = getLastSetsRef(dayId, exId);
+  if (!lastRef || !lastRef.sets.length) return null;
+  var prev = lastRef.sets;
+  // Źródło z innego dnia (cross-day): sugestia tylko gdy tamto ćwiczenie też jest
+  // standard/backoff, a serię BO odcinamy wg typu ŹRÓDŁA (inny typ = inna struktura danych)
+  var srcType = schemeType || 'standard';
+  if (lastRef.ref && lastRef.ref.dayId !== dayId && plan && plan.days) {
+    var srcDay = plan.days.find(function(d) { return d.id === lastRef.ref.dayId; });
+    var srcEx = srcDay && srcDay.exercises.find(function(e) { return e.id === lastRef.ref.exId; });
+    srcType = (srcEx && srcEx.schemeType) ? srcEx.schemeType : 'standard';
+    if (srcType !== 'standard' && srcType !== 'backoff') return null;
+  }
   // Parsuj górną granicę powt. ze scheme np "4×5–8" → 8
   var m = scheme ? scheme.match(/(\d+)\s*[–\-]\s*(\d+)/) : null;
   if (!m) return null;
   var maxReps = parseInt(m[2]);
   // Dla backoff — sprawdzaj tylko serie robocze (bez ostatniej BO)
-  var checkSets = (schemeType === 'backoff') ? prev.slice(0, prev.length - 1) : prev;
+  var checkSets = (srcType === 'backoff') ? prev.slice(0, prev.length - 1) : prev;
   if (!checkSets.length) return null;
   // Sprawdź czy wszystkie serie robocze osiągnęły max powt.
   var allMax = checkSets.every(function(s) { return parseInt(s.r) >= maxReps; });
@@ -1186,7 +1447,8 @@ function saveWorkout(silent) {
 
   // v3.10 B: snapshot nazwy dnia i ćwiczeń — raport używa tych nazw nawet po zmianie planu
   logs[key]._dayName = day.name;
-  var exNames = {};
+  // Zachowaj stare wpisy snapshotu — nazwy ćwiczeń usuniętych z planu nie mogą zginąć
+  var exNames = logs[key]._exNames || {};
   day.exercises.forEach(function(ex) { exNames[ex.id] = ex.name; });
   logs[key]._exNames = exNames;
 
@@ -1232,7 +1494,13 @@ function saveWorkout(silent) {
         sets.push({ w: wv, r: rv });
       }
     }
-    if (sets.some(function(s) { return s.w || s.r; })) logs[key][ex.id] = sets;
+    var setHasVal = function(s) {
+      if (s.w || s.r) return true;
+      for (var q = 0; q < 6; q++) { if (s['drop' + q + 'w'] || s['drop' + q + 'r']) return true; }
+      return !!(s.wd0 || s.rd0 || s.wd1 || s.rd1 || s.wd2 || s.rd2 || s.wd3 || s.rd3 || s.wd4 || s.rd4);
+    };
+    if (sets.some(setHasVal)) logs[key][ex.id] = sets;
+    else delete logs[key][ex.id]; // wyczyszczone pola = usunięcie serii z logu (nie zmartwychwstają)
     // Notatka per ćwiczenie
     var nEl = document.getElementById('note_' + ex.id);
     if (nEl && nEl.value.trim()) logs[key]['note_' + ex.id] = nEl.value.trim();
@@ -1253,14 +1521,11 @@ function saveWorkout(silent) {
     else delete logs[key][bonusKey];
   });
 
-  // Sprawdź czy jest cokolwiek wpisane (seria lub notatka ogólna) — ignoruj metadane
-  var hasAnyData = false;
-  day.exercises.forEach(function(ex) {
-    if (logs[key][ex.id]) hasAnyData = true;
-    if (logs[key]['note_' + ex.id]) hasAnyData = true;
-    if (logs[key][ex.id + '_bonus']) hasAnyData = true;
+  // Sprawdź czy jest cokolwiek wpisane — po WSZYSTKICH kluczach logu (nie tylko z aktualnego
+  // planu), inaczej zapis dnia kasowałby dane ćwiczeń usuniętych z planu
+  var hasAnyData = Object.keys(logs[key]).some(function(k) {
+    return k !== '_date' && k !== '_dayName' && k !== '_exNames';
   });
-  if (logs[key]._note) hasAnyData = true;
 
   if (!hasAnyData) {
     // Nic nie wpisano — usuń pusty wpis jeśli powstał
@@ -1282,10 +1547,10 @@ function saveWorkout(silent) {
 // ═══════════════════════════════════════════════
 function timerStart(btn) {
   if (_timerInterval) { timerStop(); return; }
-  _timerRemaining = settings.timerSecs;
+  _timerRemaining = intOr(settings.timerSecs, 90);
   var overlay = document.getElementById('timer-overlay');
   overlay.classList.add('show');
-  btn.classList.add('running');
+  if (btn && btn.classList) btn.classList.add('running');
   updateTimerDisplay();
   _timerInterval = setInterval(function() {
     _timerRemaining--;
@@ -1350,6 +1615,9 @@ function renderWorkout() {
   var day = plan.days.find(function(d) { return d.id === currentDayId; });
   if (!day) return;
   var c = document.getElementById('ex-list');
+  // Rerender (bonus, ustawienia) nie może uciekać z ekranu — zapamiętaj pozycję scrolla
+  var vwScrollEl = document.getElementById('view-workout');
+  var vwScrollKeep = vwScrollEl ? vwScrollEl.scrollTop : 0;
   var key = logKey(currentWeek, currentDayId);
   var dl = logs[key] || {};
 
@@ -1380,65 +1648,63 @@ function renderWorkout() {
     else if (snBody) snBody.classList.remove('open');
   }
 
-  // Pasek postępu treningu
-  var pb = document.getElementById('workout-progress-bar');
-  if (pb) {
-    var prog = dayProgress(currentWeek, currentDayId);
-    if (prog.total > 0) {
-      pb.style.display = 'block';
-      var pct = prog.pct;
-      var pctColor = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--bg3)';
-      var pctLabel = pct >= 100 ? '✓ Trening ukończony!' : pct + '% ukończono (' + prog.done + '/' + prog.total + ' serii)';
-      pb.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 13px">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-        + '<span style="font-size:12px;color:var(--text2)">' + pctLabel + '</span>'
-        + '</div>'
-        + '<div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">'
-        + '<div style="background:' + pctColor + ';height:100%;width:' + pct + '%;border-radius:4px;transition:width .3s"></div>'
-        + '</div></div>';
-    } else {
-      pb.style.display = 'none';
-    }
-  }
+  // Pasek postępu treningu (v5.8: wydzielony — aktualizowany też na żywo przy wpisywaniu)
+  renderWorkoutProgress();
 
   c.innerHTML = day.exercises.map(function(ex, idx) {
     var curr = getCurrentSets(currentDayId, ex.id);
     var savedNote = dl['note_' + ex.id] || '';
 
     // Poprzedni tydzień — v4.9: ostatni wykonany (nie currentWeek-1)
+    // v5.8: opcjonalnie także z innych dni (to samo ćwiczenie po nazwie); wyraźny panel
+    var exRefs = exRefsFor(currentDayId, ex.id);
     var prev = getLastSets(currentDayId, ex.id);
     var prevHTML = '';
     if (prev && prev.length) {
         // v5.0: podpowiedź per seria — dla każdej serii szukamy ostatniego tygodnia gdzie ta seria była wpisana
         var chips = Array.from({ length: ex.setsCount }, function(_, si) {
-          var bestW = -1; var bestSets = null;
-          Object.keys(logs).forEach(function(k) {
-            var pk2 = parseLogKey(k);
-            if (pk2[1] === currentDayId && pk2[0] < currentWeek) {
+          var bestW = -1; var bestSets = null; var bestScore = -1; var bestSrcDay = null;
+          exRefs.forEach(function(ref) {
+            Object.keys(logs).forEach(function(k) {
+              var pk2 = parseLogKey(k);
+              if (pk2[1] !== ref.dayId) return;
+              if (!isSuggestSource(pk2[0], ref.dayId, currentDayId)) return;
               var dl2 = logs[k];
-              if (dl2[ex.id] && dl2[ex.id][si] && (dl2[ex.id][si].w || dl2[ex.id][si].r)) {
-                if (pk2[0] > bestW) { bestW = pk2[0]; bestSets = dl2[ex.id][si]; }
+              if (dl2[ref.exId] && dl2[ref.exId][si] && (dl2[ref.exId][si].w || dl2[ref.exId][si].r)) {
+                var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
+                if (score > bestScore) { bestScore = score; bestW = pk2[0]; bestSets = dl2[ref.exId][si]; bestSrcDay = ref.dayId; }
               }
-            }
+            });
           });
           if (!bestSets) return '<span class="ref-chip nd">S' + (si+1) + ': brak</span>';
-          var prMark = isPR(currentDayId, ex.id, bestSets.w, bestW) ? ' 🏆' : '';
-          var weekLabel = bestW !== -1 ? '<span style="font-size:9px;color:var(--text3)"> T' + bestW + '</span>' : '';
+          // 🏆 tylko dla danych z TEGO dnia — isPR porównuje z historią bieżącego dnia
+          var prMark = (bestSrcDay === currentDayId && isPR(currentDayId, ex.id, bestSets.w, bestW)) ? ' 🏆' : '';
+          var srcLabel = '';
+          if (bestSrcDay && bestSrcDay !== currentDayId) {
+            var srcD = plan.days.find(function(d) { return d.id === bestSrcDay; });
+            if (srcD) srcLabel = '·' + esc(srcD.name);
+          }
+          var weekLabel = bestW !== -1 ? '<span style="font-size:9px;color:var(--text3)"> T' + bestW + srcLabel + '</span>' : '';
           return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (si+1) + ': ' + (bestSets.w||'—') + ' kg×' + (bestSets.r||'—') + prMark + weekLabel + '</span>';
         }).join('');
-        var prevNote = '';
-        var bestPrevWeek = -1;
-        Object.keys(logs).forEach(function(k) {
-          var pk2 = parseLogKey(k);
-          if (pk2[1] === currentDayId && pk2[0] < currentWeek && pk2[0] > bestPrevWeek) bestPrevWeek = pk2[0];
+        // v5.8: ostatnia ISTNIEJĄCA notatka do tego ćwiczenia (nie tylko z ostatniego tygodnia)
+        // — wyeksponowana w żółtej ramce, żeby nie umykała
+        var prevNote = ''; var prevNoteScore = -1; var prevNoteSrc = '';
+        exRefs.forEach(function(ref) {
+          Object.keys(logs).forEach(function(k) {
+            var pk2 = parseLogKey(k);
+            if (pk2[1] !== ref.dayId) return;
+            if (!isSuggestSource(pk2[0], ref.dayId, currentDayId)) return;
+            var n = logs[k]['note_' + ref.exId];
+            if (!n) return;
+            var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
+            if (score > prevNoteScore) { prevNoteScore = score; prevNote = n; prevNoteSrc = 'T' + pk2[0]; }
+          });
         });
-        if (bestPrevWeek > 0 && logs[logKey(bestPrevWeek, currentDayId)]) {
-          prevNote = logs[logKey(bestPrevWeek, currentDayId)]['note_' + ex.id] || '';
-        }
         var prevNoteHTML = prevNote
-          ? '<div style="font-size:10px;color:var(--text3);font-style:italic;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">📝 ' + esc(prevNote) + '</div>'
+          ? '<div class="prev-note-hl">📝<span style="flex:1">' + esc(prevNote) + ' <span style="color:var(--text3);font-size:10px">(' + prevNoteSrc + ')</span></span></div>'
           : '';
-        prevHTML = '<div class="ref-label">↑ Ostatnie wyniki per seria</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML;
+        prevHTML = '<div class="prev-box"><div class="ref-label">↑ Ostatnie wyniki per seria</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML + '</div>';
     } else if (currentWeek > 1) {
       prevHTML = '<div class="ref-label">↑ brak poprzedniego treningu</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
     }
@@ -1585,7 +1851,8 @@ function renderWorkout() {
           for (var j = ex.setsCount - 2; j >= 0; j--) {
             if (curr[j] && parseFloat(curr[j].w) > 0) { lastRoboczaW = parseFloat(curr[j].w); break; }
           }
-          if (lastRoboczaW > 0) cw = (Math.round(lastRoboczaW * (1 - exBoPct/100) * 2) / 2).toFixed(1);
+          // Auto-propozycja BO dostaje znacznik data-dl — bez powtórzeń nie liczy się jako wykonana seria
+          if (lastRoboczaW > 0) { cw = (Math.round(lastRoboczaW * (1 - exBoPct/100) * 2) / 2).toFixed(1); dlAuto = true; }
         }
         var lbl = isBO ? 'BO' : 'S' + (i+1);
         var lblStyle = isBO ? 'color:var(--yellow)' : '';
@@ -1648,11 +1915,19 @@ function renderWorkout() {
       + '</div>';
   }).join('');
   applyEnterHints(document.getElementById('view-workout'));
+  // Przywróć pozycję scrolla sprzed rerenderu (openDay i tak zaraz ustawi 0 przy wejściu)
+  if (vwScrollEl) vwScrollEl.scrollTop = vwScrollKeep;
 }
 
 function toggleNote(btn) {
   var body = btn.nextElementSibling;
   body.classList.toggle('open');
+  // Otwarta notatka ma być widoczna pod palcem — doscrolluj minimalnie, bez skakania
+  if (body.classList.contains('open')) {
+    setTimeout(function() {
+      try { body.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch(e) { body.scrollIntoView(false); }
+    }, 80);
+  }
 }
 
 // Aktualizacja pola BO na żywo — bierze ciężar z ostatniej serii roboczej przed BO
@@ -1672,8 +1947,10 @@ function updateBOLive(exId, setsCount, backoffPct) {
   if (lastRoboczaW > 0) {
     var suggested = (Math.round(lastRoboczaW * (1 - backoffPct / 100) * 2) / 2).toFixed(1);
     boInput.value = suggested;
+    boInput.setAttribute('data-dl', '1'); // auto-propozycja — bez powtórzeń nie zapisuje się jako seria
   } else {
     boInput.value = '';
+    boInput.removeAttribute('data-dl');
   }
 }
 
@@ -1739,6 +2016,9 @@ function handleAfterLastSetInput(el, exId, exIdx) {
   // Debounce 800ms — czekamy aż użytkownik skończy wpisywać
   clearTimeout(_afterLastSetTimer);
   _afterLastSetTimer = setTimeout(function() {
+    // Działaj tylko gdy user wciąż stoi w polu, które odpaliło akcję — inaczej kradlibyśmy
+    // focus (np. z otwartej notatki) i wpisywany tekst lądowałby w polu ciężaru
+    if (document.activeElement !== el) return;
     if (mode === 'hide') {
       el.blur();
     } else if (mode === 'next') {
@@ -2238,7 +2518,11 @@ function renderSingleCircChart(label, vals, labels, selId, fields, selVal) {
 }
 
 function renderAllCircChart(fields, sorted) {
-  var colors=['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#a8dadc','#95d5b2','#f4a261'];
+  // Na jasnych motywach pastelowe stałe byłyby niewidoczne — ciemniejszy wariant
+  var lightUI = document.body.classList.contains('light') || document.body.classList.contains('blush');
+  var colors = lightUI
+    ? ['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#2a7f8a','#2e7d52','#b45309']
+    : ['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#a8dadc','#95d5b2','#f4a261'];
   var W=320;var H=150;var PAD=28;
   var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px;display:block;margin:0 auto">';
   for(var li=0;li<=3;li++){var ly=PAD+(H-PAD*2-20)*li/3;svg+='<line x1="'+PAD+'" y1="'+ly+'" x2="'+(W-PAD)+'" y2="'+ly+'" stroke="var(--border)" stroke-width="1"/>';}
@@ -2343,6 +2627,7 @@ function renderHistory() {
       if (found) { dayName = found.name; dayExs = found.exercises || []; }
     }
     var dl = logs[key];
+    if (dayName === dayId && dl._dayName) dayName = dl._dayName; // snapshot nazwy dnia po zmianie planu
     var date = dl._date || '';
 
     // Notatka ogólna sesji
@@ -2401,12 +2686,15 @@ function renderHistory() {
       }
     }
 
-    var items = Object.keys(dl).filter(function(k) {
-      return k !== '_date' && k !== '_note' && k !== '_dayName' && k !== '_exNames' && k.indexOf('note_') !== 0;
-    }).map(function(exId) {
-      var exObj = dayExs.find(function(e) { return e.id === exId; });
-      var nm = exObj ? exObj.name : exId;
-      var sets = dl[exId];
+    // isExKey odfiltrowuje też *_bonus (bonusy renderują się wewnątrz wpisu ćwiczenia);
+    // ćwiczenia mające TYLKO bonusy dostają własny wpis; nazwy ze snapshotu po zmianie planu
+    var mainIds = Object.keys(dl).filter(isExKey);
+    var bonusOnlyIds = Object.keys(dl).filter(function(k) {
+      return k.indexOf('_bonus') >= 0 && mainIds.indexOf(k.replace('_bonus', '')) < 0;
+    }).map(function(k) { return k.replace('_bonus', ''); });
+    var items = mainIds.concat(bonusOnlyIds).map(function(exId) {
+      var nm = getExName(dl, dayId, exId);
+      var sets = dl[exId] || [];
       var noteKey = 'note_' + exId;
       var noteVal = dl[noteKey] || '';
       // v5.7: deklaracje przeniesione przed blok trendu (wcześniej hoisting dawał undefined
@@ -2838,6 +3126,7 @@ function editorDelEx(di, ei) {
 }
 
 function modalSave() {
+  if (_modalClosing) return; // modal już się zamyka — drugi tap Zapisz nie może dublować zapisu
   if (!_modalCtx) return;
   var ctx = _modalCtx;
 
@@ -2932,6 +3221,7 @@ function modalSave() {
 function openModal()  {
   var ov = document.getElementById('modal-overlay');
   var wasOpen = ov.classList.contains('show');
+  _modalClosing = false;
   ov.classList.add('show');
   applyEnterHints(ov);
   // Modal na modalu nie dokłada drugiego wpisu — jedno zamknięcie = jeden Wstecz
@@ -2940,10 +3230,14 @@ function openModal()  {
 function closeModal(fromPop) {
   var ov = document.getElementById('modal-overlay');
   if (!fromPop && ov.classList.contains('show')) {
-    // Zamknięcie przyciskiem/tłem — cofnij wpis historii z openModal; popstate domknie modal
+    // Zamknięcie przyciskiem/tłem — cofnij wpis historii z openModal; popstate domknie modal.
+    // Drugi szybki tap zanim przyjdzie popstate = ignorowany (inaczej podwójny history.back)
+    if (_modalClosing) return;
+    _modalClosing = true;
     history.back();
     return;
   }
+  _modalClosing = false;
   ov.classList.remove('show');
   _modalCtx = null;
 }
@@ -3027,11 +3321,28 @@ function exportCSV() {
     Object.keys(dl).filter(isExKey).forEach(function(exId) {
       if (!Array.isArray(dl[exId])) return;
       var exObj = dayExs.find(function(e){ return e.id===exId; });
-      var exName = exObj ? exObj.name : exId;
+      var exName = exObj ? exObj.name : getExName(dl, dayId, exId);
       var note = dl['note_'+exId]||'';
       var sessionNote = dl._note || '';
       dl[exId].forEach(function(s,i) {
         rows += [csvEsc(date), week, csvEsc(dayName), csvEsc(exName), 'S'+(i+1), s.w||'', s.r||'', csvEsc(note), csvEsc(sessionNote)].join(';') + '\n';
+        // Dropy (dropset) i dogrywki (exdrop) — wcześniej CSV je gubił
+        for (var dq = 0; dq < 6; dq++) {
+          if (s['drop'+dq+'w'] || s['drop'+dq+'r']) rows += [csvEsc(date), week, csvEsc(dayName), csvEsc(exName), 'S'+(i+1)+'-drop'+(dq+1), s['drop'+dq+'w']||'', s['drop'+dq+'r']||'', '', ''].join(';') + '\n';
+        }
+        [['wd0','rd0','dogr.1'],['wd1','rd1','drop1'],['wd2','rd2','dogr.2'],['wd3','rd3','drop2'],['wd4','rd4','dogr.3']].forEach(function(pp) {
+          if (s[pp[0]] || s[pp[1]]) rows += [csvEsc(date), week, csvEsc(dayName), csvEsc(exName), 'S'+(i+1)+'-'+pp[2], s[pp[0]]||'', s[pp[1]]||'', '', ''].join(';') + '\n';
+        });
+      });
+    });
+    // Serie bonus w CSV (B1, B2...)
+    Object.keys(dl).forEach(function(bk) {
+      if (bk.indexOf('_bonus') < 0 || !Array.isArray(dl[bk])) return;
+      var baseId = bk.replace('_bonus', '');
+      var exObj2 = dayExs.find(function(e){ return e.id === baseId; });
+      var exName2 = exObj2 ? exObj2.name : getExName(dl, dayId, baseId);
+      dl[bk].forEach(function(bs, bi) {
+        if (bs.w || bs.r) rows += [csvEsc(date), week, csvEsc(dayName), csvEsc(exName2), 'B'+(bi+1), bs.w||'', bs.r||'', '', ''].join(';') + '\n';
       });
     });
   });
@@ -3577,7 +3888,13 @@ function handleLogsFile(e) {
         }
         // v3.9: Ustawienia (bez nadpisywania motywu jeśli nie ma)
         if (p.settings && typeof p.settings === 'object') {
-          Object.assign(settings, p.settings); saveSettings(); applySettings();
+          Object.assign(settings, p.settings);
+          // Backup sprzed 5.7 nie ma settings.theme — wyprowadź go z pól light/oled,
+          // inaczej motyw z backupu byłby ignorowany, a stan light/oled/theme sprzeczny
+          if (!p.settings.theme && (p.settings.light !== undefined || p.settings.oled !== undefined)) {
+            settings.theme = p.settings.oled ? 'oled' : (p.settings.light ? 'light' : 'dark');
+          }
+          saveSettings(); applySettings();
         }
         // v3.9: Tydzień
         if (p.week && typeof p.week === 'number') {
