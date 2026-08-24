@@ -131,6 +131,9 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .prev-box .ref-chips{margin-bottom:0}
 .prev-note-hl{display:flex;gap:6px;align-items:flex-start;background:rgba(233,196,106,0.12);border:1px solid var(--yellow);border-radius:6px;padding:6px 9px;margin-top:7px;font-size:12px;color:var(--yellow);line-height:1.35}
 .note-ok{display:block;margin-left:auto;margin-top:6px;background:var(--accent);border:none;border-radius:8px;color:var(--accent-fg);font-size:13px;font-weight:600;padding:8px 20px;cursor:pointer}.note-ok:active{opacity:.85}
+#week-stats{display:none;gap:8px;margin-bottom:10px}
+.ws-chip{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px 6px;font-size:11px;color:var(--text2);text-align:center;line-height:1.55}
+.ws-chip b{font-size:14px;color:var(--text)}
 @keyframes confetti-fall{to{transform:translateY(110vh) rotate(240deg);opacity:.9}}
 .set-hdr{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:4px;}.set-hdr span{text-align:center;font-size:10px;color:var(--text3);text-transform:uppercase}
 .set-row{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:7px;align-items:center;}
@@ -306,6 +309,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         onkeydown="if(event.key==='Enter')weekJumpCommit();if(event.key==='Escape')weekJumpCancel()">
       <button class="wbtn" onclick="changeWeek(1)">›</button>
     </div>
+    <div id="week-stats"></div>
     <div id="day-list"></div>
   </div>
 
@@ -359,6 +363,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="prog-stats" id="prog-stats"></div>
     <div class="chart-wrap" id="prog-chart"></div>
+    <div id="pr-records"></div>
   </div>
 
   <!-- USTAWIENIA -->
@@ -458,6 +463,10 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       <div class="stoggle">
         <div class="stoggle-txt"><div class="stoggle-name">Auto-timer po serii</div><div class="stoggle-desc">Wpisanie powtórzeń startuje odliczanie przerwy</div></div>
         <label class="toggle-sw"><input type="checkbox" id="tog-auto-timer" onchange="saveSetting('autoTimer',this.checked)"><span class="sl"></span></label>
+      </div>
+      <div class="stoggle">
+        <div class="stoggle-txt"><div class="stoggle-name">Pasek „Twój tydzień"</div><div class="stoggle-desc">Sesje, objętość z trendem i seria tygodni 🔥 na ekranie głównym</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="tog-week-stats" onchange="saveSetting('weekStats',this.checked);renderHome()"><span class="sl"></span></label>
       </div>
       <div class="stoggle" style="border-bottom:none">
         <div class="stoggle-txt"><div class="stoggle-name">Podpowiedzi między dniami</div><div class="stoggle-desc">To samo ćwiczenie (po nazwie) w innym dniu zaciąga ostatnie wyniki, np. z PUSH do PULL</div></div>
@@ -573,7 +582,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.0 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.1 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -637,7 +646,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.0';
+var APP_VERSION = '6.1';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -775,6 +784,8 @@ function applySettings() {
   if (togAT) togAT.checked = !!settings.autoTimer;
   var togCD = document.getElementById('tog-cross-day');
   if (togCD) togCD.checked = settings.crossDaySuggest !== false;
+  var togWS = document.getElementById('tog-week-stats');
+  if (togWS) togWS.checked = settings.weekStats !== false;
   // Tryb wykresu obwodów
   var mode = settings.circChartMode || 'single';
   var btnS = document.getElementById('circ-mode-single');
@@ -1102,10 +1113,8 @@ window.addEventListener('popstate', function() {
 // v5.8: ŻYWY PASEK POSTĘPU, OBJĘTOŚĆ SESJI, EFEKT UKOŃCZENIA, AUTO-TIMER
 // ═══════════════════════════════════════════════
 
-// Objętość bieżącej sesji (kg×powt.) — z zapisanych danych, razem z dropami i bonusami
-function computeSessionVolume() {
-  if (!currentDayId) return 0;
-  var dl = logs[logKey(currentWeek, currentDayId)];
+// Objętość jednego dnia (kg×powt.) — z zapisanych danych, razem z dropami i bonusami
+function volumeOfDayLog(dl) {
   if (!dl) return 0;
   var vol = 0;
   Object.keys(dl).forEach(function(k) {
@@ -1122,7 +1131,29 @@ function computeSessionVolume() {
       });
     });
   });
+  return vol;
+}
+function computeSessionVolume() {
+  if (!currentDayId) return 0;
+  return Math.round(volumeOfDayLog(logs[logKey(currentWeek, currentDayId)]));
+}
+// v6.1: statystyki tygodnia na home
+function computeWeekVolume(week) {
+  var vol = 0;
+  Object.keys(logs).forEach(function(k) {
+    if (parseLogKey(k)[0] === week) vol += volumeOfDayLog(logs[k]);
+  });
   return Math.round(vol);
+}
+function weekComplete(week) {
+  if (!plan || !plan.days || !plan.days.length) return false;
+  return plan.days.every(function(d) { return dayProgress(week, d.id).done > 0; });
+}
+function currentStreak() {
+  var s = 0; var w = currentWeek;
+  if (!weekComplete(w)) w--; // niedokończony bieżący tydzień nie przerywa serii
+  while (w >= 1 && weekComplete(w)) { s++; w--; }
+  return s;
 }
 
 // Pasek postępu treningu — wołany z renderWorkout i na żywo przy wpisywaniu
@@ -1584,6 +1615,29 @@ function updateTimerDisplay() {
 // ═══════════════════════════════════════════════
 function renderHome() {
   document.getElementById('week-label').textContent = 'Tydzień ' + currentWeek;
+  // v6.1: pasek "Twój tydzień" — sesje, objętość z trendem, seria tygodni
+  var ws = document.getElementById('week-stats');
+  if (ws) {
+    if (settings.weekStats === false || !plan || !plan.days || !plan.days.length) {
+      ws.style.display = 'none'; ws.innerHTML = '';
+    } else {
+      var doneCnt = 0;
+      plan.days.forEach(function(d) { if (dayProgress(currentWeek, d.id).pct >= 100) doneCnt++; });
+      var volNow = computeWeekVolume(currentWeek);
+      var volPrev = computeWeekVolume(currentWeek - 1);
+      var volTrend = '';
+      if (volNow > 0 && volPrev > 0) {
+        var dPct = Math.round((volNow - volPrev) / volPrev * 100);
+        if (dPct !== 0) volTrend = ' <span style="color:' + (dPct > 0 ? 'var(--green)' : 'var(--accent)') + ';font-weight:600;font-size:11px">' + (dPct > 0 ? '▲' : '▼') + Math.abs(dPct) + '%</span>';
+      }
+      var streak = currentStreak();
+      ws.style.display = 'flex';
+      ws.innerHTML =
+        '<div class="ws-chip">💪 Sesje<br><b>' + doneCnt + '/' + plan.days.length + '</b></div>'
+        + '<div class="ws-chip">🏋️ Objętość<br><b>' + (volNow > 0 ? volNow + ' kg' : '—') + '</b>' + volTrend + '</div>'
+        + '<div class="ws-chip">🔥 Seria<br><b>' + streak + ' tyg.</b></div>';
+    }
+  }
   var c = document.getElementById('day-list');
   if (!plan || !plan.days || !plan.days.length) {
     c.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><h2>Brak planu</h2><p>Kliknij ⚙️ → Wgraj plan (JSON)</p></div>';
@@ -1934,6 +1988,15 @@ function noteOk(btn) {
 
 function toggleNote(btn) {
   var body = btn.nextElementSibling;
+  // v6.1: notatka z treścią jest PRZYPIĘTA — nie da się jej zwinąć,
+  // ma być zawsze widoczna w dniu sesji
+  var ta = body.querySelector('textarea');
+  if (body.classList.contains('open') && ta && ta.value.trim()) {
+    setTimeout(function() {
+      try { body.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch(e) { body.scrollIntoView(false); }
+    }, 50);
+    return;
+  }
   body.classList.toggle('open');
   // Otwarta notatka ma być widoczna pod palcem — doscrolluj minimalnie, bez skakania
   if (body.classList.contains('open')) {
@@ -2877,7 +2940,40 @@ function setRangeTab(range, el) {
   renderProgress();
 }
 
+// v6.1: rekordy życiowe — max ciężar per ćwiczenie (po nazwie, ze snapshotów), cała historia
+function renderPRRecords() {
+  var c = document.getElementById('pr-records');
+  if (!c) return;
+  var best = {};
+  Object.keys(logs).forEach(function(key) {
+    var pk = parseLogKey(key); var dl = logs[key];
+    Object.keys(dl).filter(isExKey).forEach(function(exId) {
+      if (!Array.isArray(dl[exId])) return;
+      var nm = getExName(dl, pk[1], exId);
+      var norm = String(nm).trim().toLowerCase();
+      dl[exId].forEach(function(s) {
+        var w = parseFloat(s.w);
+        if (isNaN(w) || w <= 0) return;
+        if (!best[norm] || w > best[norm].w) best[norm] = { name: nm, w: w, week: pk[0] };
+      });
+    });
+  });
+  var list = Object.keys(best).map(function(k) { return best[k]; })
+    .sort(function(a, b) { return b.w - a.w; }).slice(0, 10);
+  if (!list.length) { c.innerHTML = ''; return; }
+  c.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 13px;margin-top:12px">'
+    + '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🏆 Rekordy życiowe — max ciężar</div>'
+    + list.map(function(r, i) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;' + (i < list.length - 1 ? 'border-bottom:1px solid var(--border);' : '') + 'font-size:13px">'
+          + '<span style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.name) + '</span>'
+          + '<span style="flex-shrink:0;font-weight:700;color:var(--pr)">' + r.w + ' kg <span style="font-weight:400;color:var(--text3);font-size:11px">T' + r.week + '</span></span>'
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+
 function renderProgress() {
+  renderPRRecords();
   var sel = document.getElementById('prog-ex-select');
   var statsEl = document.getElementById('prog-stats');
   var chartEl = document.getElementById('prog-chart');
