@@ -130,6 +130,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .prev-box .ref-chip{color:var(--text)}
 .prev-box .ref-chips{margin-bottom:0}
 .prev-note-hl{display:flex;gap:6px;align-items:flex-start;background:rgba(233,196,106,0.12);border:1px solid var(--yellow);border-radius:6px;padding:6px 9px;margin-top:7px;font-size:12px;color:var(--yellow);line-height:1.35}
+.note-ok{display:block;margin-left:auto;margin-top:6px;background:var(--accent);border:none;border-radius:8px;color:var(--accent-fg);font-size:13px;font-weight:600;padding:8px 20px;cursor:pointer}.note-ok:active{opacity:.85}
 @keyframes confetti-fall{to{transform:translateY(110vh) rotate(240deg);opacity:.9}}
 .set-hdr{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:4px;}.set-hdr span{text-align:center;font-size:10px;color:var(--text3);text-transform:uppercase}
 .set-row{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:7px;align-items:center;}
@@ -322,6 +323,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
       <button class="note-toggle" onclick="toggleNote(this)">📋 Notatka ogólna do treningu</button>
       <div class="note-body" id="session-note-body">
         <textarea class="note-input" id="session-note" placeholder="np. samopoczucie, uwagi ogólne, plan na następny raz..."></textarea>
+        <button class="note-ok" onclick="noteOk(this)">✔ OK</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:24px;margin-top:6px;align-items:stretch">
@@ -571,7 +573,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.9 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.0 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -635,7 +637,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.9';
+var APP_VERSION = '6.0';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1912,12 +1914,22 @@ function renderWorkout() {
       + '<button class="note-toggle" onclick="toggleNote(this)">📝 Notatka</button>'
       + '<div class="note-body' + (savedNote ? ' open' : '') + '">'
       + '<textarea class="note-input" id="note_' + ex.id + '" placeholder="np. bolało kolano, nowy PR, zmęczony...">' + esc(savedNote) + '</textarea>'
+      + '<button class="note-ok" onclick="noteOk(this)">✔ OK</button>'
       + '</div>'
       + '</div>';
   }).join('');
   applyEnterHints(document.getElementById('view-workout'));
   // Przywróć pozycję scrolla sprzed rerenderu (openDay i tak zaraz ustawi 0 przy wejściu)
   if (vwScrollEl) vwScrollEl.scrollTop = vwScrollKeep;
+}
+
+// v6.0: OK pod notatką — zapisuje notatkę i chowa klawiaturę jednym tapnięciem
+// (Enter w notatce celowo robi nową linię — notatki bywają wielolinijkowe)
+function noteOk(btn) {
+  var ta = btn.parentNode.querySelector('textarea');
+  if (ta) ta.blur();
+  if (currentView === 'workout') saveWorkout(true);
+  toast('📝 Notatka zapisana');
 }
 
 function toggleNote(btn) {
