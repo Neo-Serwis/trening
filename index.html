@@ -273,7 +273,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .meas-chip-val{font-size:14px;font-weight:700;color:var(--text);text-align:center;}
 .meas-chip.highlight .meas-chip-val{color:var(--accent);}
 .meas-del-btn{background:none;border:none;color:#c44;font-size:16px;cursor:pointer;padding:2px 6px;}
-.diff-pos{color:#e63946;font-size:11px;}.diff-neg{color:#52b788;font-size:11px;}
+.diff-pos{color:#e63946;font-size:11px;}.diff-neg{color:#52b788;font-size:11px;}.diff-neu{color:var(--text3);font-size:11px;}
 /* Zarządzanie polami obwodów */
 .meas-field-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);transition:background .15s;}
 .meas-field-row:last-child{border-bottom:none}
@@ -582,7 +582,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.1 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.2 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -646,7 +646,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.1';
+var APP_VERSION = '6.2';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -693,7 +693,7 @@ function cleanEmptyLogs() {
   var changed = false;
   // Klucze metadanych które nie są danymi użytkownika.
   // Notatki (_note/note_*) i serie bonus SĄ danymi — spójnie z saveWorkout.
-  var META_KEYS = { '_date':1, '_dayName':1, '_exNames':1 };
+  var META_KEYS = { '_date':1, '_dayName':1, '_exNames':1, '_exTypes':1 };
   Object.keys(logs).forEach(function(key) {
     var dl = logs[key];
     var hasData = Object.keys(dl).some(function(k) {
@@ -891,7 +891,7 @@ function calcBMILive() {
   var wEl = document.getElementById('mf-waga');
   var bEl = document.getElementById('mf-bmi');
   if (!wEl || !bEl) return;
-  var w = parseFloat(wEl.value);
+  var w = parseFloat(normalizeNum(wEl.value));
   if (!userHeight || isNaN(w) || w <= 0) {
     bEl.value = userHeight ? '—' : 'Ustaw wzrost w ⚙️';
     return;
@@ -1320,6 +1320,15 @@ function weekJumpCancel() {
 function logKey(w, d)        { return 'w' + w + '_' + d; }
 function getLog(w, d)        { return logs[logKey(w, d)] || {}; }
 function getPrevSets(d, e)   { return getLog(currentWeek - 1, d)[e] || null; }
+// v6.2: deload — ostatni WYKONANY tydzień tego dnia (po tygodniu przerwy propozycja nadal działa)
+function getPrevSetsBack(dayId, exId) {
+  var best = null; var bestW = -1;
+  Object.keys(logs).forEach(function(key) {
+    var pk = parseLogKey(key);
+    if (pk[1] === dayId && pk[0] < currentWeek && logs[key][exId] && pk[0] > bestW) { bestW = pk[0]; best = logs[key][exId]; }
+  });
+  return best;
+}
 function getCurrentSets(d,e) { return getLog(currentWeek, d)[e] || null; }
 function isDayDone(w, d)     { return Object.keys(getLog(w,d)).filter(isExKey).length > 0; }
 
@@ -1485,6 +1494,10 @@ function saveWorkout(silent) {
   var exNames = logs[key]._exNames || {};
   day.exercises.forEach(function(ex) { exNames[ex.id] = ex.name; });
   logs[key]._exNames = exNames;
+  // v6.2: snapshot typu schematu — po zmianie planu objętości dropset/exdrop liczą się poprawnie
+  var exTypes = logs[key]._exTypes || {};
+  day.exercises.forEach(function(ex) { exTypes[ex.id] = { t: ex.schemeType || 'standard', d: ex.dropsPerSet || 1 }; });
+  logs[key]._exTypes = exTypes;
 
   // Notatka ogólna do sesji
   var snEl = document.getElementById('session-note');
@@ -1558,7 +1571,7 @@ function saveWorkout(silent) {
   // Sprawdź czy jest cokolwiek wpisane — po WSZYSTKICH kluczach logu (nie tylko z aktualnego
   // planu), inaczej zapis dnia kasowałby dane ćwiczeń usuniętych z planu
   var hasAnyData = Object.keys(logs[key]).some(function(k) {
-    return k !== '_date' && k !== '_dayName' && k !== '_exNames';
+    return k !== '_date' && k !== '_dayName' && k !== '_exNames' && k !== '_exTypes';
   });
 
   if (!hasAnyData) {
@@ -1624,7 +1637,12 @@ function renderHome() {
       var doneCnt = 0;
       plan.days.forEach(function(d) { if (dayProgress(currentWeek, d.id).pct >= 100) doneCnt++; });
       var volNow = computeWeekVolume(currentWeek);
-      var volPrev = computeWeekVolume(currentWeek - 1);
+      // v6.2: porównanie z ostatnim tygodniem, który MA dane — tydzień przerwy nie gubi trendu
+      var volPrev = 0;
+      for (var pw = currentWeek - 1; pw >= 1; pw--) {
+        volPrev = computeWeekVolume(pw);
+        if (volPrev > 0) break;
+      }
       var volTrend = '';
       if (volNow > 0 && volPrev > 0) {
         var dPct = Math.round((volNow - volPrev) / volPrev * 100);
@@ -1895,7 +1913,7 @@ function renderWorkout() {
         // użytkownik nie edytuje ciężaru albo nie wpisze powtórzeń
         var dlAuto = false;
         if (settings.deload && !cw && !isBO) {
-          var prevSets = getPrevSets(currentDayId, ex.id);
+          var prevSets = getPrevSetsBack(currentDayId, ex.id);
           if (prevSets && prevSets[i] && prevSets[i].w) {
             var deloadW = parseFloat(prevSets[i].w) * 0.6;
             cw = (Math.round(deloadW * 2) / 2).toFixed(1);
@@ -2016,7 +2034,7 @@ function updateBOLive(exId, setsCount, backoffPct) {
   for (var j = boIdx - 1; j >= 0; j--) {
     var el = document.getElementById('w_' + exId + '_' + j);
     if (el) {
-      var v = parseFloat(el.value);
+      var v = parseFloat(normalizeNum(el.value));
       if (!isNaN(v) && v > 0) { lastRoboczaW = v; break; }
     }
   }
@@ -2034,7 +2052,7 @@ function updateBOLive(exId, setsCount, backoffPct) {
 function updateExdropLive(exId, dropIdx, pct) {
   var robEl = document.getElementById('w_' + exId + '_' + dropIdx + '_w');
   if (!robEl) return;
-  var robW = parseFloat(robEl.value);
+  var robW = parseFloat(normalizeNum(robEl.value));
   if (isNaN(robW) || robW <= 0) return;
   // Dog.1 = Rob.
   var wd0El = document.getElementById('w_' + exId + '_' + dropIdx + '_wd0');
@@ -2055,24 +2073,11 @@ function updateExdropLive(exId, dropIdx, pct) {
   if (wd4El) wd4El.value = drop2W.toFixed(1);
 }
 
-// v5.0: auto-przeliczanie dropset zwykłego na żywo po wpisaniu S1 (stara wersja — zachowana)
-function updateDropsetLive(exId, setsCount, pct) {
-  var s1El = document.getElementById('w_' + exId + '_0');
-  if (!s1El) return;
-  var w = parseFloat(s1El.value);
-  if (isNaN(w) || w <= 0) return;
-  for (var i = 1; i < setsCount; i++) {
-    w = Math.round(w * (1 - pct/100) * 2) / 2;
-    var el = document.getElementById('w_' + exId + '_' + i);
-    if (el) el.value = w.toFixed(1);
-  }
-}
-
 // v5.2: auto-przeliczanie dropów w dropset na żywo po wpisaniu serii roboczej
 function updateDropsetSeriaLive(exId, seriaIdx, dropsPerSet, pct) {
   var robEl = document.getElementById('w_' + exId + '_' + seriaIdx);
   if (!robEl) return;
-  var w = parseFloat(robEl.value);
+  var w = parseFloat(normalizeNum(robEl.value));
   if (isNaN(w) || w <= 0) return;
   for (var di = 0; di < dropsPerSet; di++) {
     w = Math.round(w * (1 - pct/100) * 2) / 2;
@@ -2449,12 +2454,23 @@ function renderMeasurements() {
     function chipDiff(label, val, prevVal, goodDown) {
       if (!val) return '';
       var diffHtml = '';
-      // goodDown === null oznacza brak trendu — nie pokazuj diff
-      if (goodDown !== null && goodDown !== undefined && prevVal) {
-        var d = parseFloat(val) - parseFloat(prevVal);
-        if (!isNaN(d) && d !== 0) {
-          var cls = goodDown ? (d < 0 ? 'diff-neg' : 'diff-pos') : (d > 0 ? 'diff-neg' : 'diff-pos');
-          diffHtml = '<br><span class="' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
+      if (prevVal) {
+        if (String(val).indexOf('/') >= 0 || String(prevVal).indexOf('/') >= 0) {
+          // ciśnienie sys/dia — różnica obu składowych, neutralnie
+          var bp = bpDiffHtml(val, prevVal, 'diff-neu');
+          if (bp) diffHtml = '<br>' + bp;
+        } else {
+          // zaokrąglenie do 0.1 przed porównaniem — bez artefaktów "+0.0"
+          var d = Math.round((parseFloat(val) - parseFloat(prevVal)) * 10) / 10;
+          if (!isNaN(d) && d !== 0) {
+            if (goodDown === null || goodDown === undefined) {
+              // brak oceny kierunku (cukier, puls) — różnica widoczna, ale neutralna
+              diffHtml = '<br><span class="diff-neu">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
+            } else {
+              var cls = goodDown ? (d < 0 ? 'diff-neg' : 'diff-pos') : (d > 0 ? 'diff-neg' : 'diff-pos');
+              diffHtml = '<br><span class="' + cls + '">' + (d > 0 ? '+' : '') + d.toFixed(1) + '</span>';
+            }
+          }
         }
       }
       return '<div class="meas-chip"><span class="meas-chip-lbl">' + esc(label) + '</span><span class="meas-chip-val">' + esc(val) + diffHtml + '</span></div>';
@@ -2464,7 +2480,7 @@ function renderMeasurements() {
     var bodyChips = '', healthChips = '', circChips = '';
     mFields.forEach(function(f) {
       var val = m[f.id] || '';
-      var prevVal = prev ? (prev[f.id] || '') : '';
+      var prevVal = prevMeasVal(measurements, i + 1, f.id);
       var chip = chipDiff(f.label, val, prevVal, f.goodDown);
       if (f.group === 'body')   bodyChips   += chip;
       if (f.group === 'health') healthChips += chip;
@@ -2475,8 +2491,9 @@ function renderMeasurements() {
     if (m.bmi) {
       var bmiCat = getBMICategory(parseFloat(m.bmi));
       var bmiDiff = '';
-      if (prev && prev.bmi) {
-        var bd = parseFloat(m.bmi) - parseFloat(prev.bmi);
+      var prevBmi = prevMeasVal(measurements, i + 1, 'bmi');
+      if (prevBmi) {
+        var bd = parseFloat(m.bmi) - parseFloat(prevBmi);
         if (!isNaN(bd) && bd !== 0) {
           bmiDiff = '<br><span class="' + (bd < 0 ? 'diff-neg' : 'diff-pos') + '">' + (bd > 0 ? '+' : '') + bd.toFixed(1) + '</span>';
         }
@@ -2487,13 +2504,13 @@ function renderMeasurements() {
     // Obsługa starych pomiarów (bez _fields) — stare klucze
     if (!m._fields) {
       // v3.8: waga idzie do circChips (razem z obwodami)
-      if (m.waga)      circChips   += chipDiff('Waga', m.waga, prev&&prev.waga, true);
-      if (m.cukier)    healthChips += chipDiff('Cukier', m.cukier, prev&&prev.cukier, null);
-      if (m.cisnienie) healthChips += chipDiff('Ciśnienie', m.cisnienie, prev&&prev.cisnienie, null);
-      if (m.puls)      healthChips += chipDiff('Puls', m.puls, prev&&prev.puls, null);
+      if (m.waga)      circChips   += chipDiff('Waga', m.waga, prevMeasVal(measurements, i + 1, 'waga'), true);
+      if (m.cukier)    healthChips += chipDiff('Cukier', m.cukier, prevMeasVal(measurements, i + 1, 'cukier'), null);
+      if (m.cisnienie) healthChips += chipDiff('Ciśnienie', m.cisnienie, prevMeasVal(measurements, i + 1, 'cisnienie'), null);
+      if (m.puls)      healthChips += chipDiff('Puls', m.puls, prevMeasVal(measurements, i + 1, 'puls'), null);
       var oldCirc = m._circFields || DEFAULT_MEAS_FIELDS.filter(function(f){return f.group==='circ' && f.id !== 'waga';});
       oldCirc.forEach(function(f) {
-        if (m[f.id]) circChips += chipDiff(f.label, m[f.id], prev&&prev[f.id], f.goodDown);
+        if (m[f.id]) circChips += chipDiff(f.label, m[f.id], prevMeasVal(measurements, i + 1, f.id), f.goodDown);
       });
     }
 
@@ -2730,8 +2747,8 @@ function renderHistory() {
         // Pobierz typ serii z planu
         var exObjB = null;
         if (plan && plan.days) { var fdB = plan.days.find(function(d){return d.id===dayId;}); if (fdB) exObjB = fdB.exercises.find(function(e){return e.id===exId;}); }
-        var sTypeB = exObjB ? exObjB.schemeType : 'standard';
-        var dropsNB = exObjB ? (exObjB.dropsPerSet||1) : 1;
+        var sTypeB = exObjB ? exObjB.schemeType : snapType(dl, exId);
+        var dropsNB = exObjB ? (exObjB.dropsPerSet||1) : snapDrops(dl, exId);
         // Funkcja liczenia wartości wg metryki
         var calcMetric = function(sArr) {
           if (tModeHist === 'volume') {
@@ -2776,7 +2793,7 @@ function renderHistory() {
       // v5.7: deklaracje przeniesione przed blok trendu (wcześniej hoisting dawał undefined
       // i trend objętości liczył dropset/exdrop bez dropów)
       var exObjHist = dayExs.find(function(e) { return e.id === exId; });
-      var sTypeHist = exObjHist ? exObjHist.schemeType : 'standard';
+      var sTypeHist = exObjHist ? exObjHist.schemeType : snapType(dl, exId);
       // v5.1: trend per ćwiczenie — ostatni WYKONANY tydzień dla tego ćwiczenia
       var exTrendBadge = '';
       var exPrevWeek = -1; var exPrevSets = null;
@@ -2788,7 +2805,7 @@ function renderHistory() {
       });
       if (exPrevSets) {
         var tMode = settings.histTrendMode || 'weight';
-        var dropsNH2 = exObjHist ? (exObjHist.dropsPerSet||1) : 1;
+        var dropsNH2 = exObjHist ? (exObjHist.dropsPerSet||1) : snapDrops(dl, exId);
         // Oblicz wartość dla porównania
         var cVal, pVal;
         if (tMode === 'volume') {
@@ -2832,7 +2849,7 @@ function renderHistory() {
         }).filter(Boolean).join('');
       } else if (sTypeHist === 'dropset') {
         // v5.2: dropset — seria robocza + dropy fioletowe
-        var dropsNH = exObjHist ? (exObjHist.dropsPerSet || 1) : 1;
+        var dropsNH = exObjHist ? (exObjHist.dropsPerSet || 1) : snapDrops(dl, exId);
         chips = sets.map(function(s, i) {
           var parts = [];
           if (s.w||s.r) parts.push('S'+(i+1)+': '+(s.w||'—')+'×'+(s.r||'—'));
@@ -2999,9 +3016,9 @@ function renderProgress() {
       var dd = plan.days.find(function(d) { return d.id === dayId; });
       if (dd) exObj2 = dd.exercises.find(function(e) { return e.id === exId; });
     }
-    var sType = exObj2 ? exObj2.schemeType : 'standard';
+    var sType = exObj2 ? exObj2.schemeType : snapType(dl, exId);
     // v5.2: wszystkie serie liczone (BO, exdrop, dropset, standard)
-    var dropsNP = exObj2 ? (exObj2.dropsPerSet || 1) : 1;
+    var dropsNP = exObj2 ? (exObj2.dropsPerSet || 1) : snapDrops(dl, exId);
     sets.forEach(function(s) {
       if (sType === 'exdrop') {
         [['w','r'],['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(pair) {
@@ -3487,10 +3504,32 @@ function reportCSS() {
 
 // Generuj znacznik trendu dla raportu HTML
 // val — aktualna wartość, prev — poprzednia, goodDown — kierunek
+// v6.2: różnice pomiarów liczone względem OSTATNIEGO wykonanego pomiaru danego pola —
+// pominięte tygodnie/pola nie zrywają porównania (tablica: nowsze na początku)
+function prevMeasVal(arr, startIdx, id) {
+  for (var j = startIdx; j < arr.length; j++) {
+    if (arr[j] && arr[j][id]) return arr[j][id];
+  }
+  return '';
+}
+
+// Ciśnienie "sys/dia" — różnica obu składowych, neutralnie (bez oceny kierunku)
+function bpDiffHtml(val, prevVal, cls) {
+  var a = String(val).split('/'); var b = String(prevVal).split('/');
+  var ds = parseFloat(a[0]) - parseFloat(b[0]);
+  var dd = parseFloat(a[1]) - parseFloat(b[1]);
+  if (isNaN(ds) && isNaN(dd)) return '';
+  if ((ds || 0) === 0 && (dd || 0) === 0) return '';
+  var f = function(d) { return isNaN(d) ? '—' : (d > 0 ? '+' : '') + Math.round(d); };
+  return '<span class="' + cls + '">' + f(ds) + '/' + f(dd) + '</span>';
+}
+
 function trendBadge(val, prev, goodDown) {
   var v = parseFloat(val); var p = parseFloat(prev);
-  if (isNaN(v) || isNaN(p) || v === p) return '<span class="trend-neu">→ bez zmian</span>';
-  var diff = v - p;
+  if (isNaN(v) || isNaN(p)) return '<span class="trend-neu">→ bez zmian</span>';
+  // porównanie po zaokrągleniu do 0.1 — bez artefaktów "+0.0 ▲"/"−0.0 ▼"
+  var diff = Math.round((v - p) * 10) / 10;
+  if (diff === 0) return '<span class="trend-neu">→ bez zmian</span>';
   var sign = diff > 0 ? '+' : '';
   // goodDown === null — brak oceny kierunku (np. ciśnienie)
   if (goodDown === null || goodDown === undefined) {
@@ -3504,9 +3543,13 @@ function trendBadge(val, prev, goodDown) {
 }
 
 // v3.10: pomocnicze — klucze metadanych w logu
-var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1 };
+var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1, '_exTypes':1 };
 // v5.0: klucze bonus (_bonus) i notatki są metadanymi — nie są seriami ćwiczeń
 function isExKey(k) { return !LOG_META[k] && k.indexOf('note_') !== 0 && k.indexOf('_bonus') < 0; }
+
+// v6.2: typ schematu / liczba dropów ze snapshotu — dla ćwiczeń usuniętych z aktualnego planu
+function snapType(dl, exId) { var s = dl && dl._exTypes && dl._exTypes[exId]; return (s && s.t) ? s.t : 'standard'; }
+function snapDrops(dl, exId) { var s = dl && dl._exTypes && dl._exTypes[exId]; return (s && s.d) ? s.d : 1; }
 
 // v3.10: pobierz nazwę ćwiczenia z logu (snapshot) lub z aktualnego planu lub surowe ID
 function getExName(dl, dayId, exId) {
@@ -3552,12 +3595,13 @@ function collectExStats() {
       }
       exStats[exKey].sessions++;
       var sets = dl[exId];
+      if (!Array.isArray(sets)) return; // uszkodzony/nietablicowy wpis nie może wywalić raportu
       var exObj2 = null;
       if (plan && plan.days) { var fd2 = plan.days.find(function(d){return d.id===dayId;}); if (fd2) exObj2 = fd2.exercises.find(function(e){return e.id===exId;}); }
-      var sType = exObj2 ? exObj2.schemeType : 'standard';
+      var sType = exObj2 ? exObj2.schemeType : snapType(dl, exId);
       var wkMaxW = 0; var wkVol = 0;
       // v5.2: wszystkie serie liczone (BO, exdrop, dropset, standard)
-      var dropsN2 = exObj2 ? (exObj2.dropsPerSet || 1) : 1;
+      var dropsN2 = exObj2 ? (exObj2.dropsPerSet || 1) : snapDrops(dl, exId);
       sets.forEach(function(s) {
         if (sType === 'exdrop') {
           [['w','r'],['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(pair) {
@@ -3671,10 +3715,11 @@ function exportHTMLReport(mode) {
         // v3.10: trend per ćwiczenie z jego własnych dwóch ostatnich tygodni
         var dLast = ex.trendLastW ? (ex.byWeek[ex.trendLastW] || null) : null;
         var dPrev = ex.trendPrevW ? (ex.byWeek[ex.trendPrevW] || null) : null;
-        var maxWTrend = (dLast && dPrev)
+        // v6.2: trend tylko gdy OBIE strony mają wartość > 0 — inaczej "+40 ▲" z zerowej bazy
+        var maxWTrend = (dLast && dPrev && dLast.maxW > 0 && dPrev.maxW > 0)
           ? (trendBadge(dLast.maxW, dPrev.maxW, false) + ' <small style="color:#aaa">(T' + ex.trendLastW + ' vs T' + ex.trendPrevW + ')</small>')
           : '<span style="color:#aaa">—</span>';
-        var volTrend = (dLast && dPrev)
+        var volTrend = (dLast && dPrev && dLast.vol > 0 && dPrev.vol > 0)
           ? trendBadge(dLast.vol, dPrev.vol, false)
           : '<span style="color:#aaa">—</span>';
         // Ostatnia notatka per ćwiczenie
@@ -3698,7 +3743,7 @@ function exportHTMLReport(mode) {
     statsSection = '<div class="section"><h2>📊 Statystyki treningowe' + trendNote + '</h2>'
       + '<table><thead><tr style="background:#e63946;color:#fff">'
       + '<th style="text-align:left;padding:8px 10px">Ćwiczenie</th>'
-      + '<th style="text-align:center;padding:8px 10px">Serie</th>'
+      + '<th style="text-align:center;padding:8px 10px">Sesje</th>'
       + '<th style="text-align:center;padding:8px 10px">Max ciężar</th>'
       + '<th style="text-align:center;padding:8px 10px">Trend kg</th>'
       + '<th style="text-align:center;padding:8px 10px">Łączna obj.</th>'
@@ -3742,6 +3787,11 @@ function exportHTMLReport(mode) {
   // v5.1: zbierz wszystkie dni z planu — do wykrywania opuszczonych sesji
   var planDayIds = [];
   if (plan && plan.days) plan.days.forEach(function(d) { planDayIds.push(d.id); });
+  // v6.2: dni obecne w logach, których nie ma już w planie — ich dane NIE znikają z dziennika
+  keys.forEach(function(k) {
+    var did = parseLogKey(k)[1];
+    if (planDayIds.indexOf(did) < 0) planDayIds.push(did);
+  });
 
   // Zbierz wszystkie tygodnie z logów
   var allWeeksInLogs = [];
@@ -3794,9 +3844,24 @@ function exportHTMLReport(mode) {
       var sessionRows = '';
       var hasRows = false;
 
-      // Iteruj ćwiczenia z planu (nie z logu) — żeby wykryć brakujące
+      // v6.2: ćwiczenia z planu (wykrywanie brakujących) ∪ z logu (usunięte z planu nie znikają)
       var planExs = dayObj ? dayObj.exercises : [];
-      planExs.forEach(function(exObj) {
+      var exList = planExs.slice();
+      Object.keys(dl).filter(isExKey).forEach(function(exId2) {
+        var inPlan = exList.some(function(e) { return e.id === exId2; });
+        if (!inPlan) {
+          exList.push({
+            id: exId2,
+            name: getExName(dl, dayId, exId2),
+            scheme: '',
+            tut: '',
+            schemeType: snapType(dl, exId2),
+            dropsPerSet: snapDrops(dl, exId2),
+            setsCount: Array.isArray(dl[exId2]) ? dl[exId2].length : 0
+          });
+        }
+      });
+      exList.forEach(function(exObj) {
         var exId = exObj.id;
         var exName = (dl._exNames && dl._exNames[exId]) || exObj.name;
         var scheme = exObj.scheme || '';
@@ -3804,6 +3869,7 @@ function exportHTMLReport(mode) {
         var note = dl['note_'+exId]||'';
         var sType = exObj.schemeType || 'standard';
         var exSets = dl[exId] || null;
+        if (exSets && !Array.isArray(exSets)) exSets = null;
 
         // Trend
         var exKey = dayId + '|' + exId;
@@ -3833,6 +3899,14 @@ function exportHTMLReport(mode) {
         }
 
         if (!exSets) {
+          // v6.2: "opuszczone" dopiero od pierwszego tygodnia, w którym ćwiczenie ma jakikolwiek
+          // zapis — ćwiczenia dodane do planu później nie są "opuszczone" wstecz
+          var exFirstW = 999;
+          Object.keys(logs).forEach(function(k3) {
+            var pk3 = parseLogKey(k3);
+            if (pk3[1] === dayId && logs[k3][exId] && pk3[0] < exFirstW) exFirstW = pk3[0];
+          });
+          if (wk < exFirstW) return;
           // Ćwiczenie opuszczone w tej sesji
           var emptyCells = '';
           for (var si2 = 0; si2 < globalMaxSets; si2++) emptyCells += '<td style="color:#c0392b;font-style:italic;font-size:11px">nie wykonano</td>';
@@ -4053,7 +4127,7 @@ function exportMeasReport() {
 // Wspólna funkcja budująca sekcję pomiarów z trendami
 // v3.9fix: kolejność kolumn: najpierw circ (waga+obwody), potem health (zdrowie)
 // Niezależna od stanu localStorage — sortuje według grupy
-function buildMeasSection(measArr) {
+function buildMeasSection(measArr, limitRows) {
   if (!measArr || !measArr.length) return '';
 
   // Zbierz wszystkie unikalne pola ze wszystkich pomiarów + aktualnej konfiguracji
@@ -4092,16 +4166,25 @@ function buildMeasSection(measArr) {
   var hasBMI = measArr.some(function(m) { return m.bmi; });
   var sorted = measArr.slice().sort(function(a,b){ return parseDatePL(b.date) - parseDatePL(a.date); });
   var measRows = sorted.map(function(m, i) {
-    var prev = sorted[i+1] || null;
+    // limitRows ogranicza tylko RENDER — porównania (prevMeasVal) widzą całą historię
+    if (limitRows && i >= limitRows) return '';
     var cells = '';
     allMeasIds.forEach(function(id) {
-      var val = m[id] || ''; var prevVal = prev ? (prev[id] || '') : '';
-      var trend = (val && prevVal && id !== 'cisnienie') ? (' ' + trendBadge(val, prevVal, measGoodDownMap[id])) : '';
+      var val = m[id] || '';
+      // v6.2: porównanie z ostatnim WYKONANYM pomiarem pola (pominięte tygodnie nie zrywają)
+      var prevVal = prevMeasVal(sorted, i + 1, id);
+      var trend = '';
+      if (val && prevVal) {
+        trend = (String(val).indexOf('/') >= 0 || String(prevVal).indexOf('/') >= 0)
+          ? (' ' + bpDiffHtml(val, prevVal, 'trend-neu'))
+          : (' ' + trendBadge(val, prevVal, measGoodDownMap[id]));
+      }
       cells += val ? '<td><small>' + htmlEsc(measLabelMap[id]||id) + '</small><br><strong>' + htmlEsc(val) + '</strong>' + trend + '</td>'
                    : '<td style="color:#ccc">—</td>';
     });
     if (hasBMI) {
-      var bmiTrend = (m.bmi && prev && prev.bmi) ? (' ' + trendBadge(m.bmi, prev.bmi, true)) : '';
+      var prevBmiR = prevMeasVal(sorted, i + 1, 'bmi');
+      var bmiTrend = (m.bmi && prevBmiR) ? (' ' + trendBadge(m.bmi, prevBmiR, true)) : '';
       cells += m.bmi ? '<td><small>BMI</small><br><strong>' + m.bmi + '</strong>' + bmiTrend + '<br><small style="color:#888">' + getBMICategory(parseFloat(m.bmi)) + '</small></td>'
                      : '<td style="color:#ccc">—</td>';
     }
@@ -4192,8 +4275,8 @@ function exportReportA() {
         var dA = ex.byWeek[weekA] || null; var dB = ex.byWeek[weekB] || null;
         var maxWA = dA ? dA.maxW.toFixed(1)+' kg' : '—'; var maxWB = dB ? dB.maxW.toFixed(1)+' kg' : '—';
         var volA  = dA ? Math.round(dA.vol)+' kg·r' : '—'; var volB  = dB ? Math.round(dB.vol)+' kg·r' : '—';
-        var maxWTrend = (dA && dB) ? trendBadge(dA.maxW, dB.maxW, false) : '<span style="color:#888">—</span>';
-        var volTrend  = (dA && dB) ? trendBadge(dA.vol,  dB.vol,  false) : '<span style="color:#888">—</span>';
+        var maxWTrend = (dA && dB && dA.maxW > 0 && dB.maxW > 0) ? trendBadge(dA.maxW, dB.maxW, false) : '<span style="color:#888">—</span>';
+        var volTrend  = (dA && dB && dA.vol > 0 && dB.vol > 0) ? trendBadge(dA.vol,  dB.vol,  false) : '<span style="color:#888">—</span>';
         exRows += '<tr>'
           + '<td>' + htmlEsc(ex.name) + (ex.scheme ? '<br><small style="color:#888">' + htmlEsc(ex.scheme) + '</small>' : '') + '</td>'
           + '<td style="text-align:center">' + maxWA + '<br><small style="color:#aaa">T'+weekA+'</small></td>'
@@ -4212,7 +4295,8 @@ function exportReportA() {
       + '<th style="text-align:center;padding:8px 10px">Objętość</th>'
       + '</tr></thead><tbody>' + exRows + '</tbody></table></div>';
   }
-  var measSection = buildMeasSection(measurements.slice(0, 2));
+  // v6.2: pełna tablica dla kontekstu prevMeasVal (pominięte pola), render tylko 2 wierszy
+  var measSection = buildMeasSection(measurements, 2);
   // v4.5: kolejność — pomiary, porównanie ćwiczeń
   var html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><title>Raport A — Porównanie</title>'
     + '<style>' + reportCSS() + '</style></head><body>'
@@ -4234,10 +4318,13 @@ function parseLogKey(k) {
 }
 
 function parseDatePL(s) {
-  // "DD.MM.YYYY" → timestamp
-  var p = s.split('.');
+  // "DD.MM.YYYY" → timestamp; rok dwucyfrowy (np. "24.08.26") traktujemy jako 20xx
+  var p = String(s || '').split('.');
   if (p.length !== 3) return 0;
-  return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0])).getTime();
+  var d = parseInt(p[0], 10), m = parseInt(p[1], 10), y = parseInt(p[2], 10);
+  if (isNaN(d) || isNaN(m) || isNaN(y)) return 0;
+  if (y < 100) y += 2000;
+  return new Date(y, m - 1, d).getTime();
 }
 
 // Normalizacja wartości liczbowej — zamienia przecinek na kropkę
