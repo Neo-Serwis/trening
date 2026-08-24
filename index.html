@@ -571,7 +571,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 5.8 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 5.9 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -635,7 +635,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '5.8';
+var APP_VERSION = '5.9';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -772,7 +772,7 @@ function applySettings() {
   var togAT = document.getElementById('tog-auto-timer');
   if (togAT) togAT.checked = !!settings.autoTimer;
   var togCD = document.getElementById('tog-cross-day');
-  if (togCD) togCD.checked = !!settings.crossDaySuggest;
+  if (togCD) togCD.checked = settings.crossDaySuggest !== false;
   // Tryb wykresu obwodów
   var mode = settings.circChartMode || 'single';
   var btnS = document.getElementById('circ-mode-single');
@@ -1340,7 +1340,8 @@ function isPR(dayId, exId, weight, uptoWeek) {
 // Zwraca listę {dayId, exId}; przy wyłączonym toggle'u tylko bieżące ćwiczenie
 function exRefsFor(dayId, exId) {
   var refs = [{ dayId: dayId, exId: exId }];
-  if (!settings.crossDaySuggest || !plan || !plan.days) return refs;
+  // v5.9: domyślnie WŁĄCZONE — wyłączane jawnie toggle'em w ustawieniach
+  if (settings.crossDaySuggest === false || !plan || !plan.days) return refs;
   var day = plan.days.find(function(d) { return d.id === dayId; });
   var ex = day && day.exercises.find(function(e) { return e.id === exId; });
   if (!ex || !ex.name) return refs;
