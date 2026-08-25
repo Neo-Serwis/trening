@@ -582,7 +582,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.2 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.3 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -646,7 +646,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.2';
+var APP_VERSION = '6.3';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1404,23 +1404,38 @@ function isSuggestSource(week, srcDayId, forDayId) {
   return week < currentWeek || (week === currentWeek && srcDayId !== forDayId);
 }
 
+// v6.3: tryb awaryjny — DOWOLNY zapis poza aktualnie edytowaną sesją
+// (np. po skoku numeracji tygodni przy nowym cyklu dane są "w przyszłych" tygodniach)
+function isAnySource(week, srcDayId, forDayId) {
+  return !(week === currentWeek && srcDayId === forDayId);
+}
+
 // Podpowiedź ciężaru — standard i backoff (serie robocze)
 // v4.9: szuka ostatniego wykonanego tygodnia (nie currentWeek-1)
 // v5.8: z toggle'em crossDaySuggest zagląda też do tego samego ćwiczenia w innych dniach
 function getLastSetsRef(dayId, exId) {
-  var best = null; var bestScore = -1; var bestRef = null;
-  exRefsFor(dayId, exId).forEach(function(ref) {
-    Object.keys(logs).forEach(function(key) {
-      var pk = parseLogKey(key);
-      if (pk[1] !== ref.dayId) return;
-      if (!isSuggestSource(pk[0], ref.dayId, dayId)) return;
-      if (!logs[key][ref.exId]) return;
-      // ranga: nowszy tydzień wygrywa, przy remisie ten sam dzień ma pierwszeństwo
-      var score = pk[0] * 2 + (ref.dayId === dayId ? 1 : 0);
-      if (score > bestScore) { bestScore = score; best = logs[key][ref.exId]; bestRef = ref; }
+  var refs = exRefsFor(dayId, exId);
+  function pass(srcOk) {
+    var best = null; var bestScore = -1; var bestRef = null;
+    refs.forEach(function(ref) {
+      Object.keys(logs).forEach(function(key) {
+        var pk = parseLogKey(key);
+        if (pk[1] !== ref.dayId) return;
+        if (!srcOk(pk[0], ref.dayId, dayId)) return;
+        if (!logs[key][ref.exId]) return;
+        // ranga: nowszy tydzień wygrywa, przy remisie ten sam dzień ma pierwszeństwo
+        var score = pk[0] * 2 + (ref.dayId === dayId ? 1 : 0);
+        if (score > bestScore) { bestScore = score; best = logs[key][ref.exId]; bestRef = ref; }
+      });
     });
-  });
-  return best ? { sets: best, ref: bestRef } : null;
+    return best ? { sets: best, ref: bestRef } : null;
+  }
+  // najpierw normalnie (wcześniejsze tygodnie); gdy pusto — ostatni istniejący zapis gdziekolwiek
+  var r = pass(isSuggestSource);
+  if (r) { r.relaxed = false; return r; }
+  r = pass(isAnySource);
+  if (r) r.relaxed = true;
+  return r;
 }
 function getLastSets(dayId, exId) {
   var r = getLastSetsRef(dayId, exId);
@@ -1733,7 +1748,10 @@ function renderWorkout() {
     // Poprzedni tydzień — v4.9: ostatni wykonany (nie currentWeek-1)
     // v5.8: opcjonalnie także z innych dni (to samo ćwiczenie po nazwie); wyraźny panel
     var exRefs = exRefsFor(currentDayId, ex.id);
-    var prev = getLastSets(currentDayId, ex.id);
+    var prevInfo = getLastSetsRef(currentDayId, ex.id);
+    var prev = prevInfo ? prevInfo.sets : null;
+    // v6.3: gdy wstecz nic nie ma, chipy pokazują ostatni istniejący zapis (tryb awaryjny)
+    var srcOk = (prevInfo && prevInfo.relaxed) ? isAnySource : isSuggestSource;
     var prevHTML = '';
     if (prev && prev.length) {
         // v5.0: podpowiedź per seria — dla każdej serii szukamy ostatniego tygodnia gdzie ta seria była wpisana
@@ -1743,7 +1761,7 @@ function renderWorkout() {
             Object.keys(logs).forEach(function(k) {
               var pk2 = parseLogKey(k);
               if (pk2[1] !== ref.dayId) return;
-              if (!isSuggestSource(pk2[0], ref.dayId, currentDayId)) return;
+              if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
               var dl2 = logs[k];
               if (dl2[ref.exId] && dl2[ref.exId][si] && (dl2[ref.exId][si].w || dl2[ref.exId][si].r)) {
                 var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
@@ -1769,7 +1787,7 @@ function renderWorkout() {
           Object.keys(logs).forEach(function(k) {
             var pk2 = parseLogKey(k);
             if (pk2[1] !== ref.dayId) return;
-            if (!isSuggestSource(pk2[0], ref.dayId, currentDayId)) return;
+            if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
             var n = logs[k]['note_' + ref.exId];
             if (!n) return;
             var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
