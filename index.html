@@ -583,7 +583,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.4 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.5 · 2026-08-27 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -647,7 +647,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.4';
+var APP_VERSION = '6.5';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1730,6 +1730,44 @@ function updateTimerDisplay() {
 // ═══════════════════════════════════════════════
 // RENDER HOME
 // ═══════════════════════════════════════════════
+
+// v6.5: rotacja cyklu płynie przez granice tygodni — następna sesja to dzień PO ostatnio
+// wykonanym treningu (kolejność planu, cyklicznie), niezależnie od numeru tygodnia.
+// Ranga "ostatnio wykonany": data sesji > numer tygodnia > pozycja w planie.
+function findNextDayId() {
+  if (!plan || !plan.days || !plan.days.length) return null;
+  var bestW = -1; var bestDate = -1; var bestIdx = -1;
+  Object.keys(logs).forEach(function(k) {
+    var pk = parseLogKey(k);
+    var idx = -1;
+    for (var i = 0; i < plan.days.length; i++) { if (plan.days[i].id === pk[1]) { idx = i; break; } }
+    if (idx < 0) return; // dzień spoza planu nie steruje rotacją
+    var dl = logs[k];
+    if (!Object.keys(dl).some(isExKey)) return; // liczą się sesje z seriami
+    var dt = dl._date ? parseDatePL(dl._date) : 0;
+    if (dt > bestDate
+        || (dt === bestDate && pk[0] > bestW)
+        || (dt === bestDate && pk[0] === bestW && idx > bestIdx)) {
+      bestDate = dt; bestW = pk[0]; bestIdx = idx;
+    }
+  });
+  if (bestIdx < 0) return plan.days[0].id; // brak historii — zacznij od pierwszego
+  return plan.days[(bestIdx + 1) % plan.days.length].id;
+}
+
+function startNextWeek() {
+  currentWeek++; saveWeek(); renderHome();
+  toast('➡️ Tydzień ' + currentWeek);
+}
+
+// v6.5: nowy cykl z poziomu treningu — zostajemy w tym samym dniu, świeży tydzień
+function startNextWeekHere() {
+  currentWeek++; saveWeek();
+  _lastProgressPct = -1;
+  renderWorkout();
+  toast('➡️ Tydzień ' + currentWeek + ' — nowy cykl tego dnia');
+}
+
 function renderHome() {
   document.getElementById('week-label').textContent = 'Tydzień ' + currentWeek;
   // v6.1: pasek "Twój tydzień" — sesje, objętość z trendem, seria tygodni
@@ -1765,7 +1803,17 @@ function renderHome() {
     c.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><h2>Brak planu</h2><p>Kliknij ⚙️ → Wgraj plan (JSON)</p></div>';
     return;
   }
-  c.innerHTML = plan.days.map(function(day, i) {
+  // v6.5: komplet tygodnia — zaproponuj przejście do następnego jednym przyciskiem
+  var completeBanner = '';
+  var allDone = plan.days.every(function(d) { return dayProgress(currentWeek, d.id).pct >= 100; });
+  if (allDone) {
+    completeBanner = '<div style="background:rgba(82,183,136,0.12);border:1px solid var(--green);border-radius:var(--radius);padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--green);display:flex;align-items:center;justify-content:space-between;gap:8px">'
+      + '<span>🎉 Komplet tygodnia ' + currentWeek + '!</span>'
+      + '<button onclick="startNextWeek()" style="background:var(--green);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Zacznij Tydzień ' + (currentWeek + 1) + ' →</button>'
+      + '</div>';
+  }
+  var nextDayId = findNextDayId();
+  c.innerHTML = completeBanner + plan.days.map(function(day, i) {
     var prog = dayProgress(currentWeek, day.id);
     var badgeCls, badgeTxt;
     if (prog.total === 0 || prog.done === 0) {
@@ -1780,6 +1828,7 @@ function renderHome() {
       + '<div><div class="day-card-name">' + esc(day.name) + '</div>'
       + '<div class="day-card-sub">' + day.exercises.length + ' ćwiczeń</div></div>'
       + '<div class="day-card-right">'
+      + (day.id === nextDayId && prog.pct < 100 ? '<span class="badge" style="background:rgba(230,57,70,0.14);color:var(--accent);margin-right:2px;font-weight:700">▶ następny</span>' : '')
       + (settings.deload ? '<span class="badge" style="background:rgba(233,196,106,0.15);color:var(--yellow);margin-right:2px">🔄 DELOAD</span>' : '')
       + '<span class="badge ' + badgeCls + '">' + badgeTxt + '</span>'
       + '<span class="dc-arrow">›</span></div></div>';
@@ -1911,6 +1960,25 @@ function renderWorkout() {
     pb.parentNode.insertBefore(deloadBanner, pb);
   }
   deloadBanner.style.display = settings.deload ? 'block' : 'none';
+
+  // v6.5: bezpiecznik przed nadpisaniem — wejście w sesję ukończoną w TYM tygodniu
+  // proponuje nowy cykl zamiast cichego otwarcia starych danych do edycji
+  var doneBanner = document.getElementById('session-done-banner');
+  if (!doneBanner) {
+    doneBanner = document.createElement('div');
+    doneBanner.id = 'session-done-banner';
+    doneBanner.style.cssText = 'background:rgba(82,183,136,0.10);border:1px solid var(--green);border-radius:var(--radius);padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--green);display:none;line-height:1.6;';
+    var pb0 = document.getElementById('workout-progress-bar');
+    pb0.parentNode.insertBefore(doneBanner, pb0);
+  }
+  var progNow = dayProgress(currentWeek, currentDayId);
+  if (progNow.total > 0 && progNow.pct >= 100) {
+    doneBanner.innerHTML = '✓ Ta sesja jest już ukończona' + (dl._date ? ' (' + esc(dl._date) + ')' : '') + '. Zaczynasz nowy cykl?'
+      + ' <button onclick="startNextWeekHere()" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Tydzień ' + (currentWeek + 1) + '</button>';
+    doneBanner.style.display = 'block';
+  } else {
+    doneBanner.style.display = 'none';
+  }
 
   // Wczytaj notatkę ogólną do pola
   var snEl = document.getElementById('session-note');
