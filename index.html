@@ -131,6 +131,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .prev-box .ref-chips{margin-bottom:0}
 .prev-note-hl{display:flex;gap:6px;align-items:flex-start;background:rgba(233,196,106,0.12);border:1px solid var(--yellow);border-radius:6px;padding:6px 9px;margin-top:7px;font-size:12px;color:var(--yellow);line-height:1.35}
 .note-ok{display:block;margin-left:auto;margin-top:6px;background:var(--accent);border:none;border-radius:8px;color:var(--accent-fg);font-size:13px;font-weight:600;padding:8px 20px;cursor:pointer}.note-ok:active{opacity:.85}
+.btn-sub{background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:4px 6px;flex-shrink:0}
 #week-stats{display:none;gap:8px;margin-bottom:10px}
 .ws-chip{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px 6px;font-size:11px;color:var(--text2);text-align:center;line-height:1.55}
 .ws-chip b{font-size:14px;color:var(--text)}
@@ -582,7 +583,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.3 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.4 · 2026-08-06 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -646,7 +647,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.3';
+var APP_VERSION = '6.4';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -693,7 +694,7 @@ function cleanEmptyLogs() {
   var changed = false;
   // Klucze metadanych które nie są danymi użytkownika.
   // Notatki (_note/note_*) i serie bonus SĄ danymi — spójnie z saveWorkout.
-  var META_KEYS = { '_date':1, '_dayName':1, '_exNames':1, '_exTypes':1 };
+  var META_KEYS = { '_date':1, '_dayName':1, '_exNames':1, '_exTypes':1, '_subs':1 };
   Object.keys(logs).forEach(function(key) {
     var dl = logs[key];
     var hasData = Object.keys(dl).some(function(k) {
@@ -981,10 +982,10 @@ function navBack() {
   history.back();
 }
 
-function openDay(id) {
+function openDay(id, fromPop) {
   currentDayId = id;
   _lastProgressPct = -1; // nie odpalaj efektu ukończenia przy wejściu w gotowy trening
-  showView('workout');
+  showView('workout', fromPop);
   renderWorkout();
   // Przewiń widok workout na górę przy każdym otwarciu treningu
   var vw = document.getElementById('view-workout');
@@ -1266,7 +1267,45 @@ document.addEventListener('visibilitychange', function() {
     saveWorkout(true);
     setTimeout(function() { _saveGuard = false; }, 300);
   }
+  // v6.4: zapamiętaj gdzie user był — Android potrafi ubić PWA w tle,
+  // po powrocie wracamy w to samo miejsce zamiast na ekran główny
+  if (document.hidden) {
+    try {
+      var av = document.querySelector('.view.active');
+      localStorage.setItem('trening_uistate', JSON.stringify({
+        view: currentView, dayId: currentDayId, week: currentWeek,
+        scroll: av ? av.scrollTop : 0, ts: Date.now()
+      }));
+    } catch(e) {}
+  }
 });
+
+// v6.4: powrót w ostatnie miejsce po zimnym starcie (stan młodszy niż 12h)
+function restoreUiState() {
+  var st = null;
+  try { st = JSON.parse(localStorage.getItem('trening_uistate')); } catch(e) {}
+  if (!st || !st.view || st.view === 'home') return;
+  if (!st.ts || (Date.now() - st.ts) > 12 * 3600 * 1000) return; // nowy dzień = start od home
+  // jeśli przeglądarka ZACHOWAŁA wpis historii (miękki reload) — nie dokładaj drugiego,
+  // inaczej Wstecz miałby martwe kliknięcie
+  var keepHist = !!(history.state && history.state.view);
+  if (st.week && st.week >= 1) { currentWeek = st.week; saveWeek(); renderHome(); }
+  if (st.view === 'workout' && st.dayId && plan && plan.days && plan.days.some(function(d) { return d.id === st.dayId; })) {
+    openDay(st.dayId, keepHist);
+  } else if (st.view === 'editor') {
+    showView('settings', keepHist); showView('editor', keepHist);
+  } else if (st.view === 'history' || st.view === 'progress' || st.view === 'measurements' || st.view === 'settings') {
+    showView(st.view, keepHist);
+  } else {
+    return;
+  }
+  if (st.scroll) {
+    setTimeout(function() {
+      var av2 = document.querySelector('.view.active');
+      if (av2) av2.scrollTop = st.scroll;
+    }, 80);
+  }
+}
 
 // ═══════════════════════════════════════════════
 // TYDZIEŃ
@@ -1339,9 +1378,10 @@ function dayProgress(week, dayId) {
   if (!day) return { done: 0, total: 0, pct: 0 };
   var dl = getLog(week, dayId);
   var total = 0; var done = 0;
+  var subsP = dl._subs || {};
   day.exercises.forEach(function(ex) {
-    // serie bonus nie liczą się do paska postępu
-    var sets = dl[ex.id] || [];
+    // serie bonus nie liczą się do paska postępu; zamiennik liczy się za planowe
+    var sets = dl[subsP[ex.id] || ex.id] || [];
     // liczymy serie robocze (nie dropy), maksymalnie setsCount — po zmniejszeniu
     // liczby serii w edytorze stare zapisy nie mogą dać wyniku >100%
     total += ex.setsCount;
@@ -1384,15 +1424,36 @@ function exRefsFor(dayId, exId) {
   var refs = [{ dayId: dayId, exId: exId }];
   // v5.9: domyślnie WŁĄCZONE — wyłączane jawnie toggle'em w ustawieniach
   if (settings.crossDaySuggest === false || !plan || !plan.days) return refs;
+  // nazwa: z planu, a dla zamienników / ćwiczeń spoza planu — ze snapshotów logów (v6.4)
+  var name = '';
   var day = plan.days.find(function(d) { return d.id === dayId; });
   var ex = day && day.exercises.find(function(e) { return e.id === exId; });
-  if (!ex || !ex.name) return refs;
-  var norm = String(ex.name).trim().toLowerCase();
+  if (ex && ex.name) name = ex.name;
+  if (!name) {
+    Object.keys(logs).some(function(k) {
+      var en = logs[k]._exNames;
+      if (en && en[exId]) { name = en[exId]; return true; }
+      return false;
+    });
+  }
+  if (!name) return refs;
+  var norm = String(name).trim().toLowerCase();
+  function addRef(did, eid) {
+    if (did === dayId && eid === exId) return;
+    if (!refs.some(function(r) { return r.dayId === did && r.exId === eid; })) refs.push({ dayId: did, exId: eid });
+  }
   plan.days.forEach(function(d) {
     d.exercises.forEach(function(e2) {
-      if ((d.id !== dayId || e2.id !== exId) && e2.name && String(e2.name).trim().toLowerCase() === norm) {
-        refs.push({ dayId: d.id, exId: e2.id });
-      }
+      if (e2.name && String(e2.name).trim().toLowerCase() === norm) addRef(d.id, e2.id);
+    });
+  });
+  // v6.4: dopasowanie po nazwie także w snapshotach logów — zamienniki i ćwiczenia
+  // spoza aktualnego planu też łapią wspólną historię
+  Object.keys(logs).forEach(function(k) {
+    var en = logs[k]._exNames; if (!en) return;
+    var did = parseLogKey(k)[1];
+    Object.keys(en).forEach(function(eid) {
+      if (en[eid] && String(en[eid]).trim().toLowerCase() === norm) addRef(did, eid);
     });
   });
   return refs;
@@ -1514,6 +1575,9 @@ function saveWorkout(silent) {
   day.exercises.forEach(function(ex) { exTypes[ex.id] = { t: ex.schemeType || 'standard', d: ex.dropsPerSet || 1 }; });
   logs[key]._exTypes = exTypes;
 
+  // v6.4: aktywne zamienniki — planowe ćwiczenie nie ma pól w DOM, jego danych nie ruszamy
+  var subsMap = logs[key]._subs || {};
+
   // Notatka ogólna do sesji
   var snEl = document.getElementById('session-note');
   if (snEl) {
@@ -1523,6 +1587,7 @@ function saveWorkout(silent) {
   }
 
   day.exercises.forEach(function(ex) {
+    if (subsMap[ex.id]) return; // zastąpione zamiennikiem — pola planowego nie istnieją
     var sets = [];
     if (ex.schemeType === 'exdrop') {
       // Zapis exdrop — per drop z wszystkimi polami
@@ -1583,8 +1648,32 @@ function saveWorkout(silent) {
     else delete logs[key][bonusKey];
   });
 
+  // v6.4: zapis pól aktywnych zamienników (id spoza planu — czytane wprost z DOM)
+  Object.keys(subsMap).forEach(function(plannedId) {
+    var sid = subsMap[plannedId];
+    var sSets = [];
+    for (var si = 0; si < 40; si++) {
+      var swEl = document.getElementById('w_' + sid + '_' + si);
+      var srEl = document.getElementById('r_' + sid + '_' + si);
+      if (!swEl && !srEl) break;
+      sSets.push({
+        w: swEl ? cleanVal(normalizeNum(swEl.value.trim())) : '',
+        r: srEl ? cleanVal(srEl.value.trim()) : ''
+      });
+    }
+    if (!sSets.length) return; // brak pól w DOM (np. zapis spoza widoku) — nie ruszaj danych
+    if (sSets.some(function(s) { return s.w || s.r; })) logs[key][sid] = sSets;
+    else delete logs[key][sid];
+    var snEl2 = document.getElementById('note_' + sid);
+    if (snEl2 && snEl2.value.trim()) logs[key]['note_' + sid] = snEl2.value.trim();
+    else if (snEl2 && logs[key]['note_' + sid] !== undefined) delete logs[key]['note_' + sid];
+  });
+
   // Sprawdź czy jest cokolwiek wpisane — po WSZYSTKICH kluczach logu (nie tylko z aktualnego
-  // planu), inaczej zapis dnia kasowałby dane ćwiczeń usuniętych z planu
+  // planu), inaczej zapis dnia kasowałby dane ćwiczeń usuniętych z planu.
+  // Aktywne mapowanie _subs JEST daną: DOM pokazuje kartę zamiennika i skasowanie mapowania
+  // rozjechałoby stan (późniejsze wpisy nie miałyby się gdzie zapisać). Porzucone wpisy
+  // z samym _subs sprząta cleanEmptyLogs przy starcie.
   var hasAnyData = Object.keys(logs[key]).some(function(k) {
     return k !== '_date' && k !== '_dayName' && k !== '_exNames' && k !== '_exTypes';
   });
@@ -1700,6 +1789,100 @@ function renderHome() {
 // ═══════════════════════════════════════════════
 // RENDER WORKOUT
 // ═══════════════════════════════════════════════
+// v6.4: panel "↑ Ostatnie wyniki" — wspólny dla ćwiczeń planowych i zamienników
+function buildPrevPanel(exId, setsCount) {
+  var exRefs = exRefsFor(currentDayId, exId);
+  var prevInfo = getLastSetsRef(currentDayId, exId);
+  var prev = prevInfo ? prevInfo.sets : null;
+  // v6.3: gdy wstecz nic nie ma, chipy pokazują ostatni istniejący zapis (tryb awaryjny)
+  var srcOk = (prevInfo && prevInfo.relaxed) ? isAnySource : isSuggestSource;
+  if (prev && prev.length) {
+      // v5.0: podpowiedź per seria — dla każdej serii szukamy ostatniego tygodnia gdzie ta seria była wpisana
+      var chips = Array.from({ length: setsCount }, function(_, si) {
+        var bestW = -1; var bestSets = null; var bestScore = -1; var bestSrcDay = null;
+        exRefs.forEach(function(ref) {
+          Object.keys(logs).forEach(function(k) {
+            var pk2 = parseLogKey(k);
+            if (pk2[1] !== ref.dayId) return;
+            if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
+            var dl2 = logs[k];
+            if (dl2[ref.exId] && dl2[ref.exId][si] && (dl2[ref.exId][si].w || dl2[ref.exId][si].r)) {
+              var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
+              if (score > bestScore) { bestScore = score; bestW = pk2[0]; bestSets = dl2[ref.exId][si]; bestSrcDay = ref.dayId; }
+            }
+          });
+        });
+        if (!bestSets) return '<span class="ref-chip nd">S' + (si+1) + ': brak</span>';
+        // 🏆 tylko dla danych z TEGO dnia — isPR porównuje z historią bieżącego dnia
+        var prMark = (bestSrcDay === currentDayId && isPR(currentDayId, exId, bestSets.w, bestW)) ? ' 🏆' : '';
+        var srcLabel = '';
+        if (bestSrcDay && bestSrcDay !== currentDayId) {
+          var srcD = plan.days.find(function(d) { return d.id === bestSrcDay; });
+          if (srcD) srcLabel = '·' + esc(srcD.name);
+        }
+        var weekLabel = bestW !== -1 ? '<span style="font-size:9px;color:var(--text3)"> T' + bestW + srcLabel + '</span>' : '';
+        return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (si+1) + ': ' + (bestSets.w||'—') + ' kg×' + (bestSets.r||'—') + prMark + weekLabel + '</span>';
+      }).join('');
+      // v5.8: ostatnia ISTNIEJĄCA notatka do tego ćwiczenia (nie tylko z ostatniego tygodnia)
+      // — wyeksponowana w żółtej ramce, żeby nie umykała
+      var prevNote = ''; var prevNoteScore = -1; var prevNoteSrc = '';
+      exRefs.forEach(function(ref) {
+        Object.keys(logs).forEach(function(k) {
+          var pk2 = parseLogKey(k);
+          if (pk2[1] !== ref.dayId) return;
+          if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
+          var n = logs[k]['note_' + ref.exId];
+          if (!n) return;
+          var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
+          if (score > prevNoteScore) { prevNoteScore = score; prevNote = n; prevNoteSrc = 'T' + pk2[0]; }
+        });
+      });
+      var prevNoteHTML = prevNote
+        ? '<div class="prev-note-hl">📝<span style="flex:1">' + esc(prevNote) + ' <span style="color:var(--text3);font-size:10px">(' + prevNoteSrc + ')</span></span></div>'
+        : '';
+      return '<div class="prev-box"><div class="ref-label">↑ Ostatnie wyniki per seria</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML + '</div>';
+  } else if (currentWeek > 1) {
+    return '<div class="ref-label">↑ brak poprzedniego treningu</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
+  }
+  return '';
+}
+
+// v6.4: karta zamiennika — własna tożsamość (id z nazwy), własna historia i podpowiedzi
+function buildSubCard(ex, idx, subId, dl) {
+  var subName = getExName(dl, currentDayId, subId);
+  var curr = dl[subId] || null;
+  var savedNote = dl['note_' + subId] || '';
+  var prevHTML = buildPrevPanel(subId, ex.setsCount);
+  var timerBtn = settings.timer ? '<button class="btn-timer" onclick="timerStart(this)">⏱</button>' : '<span></span>';
+  var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki</div>'
+    + '<div class="set-hdr"><span></span><span>Ciężar kg</span><span>Powt.</span><span></span></div>';
+  for (var i = 0; i < ex.setsCount; i++) {
+    var cw = curr && curr[i] ? (curr[i].w || '') : '';
+    var cr = curr && curr[i] ? (curr[i].r || '') : '';
+    // ostatnia seria zamiennika ma ten sam trigger "po ostatniej serii" co karta planowa
+    var afterAttrS = (i === ex.setsCount - 1 && settings.afterLastSet !== 'off')
+      ? ' oninput="handleAfterLastSetInput(this,\'' + subId + '\',' + idx + ')"' : '';
+    inp += '<div class="set-row">'
+      + '<span class="set-lbl">S' + (i+1) + '</span>'
+      + '<input class="sinput" type="text" inputmode="decimal" id="w_' + subId + '_' + i + '" value="' + esc(cw) + '" placeholder="kg">'
+      + '<input class="sinput" type="text" inputmode="numeric" id="r_' + subId + '_' + i + '" value="' + esc(cr) + '" placeholder="powt."' + afterAttrS + '>'
+      + timerBtn + '</div>';
+  }
+  var safePlanId = String(ex.id).replace(/[^\w-]/g, '');
+  return '<div class="ex-card" style="border-left:3px solid var(--drop);">'
+    + '<div class="ex-head"><span class="ex-num">' + (idx+1) + '.</span><span class="ex-name">🔁 ' + esc(subName)
+    + '<span style="display:block;font-size:10px;color:var(--text3);font-weight:400">zamiennik za: ' + esc(ex.name) + '</span></span>'
+    + '<button onclick="subRemove(\'' + safePlanId + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:5px 9px;cursor:pointer;flex-shrink:0">↩ planowe</button>'
+    + '</div>'
+    + '<div class="sets-wrap">' + prevHTML + inp + '</div>'
+    + '<button class="note-toggle" onclick="toggleNote(this)">📝 Notatka</button>'
+    + '<div class="note-body' + (savedNote ? ' open' : '') + '">'
+    + '<textarea class="note-input" id="note_' + subId + '" placeholder="np. brama zajęta, wznosy zamiast linek...">' + esc(savedNote) + '</textarea>'
+    + '<button class="note-ok" onclick="noteOk(this)">✔ OK</button>'
+    + '</div>'
+    + '</div>';
+}
+
 function renderWorkout() {
   if (!plan || !currentDayId) return;
   var day = plan.days.find(function(d) { return d.id === currentDayId; });
@@ -1742,65 +1925,15 @@ function renderWorkout() {
   renderWorkoutProgress();
 
   c.innerHTML = day.exercises.map(function(ex, idx) {
+    // v6.4: zamiennik — inne ćwiczenie w miejsce planowego (np. zajęte stanowisko)
+    var subId = dl._subs && dl._subs[ex.id];
+    if (subId) return buildSubCard(ex, idx, subId, dl);
     var curr = getCurrentSets(currentDayId, ex.id);
     var savedNote = dl['note_' + ex.id] || '';
 
     // Poprzedni tydzień — v4.9: ostatni wykonany (nie currentWeek-1)
     // v5.8: opcjonalnie także z innych dni (to samo ćwiczenie po nazwie); wyraźny panel
-    var exRefs = exRefsFor(currentDayId, ex.id);
-    var prevInfo = getLastSetsRef(currentDayId, ex.id);
-    var prev = prevInfo ? prevInfo.sets : null;
-    // v6.3: gdy wstecz nic nie ma, chipy pokazują ostatni istniejący zapis (tryb awaryjny)
-    var srcOk = (prevInfo && prevInfo.relaxed) ? isAnySource : isSuggestSource;
-    var prevHTML = '';
-    if (prev && prev.length) {
-        // v5.0: podpowiedź per seria — dla każdej serii szukamy ostatniego tygodnia gdzie ta seria była wpisana
-        var chips = Array.from({ length: ex.setsCount }, function(_, si) {
-          var bestW = -1; var bestSets = null; var bestScore = -1; var bestSrcDay = null;
-          exRefs.forEach(function(ref) {
-            Object.keys(logs).forEach(function(k) {
-              var pk2 = parseLogKey(k);
-              if (pk2[1] !== ref.dayId) return;
-              if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
-              var dl2 = logs[k];
-              if (dl2[ref.exId] && dl2[ref.exId][si] && (dl2[ref.exId][si].w || dl2[ref.exId][si].r)) {
-                var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
-                if (score > bestScore) { bestScore = score; bestW = pk2[0]; bestSets = dl2[ref.exId][si]; bestSrcDay = ref.dayId; }
-              }
-            });
-          });
-          if (!bestSets) return '<span class="ref-chip nd">S' + (si+1) + ': brak</span>';
-          // 🏆 tylko dla danych z TEGO dnia — isPR porównuje z historią bieżącego dnia
-          var prMark = (bestSrcDay === currentDayId && isPR(currentDayId, ex.id, bestSets.w, bestW)) ? ' 🏆' : '';
-          var srcLabel = '';
-          if (bestSrcDay && bestSrcDay !== currentDayId) {
-            var srcD = plan.days.find(function(d) { return d.id === bestSrcDay; });
-            if (srcD) srcLabel = '·' + esc(srcD.name);
-          }
-          var weekLabel = bestW !== -1 ? '<span style="font-size:9px;color:var(--text3)"> T' + bestW + srcLabel + '</span>' : '';
-          return '<span class="ref-chip' + (prMark ? ' pr-chip' : '') + '">S' + (si+1) + ': ' + (bestSets.w||'—') + ' kg×' + (bestSets.r||'—') + prMark + weekLabel + '</span>';
-        }).join('');
-        // v5.8: ostatnia ISTNIEJĄCA notatka do tego ćwiczenia (nie tylko z ostatniego tygodnia)
-        // — wyeksponowana w żółtej ramce, żeby nie umykała
-        var prevNote = ''; var prevNoteScore = -1; var prevNoteSrc = '';
-        exRefs.forEach(function(ref) {
-          Object.keys(logs).forEach(function(k) {
-            var pk2 = parseLogKey(k);
-            if (pk2[1] !== ref.dayId) return;
-            if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
-            var n = logs[k]['note_' + ref.exId];
-            if (!n) return;
-            var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
-            if (score > prevNoteScore) { prevNoteScore = score; prevNote = n; prevNoteSrc = 'T' + pk2[0]; }
-          });
-        });
-        var prevNoteHTML = prevNote
-          ? '<div class="prev-note-hl">📝<span style="flex:1">' + esc(prevNote) + ' <span style="color:var(--text3);font-size:10px">(' + prevNoteSrc + ')</span></span></div>'
-          : '';
-        prevHTML = '<div class="prev-box"><div class="ref-label">↑ Ostatnie wyniki per seria</div><div class="ref-chips">' + chips + '</div>' + prevNoteHTML + '</div>';
-    } else if (currentWeek > 1) {
-      prevHTML = '<div class="ref-label">↑ brak poprzedniego treningu</div><div class="ref-chips"><span class="ref-chip nd">brak danych</span></div>';
-    }
+    var prevHTML = buildPrevPanel(ex.id, ex.setsCount);
 
     // Podpowiedź ciężaru — mały chip gdy osiągnięto max powt.
     var sugg = getSuggestion(currentDayId, ex.id, ex.scheme, ex.schemeType);
@@ -1993,7 +2126,8 @@ function renderWorkout() {
     }
 
     return '<div class="ex-card" style="' + optBorder + '">'
-      + '<div class="ex-head"><span class="ex-num">' + (idx+1) + '.</span><span class="ex-name">' + esc(ex.name) + nt + optLabel + '</span>' + yt + '</div>'
+      + '<div class="ex-head"><span class="ex-num">' + (idx+1) + '.</span><span class="ex-name">' + esc(ex.name) + nt + optLabel + '</span>' + yt
+      + '<button class="btn-sub" onclick="subModal(\'' + String(ex.id).replace(/[^\w-]/g, '') + '\')" title="Zamiennik ćwiczenia">🔁</button></div>'
       + '<div class="ex-meta">'
       + '<div class="em"><span class="em-l">Serie / Powt.</span><span class="em-v">' + esc(ex.scheme) + '</span></div>'
       + '<div class="em"><span class="em-l">TUT</span><span class="em-v">' + esc(ex.tut || '—') + '</span></div>'
@@ -2015,6 +2149,81 @@ function renderWorkout() {
 
 // v6.0: OK pod notatką — zapisuje notatkę i chowa klawiaturę jednym tapnięciem
 // (Enter w notatce celowo robi nową linię — notatki bywają wielolinijkowe)
+// v6.4: ZAMIENNIKI — inne ćwiczenie w miejsce planowego (np. zajęte stanowisko).
+// Zamiennik ma własne id pochodzące z nazwy ('zam_...'), własną historię, podpowiedzi
+// i rekordy (po nazwie); dane ćwiczenia planowego nie są ruszane.
+function subModal(plannedId) {
+  if (!plan || !currentDayId) return;
+  var day = plan.days.find(function(d) { return d.id === currentDayId; });
+  var ex = day && day.exercises.find(function(e) { return e.id === plannedId; });
+  if (!ex) return;
+  // poprzednio używane zamienniki — podpowiedzi z snapshotów logów
+  var seen = {}; var opts = '';
+  Object.keys(logs).forEach(function(k) {
+    var en = logs[k]._exNames; if (!en) return;
+    Object.keys(en).forEach(function(eid) {
+      if (eid.indexOf('zam_') === 0 && en[eid] && !seen[en[eid]]) { seen[en[eid]] = 1; opts += '<option value="' + esc(en[eid]) + '"></option>'; }
+    });
+  });
+  _modalCtx = { type: 'sub', plannedId: plannedId };
+  document.getElementById('modal-title').textContent = '🔁 Zamiennik ćwiczenia';
+  document.getElementById('modal-content').innerHTML =
+    '<div class="modal-field"><div class="modal-label">Zamiast: ' + esc(ex.name) + '</div>'
+    + '<input class="modal-input" id="sub-name-input" list="sub-name-list" placeholder="np. Wznosy hantlami na boki" autocomplete="off">'
+    + '<datalist id="sub-name-list">' + opts + '</datalist>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">Zamiennik ma własną historię ciężarów i podpowiedzi (dopasowanie po nazwie). Dane ćwiczenia z planu zostają nietknięte, a raport pokaże zastąpienie.</div></div>';
+  openModal();
+  setTimeout(function() { var el = document.getElementById('sub-name-input'); if (el) el.focus(); }, 100);
+}
+
+function subApply(plannedId) {
+  var inp = document.getElementById('sub-name-input');
+  var name = inp ? inp.value.trim() : '';
+  if (!name) { toast('⚠️ Podaj nazwę zamiennika'); return; }
+  saveWorkout(true); // utrwal stan przed przełączeniem
+  var key = logKey(currentWeek, currentDayId);
+  if (!logs[key]) logs[key] = {};
+  // stabilne id z nazwy — ta sama nazwa = ta sama historia
+  var slug = name.toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]+/g, '_').replace(/^_+|_+$/g, '');
+  if (slug.length > 40) {
+    // długie nazwy: skrót + deterministyczny hash — różne nazwy nie skleją się w jedno id
+    var hsum = 0;
+    for (var hh = 0; hh < name.length; hh++) hsum = (hsum * 31 + name.charCodeAt(hh)) % 1679616;
+    slug = slug.slice(0, 40) + '_' + hsum.toString(36);
+  }
+  var sid = 'zam_' + slug;
+  if (sid === 'zam_') sid = 'zam_x';
+  // '_bonus' w id kolidowałoby z kluczami serii bonusowych (isExKey je odfiltrowuje)
+  while (sid.indexOf('_bonus') >= 0) sid = sid.replace('_bonus', '_bx');
+  var subs = logs[key]._subs || {};
+  // ta sama nazwa dla DWÓCH planowych w jednej sesji → unikalny przyrostek,
+  // inaczej dwie karty miałyby zdublowane id pól; wspólną historię i tak
+  // zapewnia dopasowanie po nazwie w snapshotach
+  var baseSid = sid; var dupN = 2;
+  while (Object.keys(subs).some(function(p) { return p !== plannedId && subs[p] === sid; })) {
+    sid = baseSid + '_' + dupN; dupN++;
+  }
+  subs[plannedId] = sid;
+  logs[key]._subs = subs;
+  var exN = logs[key]._exNames || {}; exN[sid] = name; logs[key]._exNames = exN;
+  var exT = logs[key]._exTypes || {}; exT[sid] = { t: 'standard', d: 1 }; logs[key]._exTypes = exT;
+  saveLogs(); closeModal(); renderWorkout();
+  toast('🔁 Zamiennik: ' + name);
+}
+
+function subRemove(plannedId) {
+  if (!currentDayId) return;
+  saveWorkout(true); // utrwal wpisane dane zamiennika zanim zniknie z DOM
+  var key = logKey(currentWeek, currentDayId);
+  if (logs[key] && logs[key]._subs) {
+    delete logs[key]._subs[plannedId];
+    if (!Object.keys(logs[key]._subs).length) delete logs[key]._subs;
+    saveLogs();
+  }
+  renderWorkout();
+  toast('↩ Wrócono do ćwiczenia z planu');
+}
+
 function noteOk(btn) {
   var ta = btn.parentNode.querySelector('textarea');
   if (ta) ta.blur();
@@ -2112,7 +2321,8 @@ function handleAfterLastSetInput(el, exId, exIdx) {
   if (!mode || mode === 'off') return;
   var val = el.value.trim();
   if (!val) return; // nic nie wpisano — nie reaguj
-  // Debounce 800ms — czekamy aż użytkownik skończy wpisywać
+  // v6.4: dłuższy debounce (wolne wpisywanie dwucyfrowych powtórzeń nie wyrywa focusa
+  // w połowie), bez select() na celu i bez skoku gdy cel już ma wartość
   clearTimeout(_afterLastSetTimer);
   _afterLastSetTimer = setTimeout(function() {
     // Działaj tylko gdy user wciąż stoi w polu, które odpaliło akcję — inaczej kradlibyśmy
@@ -2126,11 +2336,16 @@ function handleAfterLastSetInput(el, exId, exIdx) {
       if (!day) return;
       var nextEx = day.exercises[exIdx + 1];
       if (!nextEx) return;
-      // exdrop ma inne id pól (w_<id>_0_w) — bez fallbacku skok cicho nie działał
-      var nextInput = document.getElementById('w_' + nextEx.id + '_0') || document.getElementById('w_' + nextEx.id + '_0_w');
-      if (nextInput) { nextInput.focus(); nextInput.select(); }
+      // exdrop ma inne id pól (w_<id>_0_w); zamiennik ma id zam_ (v6.4)
+      var dlS = logs[logKey(currentWeek, currentDayId)] || {};
+      var nextId = (dlS._subs && dlS._subs[nextEx.id]) || nextEx.id;
+      var nextInput = document.getElementById('w_' + nextId + '_0') || document.getElementById('w_' + nextId + '_0_w');
+      if (nextInput && !nextInput.value.trim()) {
+        nextInput.focus();
+        try { nextInput.setSelectionRange(0, 0); } catch(err) {}
+      }
     }
-  }, 800);
+  }, 1200);
 }
 
 // v5.0: dodaj serię bonus do ćwiczenia
@@ -2959,6 +3174,31 @@ function populateProgSelect() {
     });
     sel.appendChild(og);
   });
+  // v6.4: zamienniki i ćwiczenia spoza aktualnego planu — też mają wykres progresu
+  var extra = {}; // "dayId|exId" -> nazwa
+  Object.keys(logs).forEach(function(k) {
+    var pk = parseLogKey(k); var dl2 = logs[k];
+    Object.keys(dl2).filter(isExKey).forEach(function(eid) {
+      if (!Array.isArray(dl2[eid])) return;
+      var d2 = plan.days.find(function(d) { return d.id === pk[1]; });
+      if (d2 && d2.exercises.some(function(e) { return e.id === eid; })) return; // jest w planie
+      var kk = pk[1] + '|' + eid;
+      if (!extra[kk]) extra[kk] = getExName(dl2, pk[1], eid);
+    });
+  });
+  var extraKeys = Object.keys(extra);
+  if (extraKeys.length) {
+    var ogx = document.createElement('optgroup');
+    ogx.label = '🔁 Zamienniki / spoza planu';
+    extraKeys.sort(function(a, b) { return extra[a] < extra[b] ? -1 : 1; }).forEach(function(kk) {
+      var opt = document.createElement('option');
+      opt.value = kk;
+      opt.textContent = extra[kk];
+      if (prev === opt.value) opt.selected = true;
+      ogx.appendChild(opt);
+    });
+    sel.appendChild(ogx);
+  }
 }
 
 function setProgTab(tab, el) {
@@ -3277,6 +3517,9 @@ function modalSave() {
   // Raport A — generuj po wyborze tygodni
   if (ctx.type === 'reportA') { exportReportA(); return; }
 
+  // v6.4: zamiennik ćwiczenia
+  if (ctx.type === 'sub') { subApply(ctx.plannedId); return; }
+
   // Zapis pól pomiarowych (nowy system)
   if (ctx.type === 'measFields') {
     var updated = [];
@@ -3561,7 +3804,7 @@ function trendBadge(val, prev, goodDown) {
 }
 
 // v3.10: pomocnicze — klucze metadanych w logu
-var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1, '_exTypes':1 };
+var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1, '_exTypes':1, '_subs':1 };
 // v5.0: klucze bonus (_bonus) i notatki są metadanymi — nie są seriami ćwiczeń
 function isExKey(k) { return !LOG_META[k] && k.indexOf('note_') !== 0 && k.indexOf('_bonus') < 0; }
 
@@ -3879,6 +4122,16 @@ function exportHTMLReport(mode) {
           });
         }
       });
+      // ćwiczenia spoza planu mające TYLKO serie bonus — też do dziennika (jako linia bonus)
+      Object.keys(dl).forEach(function(bk2) {
+        if (bk2.indexOf('_bonus') < 0 || !Array.isArray(dl[bk2])) return;
+        var base2 = bk2.replace('_bonus', '');
+        if (exList.some(function(e) { return e.id === base2; })) return;
+        exList.push({
+          id: base2, name: getExName(dl, dayId, base2), scheme: '', tut: '',
+          schemeType: snapType(dl, base2), dropsPerSet: snapDrops(dl, base2), setsCount: 0
+        });
+      });
       exList.forEach(function(exObj) {
         var exId = exObj.id;
         var exName = (dl._exNames && dl._exNames[exId]) || exObj.name;
@@ -3888,6 +4141,11 @@ function exportHTMLReport(mode) {
         var sType = exObj.schemeType || 'standard';
         var exSets = dl[exId] || null;
         if (exSets && !Array.isArray(exSets)) exSets = null;
+        // v6.4: serie bonus wyszczególnione osobno (nie mieszają się z seriami planu)
+        var bonusArrR = dl[exId + '_bonus'];
+        var bonusLineR = (Array.isArray(bonusArrR) && bonusArrR.length)
+          ? '<br><small style="color:#457b9d">➕ bonus: ' + bonusArrR.map(function(bs) { return (bs.w||'—') + '×' + (bs.r||'—'); }).join(' │ ') + '</small>'
+          : '';
 
         // Trend
         var exKey = dayId + '|' + exId;
@@ -3917,6 +4175,30 @@ function exportHTMLReport(mode) {
         }
 
         if (!exSets) {
+          // v6.4: zastąpione zamiennikiem — pokaż czym, bez alarmu "opuszczone"
+          var subOf = dl._subs && dl._subs[exId];
+          if (subOf) {
+            var subCells = '';
+            for (var sc = 0; sc < globalMaxSets; sc++) subCells += '<td style="color:#ddd">—</td>';
+            sessionRows += '<tr>'
+              + '<td style="text-align:left"><strong>' + htmlEsc(exName) + '</strong>'
+              + '<br><small style="color:#7b2fbf;font-style:italic">🔁 zastąpione: ' + htmlEsc(getExName(dl, dayId, subOf)) + '</small>'
+              + bonusLineR
+              + '</td>' + subCells
+              + '<td style="text-align:center">—</td></tr>';
+            hasRows = true;
+            return;
+          }
+          // v6.4: ćwiczenie z SAMYMI seriami bonus — pokaż je (bez alarmu "opuszczone")
+          if (bonusLineR) {
+            var bCells = '';
+            for (var bc = 0; bc < globalMaxSets; bc++) bCells += '<td style="color:#ddd">—</td>';
+            sessionRows += '<tr>'
+              + '<td style="text-align:left"><strong>' + htmlEsc(exName) + '</strong>' + bonusLineR + '</td>'
+              + bCells + '<td style="text-align:center">—</td></tr>';
+            hasRows = true;
+            return;
+          }
           // v6.2: "opuszczone" dopiero od pierwszego tygodnia, w którym ćwiczenie ma jakikolwiek
           // zapis — ćwiczenia dodane do planu później nie są "opuszczone" wstecz
           var exFirstW = 999;
@@ -3981,6 +4263,7 @@ function exportHTMLReport(mode) {
           + '<td style="text-align:left"><strong>' + htmlEsc(exName) + '</strong>'
           + (scheme ? '<br><small style="color:#888">' + htmlEsc(scheme) + (tut?' · TUT: '+tut:'') + '</small>' : '')
           + missingNote
+          + bonusLineR
           + (note ? '<br><small style="color:#aaa;font-style:italic">📝 ' + htmlEsc(note) + '</small>' : '')
           + '</td>'
           + setsCells.join('')
@@ -4395,10 +4678,11 @@ function init() {
   if (!plan && localStorage.getItem(LS_PLAN) === null) {
     fetch('./plan.json')
       .then(function(r) { return r.json(); })
-      .then(function(p) { if (p && p.days) { plan = p; savePlan(); } renderHome(); })
+      .then(function(p) { if (p && p.days) { plan = p; savePlan(); } renderHome(); restoreUiState(); })
       .catch(function() { renderHome(); });
   } else {
     renderHome();
+    restoreUiState();
   }
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function(){});
