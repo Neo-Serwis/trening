@@ -583,7 +583,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.7 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.8 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -647,7 +647,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.7';
+var APP_VERSION = '6.8';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -664,6 +664,9 @@ var _progTab = 'weight';
 var _progRange = 4;
 var _modalCtx = null;
 var _modalClosing = false; // blokada podwójnego history.back() zanim przyjdzie popstate
+// v6.8: sesje zapisane na poprzednim planie — podgląd zamiast formularza
+var _workoutReadOnly = false;
+var _legacyEdit = {}; // klucze logów, dla których user świadomie włączył edycję
 var _dragSrc = null;
 
 var LS_PLAN = 'trening_plan';
@@ -1379,6 +1382,20 @@ function dayProgress(week, dayId) {
   var dl = getLog(week, dayId);
   var total = 0; var done = 0;
   var subsP = dl._subs || {};
+  // v6.8: sesja zapisana na POPRZEDNIM planie (dane ćwiczeń spoza aktualnego) —
+  // liczona wg tego, co faktycznie zrobiono, nie wg dzisiejszego szablonu planu
+  var subVals = {};
+  Object.keys(subsP).forEach(function(p) { subVals[subsP[p]] = 1; });
+  var exKeysData = Object.keys(dl).filter(function(k) { return isExKey(k) && Array.isArray(dl[k]) && dl[k].length; });
+  var isLegacySession = exKeysData.some(function(k) {
+    return !subVals[k] && !day.exercises.some(function(e) { return e.id === k; });
+  });
+  if (isLegacySession) {
+    exKeysData.forEach(function(k) {
+      dl[k].forEach(function(s) { total++; if (s.w || s.r) done++; });
+    });
+    return { done: done, total: total || 1, pct: total ? Math.round(done / total * 100) : 0 };
+  }
   day.exercises.forEach(function(ex) {
     // serie bonus nie liczą się do paska postępu; zamiennik liczy się za planowe
     var sets = dl[subsP[ex.id] || ex.id] || [];
@@ -1557,6 +1574,11 @@ function saveWorkout(silent) {
   if (!plan || !currentDayId) return;
   var day = plan.days.find(function(d) { return d.id === currentDayId; });
   if (!day) return;
+  // v6.8: podgląd sesji ze starego planu — formularza nie ma w DOM, zapis by wyzerował dane
+  if (_workoutReadOnly) {
+    if (!silent) toast('📦 Podgląd sesji ze starego planu — bez zapisu');
+    return;
+  }
   var key = logKey(currentWeek, currentDayId);
   if (!logs[key]) logs[key] = {};
   // Data treningu — zawsze z pola input (użytkownik może ją zmienić)
@@ -1751,9 +1773,11 @@ function findNextInfo() {
     var dl = logs[k];
     if (!Object.keys(dl).some(isExKey)) return; // liczą się sesje z seriami
     var dt = dl._date ? parseDatePL(dl._date) : 0;
-    if (dt > bestDate
-        || (dt === bestDate && pk[0] > bestW)
-        || (dt === bestDate && pk[0] === bestW && idx > bestIdx)) {
+    // v6.8: ranga TYDZIEŃ > data > pozycja — data rozstrzyga tylko w obrębie tygodnia
+    // (przypadkowy wpis w starym tygodniu z dzisiejszą datą nie przejmuje rotacji)
+    if (pk[0] > bestW
+        || (pk[0] === bestW && dt > bestDate)
+        || (pk[0] === bestW && dt === bestDate && idx > bestIdx)) {
       bestDate = dt; bestW = pk[0]; bestIdx = idx;
     }
   });
@@ -1875,6 +1899,28 @@ function renderHome() {
 // ═══════════════════════════════════════════════
 // RENDER WORKOUT
 // ═══════════════════════════════════════════════
+// v6.8: chipy serii dla podglądu sesji ze starego planu (razem z dropami/dogrywkami)
+function legacySetChips(dl, exId) {
+  var sType = snapType(dl, exId);
+  return dl[exId].map(function(s, i) {
+    var parts = [];
+    if (s.w || s.r) parts.push((sType === 'exdrop' ? 'Rob' : 'S' + (i + 1)) + ': ' + (s.w||'—') + '×' + (s.r||'—'));
+    [['wd0','rd0'],['wd1','rd1'],['wd2','rd2'],['wd3','rd3'],['wd4','rd4']].forEach(function(p) {
+      if (s[p[0]] || s[p[1]]) parts.push('↓' + (s[p[0]]||'—') + '×' + (s[p[1]]||'—'));
+    });
+    for (var dv = 0; dv < 6; dv++) {
+      if (s['drop' + dv + 'w'] || s['drop' + dv + 'r']) parts.push('↓' + (s['drop'+dv+'w']||'—') + '×' + (s['drop'+dv+'r']||'—'));
+    }
+    return parts.length ? '<span class="ref-chip">' + parts.join(' │ ') + '</span>' : '';
+  }).filter(Boolean).join('');
+}
+
+function legacyEditHere() {
+  _legacyEdit[logKey(currentWeek, currentDayId)] = 1;
+  renderWorkout();
+  toast('✏️ Edycja przez szablon AKTUALNEGO planu — ostrożnie ze starymi danymi');
+}
+
 // v6.4: panel "↑ Ostatnie wyniki" — wspólny dla ćwiczeń planowych i zamienników
 function buildPrevPanel(exId, setsCount) {
   var exRefs = exRefsFor(currentDayId, exId);
@@ -2048,6 +2094,40 @@ function renderWorkout() {
 
   // Pasek postępu treningu (v5.8: wydzielony — aktualizowany też na żywo przy wpisywaniu)
   renderWorkoutProgress();
+
+  // v6.8: sesja zapisana na POPRZEDNIM planie — pokazujemy ją dokładnie tak, jak była
+  // zrobiona (wszystkie ćwiczenia z logu), zamiast pustego szablonu nowego planu
+  _workoutReadOnly = false;
+  var subValsW = {};
+  if (dl._subs) Object.keys(dl._subs).forEach(function(p) { subValsW[dl._subs[p]] = 1; });
+  var exKeysW = Object.keys(dl).filter(function(k) { return isExKey(k) && Array.isArray(dl[k]) && dl[k].length; });
+  var isLegacyW = exKeysW.some(function(k) {
+    return !subValsW[k] && !day.exercises.some(function(e) { return e.id === k; });
+  });
+  if (isLegacyW && !_legacyEdit[key]) {
+    _workoutReadOnly = true;
+    var lHtml = '<div style="background:rgba(69,123,157,0.14);border:1px solid var(--blue);border-radius:var(--radius);padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--blue);line-height:1.6">'
+      + '📦 Sesja zapisana na POPRZEDNIM planie' + (dl._date ? ' (' + esc(dl._date) + ')' : '') + ' — poniżej dokładnie to, co zrobiłeś.'
+      + ' <button onclick="legacyEditHere()" style="background:none;border:1px solid var(--blue);border-radius:6px;color:var(--blue);font-size:11px;padding:4px 9px;cursor:pointer;margin-left:4px">✏️ Edytuj mimo to</button></div>';
+    var li = 0;
+    exKeysW.forEach(function(k2) {
+      li++;
+      var chips2 = legacySetChips(dl, k2);
+      var bon2 = dl[k2 + '_bonus'];
+      var bonChips2 = (Array.isArray(bon2) && bon2.length)
+        ? bon2.map(function(bs) { return (bs.w || bs.r) ? '<span class="ref-chip" style="border-style:dashed">+' + (bs.w||'—') + '×' + (bs.r||'—') + '</span>' : ''; }).join('')
+        : '';
+      var note2 = dl['note_' + k2] || '';
+      lHtml += '<div class="ex-card">'
+        + '<div class="ex-head"><span class="ex-num">' + li + '.</span><span class="ex-name">' + esc(getExName(dl, currentDayId, k2)) + '</span></div>'
+        + '<div class="sets-wrap"><div class="ref-chips" style="margin-bottom:0">' + (chips2 || '<span class="ref-chip nd">brak</span>') + bonChips2 + '</div>'
+        + (note2 ? '<div class="prev-note-hl" style="margin-top:8px">📝<span style="flex:1">' + esc(note2) + '</span></div>' : '')
+        + '</div></div>';
+    });
+    c.innerHTML = lHtml;
+    if (vwScrollEl) vwScrollEl.scrollTop = vwScrollKeep;
+    return;
+  }
 
   c.innerHTML = day.exercises.map(function(ex, idx) {
     // v6.4: zamiennik — inne ćwiczenie w miejsce planowego (np. zajęte stanowisko)
