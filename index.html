@@ -80,6 +80,10 @@ body.plex{
 body.plex,body.plex input,body.plex textarea,body.plex button{font-family:'IBM Plex Sans',-apple-system,'Segoe UI',Roboto,sans-serif;}
 body.plex .sinput,body.plex .sinput-sm,body.plex .meas-input,body.plex .meas-chip-val,body.plex .em-v,body.plex #week-label,body.plex #timer-num,body.plex .ref-chip,body.plex .hist-chip{font-family:'IBM Plex Mono',Consolas,monospace;}
 html,body{height:100%;max-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
+/* v6.9: UI aplikacyjny bez zaznaczania tekstu przytrzymaniem (nie wyskakuje wyszukiwarka);
+   pola tekstowe pozostają normalnie zaznaczalne */
+body{-webkit-user-select:none;user-select:none;}
+input,textarea{-webkit-user-select:text;user-select:text;}
 #app{height:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;}
 
 /* HEADER */
@@ -583,7 +587,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.8 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.9 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -647,7 +651,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.8';
+var APP_VERSION = '6.9';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1866,7 +1870,17 @@ function renderHome() {
       + '<button onclick="startNextWeek()" style="background:var(--green);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Zacznij Tydzień ' + (currentWeek + 1) + ' →</button>'
       + '</div>';
   }
-  var nextDayId = (nextInfo && atFrontier) ? nextInfo.dayId : null;
+  // v6.9: "▶ następny" tylko w JEDNYM tygodniu — tam, gdzie następna sesja faktycznie
+  // wyląduje (front; a gdy front ma komplet sesji — tydzień następny)
+  var nextDayId = null;
+  if (nextInfo && atFrontier) {
+    var badgeWeek = Math.max(nextInfo.lastWeek, 1);
+    var frontComplete = nextInfo.lastWeek >= 1 && plan.days.every(function(d0) {
+      return Object.keys(getLog(nextInfo.lastWeek, d0.id)).some(isExKey);
+    });
+    if (frontComplete) badgeWeek = nextInfo.lastWeek + 1;
+    if (currentWeek === badgeWeek) nextDayId = nextInfo.dayId;
+  }
   c.innerHTML = completeBanner + plan.days.map(function(day, i) {
     var prog = dayProgress(currentWeek, day.id);
     var badgeCls, badgeTxt;
@@ -2074,10 +2088,22 @@ function renderWorkout() {
     archBanner.style.display = 'none';
   }
 
+  // v6.9: baner "ukończona" tylko POZA archiwum; propozycja nowego cyklu wyłącznie
+  // przy komplecie tygodnia — inaczej wskazuje NASTĘPNĄ sesję rotacji
   var progNow = dayProgress(currentWeek, currentDayId);
-  if (progNow.total > 0 && progNow.pct >= 100) {
-    doneBanner.innerHTML = '✓ Ta sesja jest już ukończona' + (dl._date ? ' (' + esc(dl._date) + ')' : '') + '. Zaczynasz nowy cykl?'
-      + ' <button onclick="startNextWeekHere()" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Tydzień ' + (currentWeek + 1) + '</button>';
+  if (progNow.total > 0 && progNow.pct >= 100 && !isArchiveW) {
+    var dateTxt = dl._date ? ' (' + esc(dl._date) + ')' : '';
+    var weekAllDone = plan.days.every(function(d3) { return dayProgress(currentWeek, d3.id).pct >= 100; });
+    if (weekAllDone) {
+      doneBanner.innerHTML = '✓ Ta sesja jest już ukończona' + dateTxt + '. Komplet tygodnia — zaczynasz nowy cykl?'
+        + ' <button onclick="startNextWeekHere()" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Tydzień ' + (currentWeek + 1) + '</button>';
+    } else {
+      var ni3 = findNextInfo();
+      var nd3 = ni3 && plan.days.find(function(d3) { return d3.id === ni3.dayId; });
+      doneBanner.innerHTML = '✓ Ta sesja jest już ukończona' + dateTxt + '.'
+        + (nd3 ? ' Następny w kolejce: <strong>' + esc(nd3.name) + '</strong>'
+          + ' <button onclick="openDay(\'' + String(nd3.id).replace(/[^\w-]/g, '') + '\')" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Otwórz</button>' : '');
+    }
     doneBanner.style.display = 'block';
   } else {
     doneBanner.style.display = 'none';
