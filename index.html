@@ -583,7 +583,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.5 · 2026-08-27 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.6 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -647,7 +647,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.5';
+var APP_VERSION = '6.6';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1621,6 +1621,12 @@ function saveWorkout(silent) {
         sets.push({ w: wv, r: rv });
       }
     }
+    // v6.6: starszy zapis może mieć WIĘCEJ serii niż aktualny plan (np. poprzedni plan
+    // z serią BO) — formularz pokazuje tylko setsCount pól, ogona nie wolno obcinać
+    var existingSets = logs[key][ex.id];
+    if (Array.isArray(existingSets) && existingSets.length > sets.length) {
+      for (var tl = sets.length; tl < existingSets.length; tl++) sets.push(existingSets[tl]);
+    }
     var setHasVal = function(s) {
       if (s.w || s.r) return true;
       for (var q = 0; q < 6; q++) { if (s['drop' + q + 'w'] || s['drop' + q + 'r']) return true; }
@@ -1734,7 +1740,7 @@ function updateTimerDisplay() {
 // v6.5: rotacja cyklu płynie przez granice tygodni — następna sesja to dzień PO ostatnio
 // wykonanym treningu (kolejność planu, cyklicznie), niezależnie od numeru tygodnia.
 // Ranga "ostatnio wykonany": data sesji > numer tygodnia > pozycja w planie.
-function findNextDayId() {
+function findNextInfo() {
   if (!plan || !plan.days || !plan.days.length) return null;
   var bestW = -1; var bestDate = -1; var bestIdx = -1;
   Object.keys(logs).forEach(function(k) {
@@ -1751,9 +1757,10 @@ function findNextDayId() {
       bestDate = dt; bestW = pk[0]; bestIdx = idx;
     }
   });
-  if (bestIdx < 0) return plan.days[0].id; // brak historii — zacznij od pierwszego
-  return plan.days[(bestIdx + 1) % plan.days.length].id;
+  if (bestIdx < 0) return { dayId: plan.days[0].id, lastWeek: 0 }; // brak historii
+  return { dayId: plan.days[(bestIdx + 1) % plan.days.length].id, lastWeek: bestW };
 }
+function findNextDayId() { var i = findNextInfo(); return i ? i.dayId : null; }
 
 function startNextWeek() {
   currentWeek++; saveWeek(); renderHome();
@@ -1803,16 +1810,20 @@ function renderHome() {
     c.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><h2>Brak planu</h2><p>Kliknij ⚙️ → Wgraj plan (JSON)</p></div>';
     return;
   }
+  // v6.6: podpowiedzi rotacji tylko na "froncie" cyklu — przeglądanie starszych
+  // tygodni (historia) nie pokazuje badge'a "następny" ani banerów przejścia
+  var nextInfo = findNextInfo();
+  var atFrontier = nextInfo ? currentWeek >= nextInfo.lastWeek : true;
   // v6.5: komplet tygodnia — zaproponuj przejście do następnego jednym przyciskiem
   var completeBanner = '';
   var allDone = plan.days.every(function(d) { return dayProgress(currentWeek, d.id).pct >= 100; });
-  if (allDone) {
+  if (allDone && atFrontier) {
     completeBanner = '<div style="background:rgba(82,183,136,0.12);border:1px solid var(--green);border-radius:var(--radius);padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--green);display:flex;align-items:center;justify-content:space-between;gap:8px">'
       + '<span>🎉 Komplet tygodnia ' + currentWeek + '!</span>'
       + '<button onclick="startNextWeek()" style="background:var(--green);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Zacznij Tydzień ' + (currentWeek + 1) + ' →</button>'
       + '</div>';
   }
-  var nextDayId = findNextDayId();
+  var nextDayId = (nextInfo && atFrontier) ? nextInfo.dayId : null;
   c.innerHTML = completeBanner + plan.days.map(function(day, i) {
     var prog = dayProgress(currentWeek, day.id);
     var badgeCls, badgeTxt;
@@ -2210,6 +2221,28 @@ function renderWorkout() {
       + '</div>'
       + '</div>';
   }).join('');
+  // v6.6: zapisy spoza aktualnego planu (starszy plan, zamienniki po powrocie) —
+  // pokazujemy jako podgląd, żeby stare tygodnie nie wyglądały na "niedokończone"
+  var renderedIds = {};
+  day.exercises.forEach(function(ex2) {
+    renderedIds[ex2.id] = 1;
+    var s2 = dl._subs && dl._subs[ex2.id];
+    if (s2) renderedIds[s2] = 1;
+  });
+  var orphanHtml = '';
+  Object.keys(dl).filter(isExKey).forEach(function(oid) {
+    if (renderedIds[oid] || !Array.isArray(dl[oid]) || !dl[oid].length) return;
+    var oChips = dl[oid].map(function(s, i2) {
+      return (s.w || s.r) ? '<span class="ref-chip">S' + (i2+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + '</span>' : '';
+    }).filter(Boolean).join('');
+    if (!oChips) return;
+    orphanHtml += '<div class="ex-card" style="opacity:.78;border-left:3px solid var(--text3)">'
+      + '<div class="ex-head"><span class="ex-name" style="color:var(--text2)">📦 ' + esc(getExName(dl, currentDayId, oid))
+      + '<span style="display:block;font-size:10px;color:var(--text3);font-weight:400">zapis z poprzedniego planu — podgląd (pełne dane w Historii)</span></span></div>'
+      + '<div class="sets-wrap"><div class="ref-chips" style="margin-bottom:0">' + oChips + '</div></div>'
+      + '</div>';
+  });
+  if (orphanHtml) c.innerHTML += orphanHtml;
   applyEnterHints(document.getElementById('view-workout'));
   // Przywróć pozycję scrolla sprzed rerenderu (openDay i tak zaraz ustawi 0 przy wejściu)
   if (vwScrollEl) vwScrollEl.scrollTop = vwScrollKeep;
