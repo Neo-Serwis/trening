@@ -583,7 +583,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.6 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 6.7 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -647,7 +647,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.6';
+var APP_VERSION = '6.7';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1767,6 +1767,17 @@ function startNextWeek() {
   toast('➡️ Tydzień ' + currentWeek);
 }
 
+// v6.7: powrót z archiwum do bieżącego tygodnia (front cyklu)
+function goCurrentWeek() {
+  var info = findNextInfo();
+  if (!info) return;
+  currentWeek = Math.max(info.lastWeek, 1);
+  saveWeek();
+  if (currentView === 'workout') { showView('home'); }
+  else renderHome();
+  toast('➡️ Wrócono do Tygodnia ' + currentWeek);
+}
+
 // v6.5: nowy cykl z poziomu treningu — zostajemy w tym samym dniu, świeży tydzień
 function startNextWeekHere() {
   currentWeek++; saveWeek();
@@ -1814,11 +1825,19 @@ function renderHome() {
   // tygodni (historia) nie pokazuje badge'a "następny" ani banerów przejścia
   var nextInfo = findNextInfo();
   var atFrontier = nextInfo ? currentWeek >= nextInfo.lastWeek : true;
-  // v6.5: komplet tygodnia — zaproponuj przejście do następnego jednym przyciskiem
+  var isArchive = !atFrontier;
+  // v6.7: tryb archiwum — wyraźny baner z powrotem do bieżącego tygodnia
   var completeBanner = '';
+  if (isArchive) {
+    completeBanner += '<div style="background:rgba(69,123,157,0.14);border:1px solid var(--blue);border-radius:var(--radius);padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--blue);display:flex;align-items:center;justify-content:space-between;gap:8px">'
+      + '<span>📖 Przeglądasz historię (Tydz. ' + currentWeek + ')</span>'
+      + '<button onclick="goCurrentWeek()" style="background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Bieżący: T' + nextInfo.lastWeek + ' →</button>'
+      + '</div>';
+  }
+  // v6.5: komplet tygodnia — zaproponuj przejście do następnego jednym przyciskiem
   var allDone = plan.days.every(function(d) { return dayProgress(currentWeek, d.id).pct >= 100; });
   if (allDone && atFrontier) {
-    completeBanner = '<div style="background:rgba(82,183,136,0.12);border:1px solid var(--green);border-radius:var(--radius);padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--green);display:flex;align-items:center;justify-content:space-between;gap:8px">'
+    completeBanner += '<div style="background:rgba(82,183,136,0.12);border:1px solid var(--green);border-radius:var(--radius);padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--green);display:flex;align-items:center;justify-content:space-between;gap:8px">'
       + '<span>🎉 Komplet tygodnia ' + currentWeek + '!</span>'
       + '<button onclick="startNextWeek()" style="background:var(--green);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Zacznij Tydzień ' + (currentWeek + 1) + ' →</button>'
       + '</div>';
@@ -1827,7 +1846,14 @@ function renderHome() {
   c.innerHTML = completeBanner + plan.days.map(function(day, i) {
     var prog = dayProgress(currentWeek, day.id);
     var badgeCls, badgeTxt;
-    if (prog.total === 0 || prog.done === 0) {
+    if (isArchive) {
+      // v6.7: archiwum — uczciwe "zrobione/pominięty" zamiast % liczonych z AKTUALNEGO
+      // planu (stare tygodnie mają dane starego planu i nigdy nie dobiją do 100%)
+      var dlA = getLog(currentWeek, day.id);
+      var hadData = Object.keys(dlA).some(isExKey);
+      badgeCls = hadData ? 'badge-done' : 'badge-empty';
+      badgeTxt = hadData ? ('✓ ' + (dlA._date || 'zrobione')) : '— pominięty';
+    } else if (prog.total === 0 || prog.done === 0) {
       badgeCls = 'badge-empty'; badgeTxt = 'Do zrobienia';
     } else if (prog.pct >= 100) {
       badgeCls = 'badge-done'; badgeTxt = '✓ 100%';
@@ -1954,10 +1980,13 @@ function renderWorkout() {
   var key = logKey(currentWeek, currentDayId);
   var dl = logs[key] || {};
 
-  // Wczytaj datę treningu do pola — jeśli jest zapisana użyj jej, jeśli nie — dziś
+  // Wczytaj datę treningu do pola — zapisana, a dla NOWEJ sesji dziś;
+  // v6.7: pusta sesja w archiwum zostaje bez daty (nie udaje dzisiejszego treningu)
+  var infoW = findNextInfo();
+  var isArchiveW = !!(infoW && currentWeek < infoW.lastWeek);
   var wdEl = document.getElementById('workout-date');
   if (wdEl) {
-    wdEl.value = dl._date || new Date().toLocaleDateString('pl-PL');
+    wdEl.value = dl._date || (isArchiveW ? '' : new Date().toLocaleDateString('pl-PL'));
   }
 
   // Baner deload — widoczny na górze workout gdy tryb deload jest włączony
@@ -1982,6 +2011,23 @@ function renderWorkout() {
     var pb0 = document.getElementById('workout-progress-bar');
     pb0.parentNode.insertBefore(doneBanner, pb0);
   }
+  // v6.7: baner archiwum w treningu — edytujesz stare dane, powrót jednym tapnięciem
+  var archBanner = document.getElementById('archive-banner');
+  if (!archBanner) {
+    archBanner = document.createElement('div');
+    archBanner.id = 'archive-banner';
+    archBanner.style.cssText = 'background:rgba(69,123,157,0.14);border:1px solid var(--blue);border-radius:var(--radius);padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--blue);display:none;line-height:1.6;';
+    var pbA = document.getElementById('workout-progress-bar');
+    pbA.parentNode.insertBefore(archBanner, pbA);
+  }
+  if (isArchiveW) {
+    archBanner.innerHTML = '📖 Tydzień ' + currentWeek + ' to archiwum — edytujesz STARE dane.'
+      + ' <button onclick="goCurrentWeek()" style="background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">Bieżący: T' + infoW.lastWeek + ' →</button>';
+    archBanner.style.display = 'block';
+  } else {
+    archBanner.style.display = 'none';
+  }
+
   var progNow = dayProgress(currentWeek, currentDayId);
   if (progNow.total > 0 && progNow.pct >= 100) {
     doneBanner.innerHTML = '✓ Ta sesja jest już ukończona' + (dl._date ? ' (' + esc(dl._date) + ')' : '') + '. Zaczynasz nowy cykl?'
