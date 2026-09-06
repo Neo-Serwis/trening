@@ -143,6 +143,18 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .set-hdr{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:4px;}.set-hdr span{text-align:center;font-size:10px;color:var(--text3);text-transform:uppercase}
 .set-row{display:grid;grid-template-columns:26px 1fr 1fr 36px;gap:6px;margin-bottom:7px;align-items:center;}
 .set-lbl{font-size:12px;color:var(--text3);font-weight:600;text-align:center}
+.set-lbl.skip-toggle{cursor:pointer}
+.set-row.skipped .sinput{opacity:.4;text-decoration:line-through}
+#update-banner{position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom,0px));background:var(--card);border:1px solid var(--accent);border-radius:var(--radius);padding:10px 12px;display:none;align-items:center;justify-content:space-between;gap:10px;font-size:13px;z-index:998;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+#update-banner.show{display:flex}
+#update-banner button{background:var(--accent);border:none;border-radius:8px;color:var(--accent-fg);font-weight:600;font-size:13px;padding:8px 14px;cursor:pointer;flex-shrink:0}
+.pov-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px}
+.pov-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:9px 10px;cursor:pointer;min-width:0;overflow:hidden}
+.pov-card.active{border-color:var(--accent)}
+.pov-name{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.pov-val{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:baseline;gap:6px}
+.pov-delta{font-size:11px;font-weight:600}
+.pov-day{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px}
 .sinput{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:9px 6px;width:100%;text-align:center;-webkit-appearance:none;appearance:none;}.sinput:focus{outline:none;border-color:var(--accent)}.sinput::placeholder{color:var(--text3);font-size:11px}
 .btn-timer{background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:16px;width:36px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}.btn-timer:active{background:var(--border)}.btn-timer.running{color:var(--accent);border-color:var(--accent);}
 
@@ -349,21 +361,22 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 
   <!-- PROGRES -->
   <div id="view-progress" class="view">
-    <div class="prog-controls">
-      <div class="prog-label">Ćwiczenie</div>
+    <div id="prog-overview"></div>
+    <div class="prog-controls" id="prog-controls">
+      <div class="prog-label">Szczegóły ćwiczenia</div>
       <select class="prog-select" id="prog-ex-select" onchange="renderProgress()"></select>
-      <div class="prog-label">Metryka</div>
+      <div class="prog-label">Co pokazać</div>
       <div class="prog-tabs">
-        <div class="ptab active" onclick="setProgTab('weight',this)">Ciężar</div>
-        <div class="ptab" onclick="setProgTab('volume',this)">Objętość</div>
-        <div class="ptab" onclick="setProgTab('reps',this)">Powt.</div>
+        <div class="ptab active" onclick="setProgTab('weight',this)">Max ciężar</div>
+        <div class="ptab" onclick="setProgTab('volume',this)">Objętość (kg×powt.)</div>
+        <div class="ptab" onclick="setProgTab('reps',this)">Suma powt.</div>
       </div>
-      <div class="prog-label">Zakres</div>
+      <div class="prog-label">Ile ostatnich treningów</div>
       <div class="range-tabs">
-        <div class="rtab active" onclick="setRangeTab(4,this)">4 tydz.</div>
-        <div class="rtab" onclick="setRangeTab(8,this)">8 tydz.</div>
-        <div class="rtab" onclick="setRangeTab(12,this)">12 tydz.</div>
-        <div class="rtab" onclick="setRangeTab(0,this)">Wszystko</div>
+        <div class="rtab active" onclick="setRangeTab(4,this)">4</div>
+        <div class="rtab" onclick="setRangeTab(8,this)">8</div>
+        <div class="rtab" onclick="setRangeTab(12,this)">12</div>
+        <div class="rtab" onclick="setRangeTab(0,this)">Wszystkie</div>
       </div>
     </div>
     <div class="prog-stats" id="prog-stats"></div>
@@ -587,7 +600,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 6.9 · 2026-08-28 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 7.0 · 2026-09-07 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -646,12 +659,13 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 <input type="file" id="file-plan" accept=".json" style="display:none" onchange="handlePlanFile(event)">
 <input type="file" id="file-logs" accept=".json" style="display:none" onchange="handleLogsFile(event)">
 <div id="toast"></div>
+<div id="update-banner"><span>🔄 Nowa wersja apki jest gotowa</span><button onclick="applyUpdate()">Odśwież</button></div>
 
 <script>
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '6.9';
+var APP_VERSION = '7.0';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -1396,7 +1410,7 @@ function dayProgress(week, dayId) {
   });
   if (isLegacySession) {
     exKeysData.forEach(function(k) {
-      dl[k].forEach(function(s) { total++; if (s.w || s.r) done++; });
+      dl[k].forEach(function(s) { total++; if (String(s.r == null ? '' : s.r).trim() !== '') done++; });
     });
     return { done: done, total: total || 1, pct: total ? Math.round(done / total * 100) : 0 };
   }
@@ -1407,7 +1421,7 @@ function dayProgress(week, dayId) {
     // liczby serii w edytorze stare zapisy nie mogą dać wyniku >100%
     total += ex.setsCount;
     for (var i = 0; i < ex.setsCount; i++) {
-      if (sets[i] && (sets[i].w || sets[i].r)) done++;
+      if (sets[i] && String(sets[i].r == null ? '' : sets[i].r).trim() !== '') done++; // v7.0: liczą się powtórzenia, nie sam ciężar
     }
   });
   return { done: done, total: total, pct: total > 0 ? Math.round(done / total * 100) : 0 };
@@ -1548,6 +1562,8 @@ function getSuggestion(dayId, exId, scheme, schemeType) {
   var checkSets = (srcType === 'backoff') ? prev.slice(0, prev.length - 1) : prev;
   if (!checkSets.length) return null;
   // Sprawdź czy wszystkie serie robocze osiągnęły max powt.
+  checkSets = checkSets.filter(function(s) { return !isSkippedSet(s); });
+  if (!checkSets.length) return null;
   var allMax = checkSets.every(function(s) { return parseInt(s.r) >= maxReps; });
   if (!allMax) return null;
   // Sugeruj +2.5kg od max ciężaru serii roboczych
@@ -1952,7 +1968,7 @@ function buildPrevPanel(exId, setsCount) {
             if (pk2[1] !== ref.dayId) return;
             if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
             var dl2 = logs[k];
-            if (dl2[ref.exId] && dl2[ref.exId][si] && (dl2[ref.exId][si].w || dl2[ref.exId][si].r)) {
+            if (dl2[ref.exId] && dl2[ref.exId][si] && (dl2[ref.exId][si].w || dl2[ref.exId][si].r) && !isSkippedSet(dl2[ref.exId][si])) {
               var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
               if (score > bestScore) { bestScore = score; bestW = pk2[0]; bestSets = dl2[ref.exId][si]; bestSrcDay = ref.dayId; }
             }
@@ -2175,7 +2191,7 @@ function renderWorkout() {
 
     // Inputy serii
     var timerBtn = settings.timer ? '<button class="btn-timer" onclick="timerStart(this)">⏱</button>' : '<span></span>';
-    var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki</div>';
+    var inp = '<div class="curr-label">Tydzień ' + currentWeek + ' — wpisz wyniki <span style="font-size:9px;color:var(--text3);text-transform:none;letter-spacing:0">(tap na S1/S2 = ⏭ pomiń serię)</span></div>';
 
     // Pobierz % dla tego ćwiczenia (per-ćwiczenie lub global default)
     var exDropPct  = ex.dropPct     || settings.defaultDropPct    || 25;
@@ -2324,8 +2340,9 @@ function renderWorkout() {
         if (isLastSet && settings.afterLastSet !== 'off' && bonusSets.length === 0) {
           afterAttr = ' oninput="handleAfterLastSetInput(this,\'' + ex.id + '\',' + idx + ')"';
         }
-        inp += '<div class="set-row">'
-          + '<span class="set-lbl" style="' + lblStyle + '">' + lbl + '</span>'
+        var skippedRow = String(cr).trim() === '0';
+        inp += '<div class="set-row' + (skippedRow ? ' skipped' : '') + '">'
+          + '<span class="set-lbl skip-toggle" style="' + lblStyle + '" onclick="toggleSkipSet(\'' + ex.id + '\',' + i + ')" title="Tap = pomiń / przywróć serię">' + (skippedRow ? '⏭' : lbl) + '</span>'
           + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + (dlAuto ? ' data-dl="1"' : '') + onInputAttr + '>'
           + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8"' + afterAttr + '>'
           + timerBtn + '</div>';
@@ -3352,6 +3369,7 @@ function renderHistory() {
           var style = isBO ? ' style="color:var(--yellow)"' : '';
           var prMark = isPR(dayId, exId, s.w, week) ? ' 🏆' : '';
           var cls = prMark ? ' pr' : '';
+          if (isSkippedSet(s)) return '<span class="hist-chip" style="opacity:.55">'+lbl+': ⏭ pominięta</span>';
           return (s.w||s.r) ? '<span class="hist-chip'+cls+'"'+style+'>'+lbl+': '+(s.w||'—')+' kg×'+(s.r||'—')+prMark+'</span>' : '';
         }).filter(Boolean).join('');
       }
@@ -3500,17 +3518,8 @@ function renderPRRecords() {
     + '</div>';
 }
 
-function renderProgress() {
-  renderPRRecords();
-  var sel = document.getElementById('prog-ex-select');
-  var statsEl = document.getElementById('prog-stats');
-  var chartEl = document.getElementById('prog-chart');
-  if (!sel.value || !plan) { chartEl.innerHTML = '<div class="chart-empty">Wybierz ćwiczenie</div>'; statsEl.innerHTML = ''; return; }
-
-  var parts = sel.value.split('|');
-  var dayId = parts[0]; var exId = parts[1];
-
-  // Zbierz dane ze wszystkich tygodni
+// v7.0: seria danych ćwiczenia (per wykonany tydzień) — wspólna dla przeglądu i szczegółów
+function exerciseSeries(dayId, exId) {
   var dataPoints = [];
   Object.keys(logs).forEach(function(key) {
     var pk = parseLogKey(key);
@@ -3556,6 +3565,77 @@ function renderProgress() {
     });
     dataPoints.push({ week: week, date: date, weight: maxW, volume: totalVol, reps: totalReps });
   });
+  dataPoints.sort(function(a, b) { return a.week - b.week; });
+  return dataPoints;
+}
+
+// v7.0: przegląd — każde ćwiczenie planu z mini-wykresem max ciężaru, ostatnią wartością
+// i zmianą względem poprzedniego treningu; tap = szczegóły niżej
+function renderProgOverview() {
+  var c = document.getElementById('prog-overview');
+  if (!c || !plan || !plan.days) return;
+  var sel = document.getElementById('prog-ex-select');
+  var cur = sel ? sel.value : '';
+  var html = '';
+  plan.days.forEach(function(day) {
+    var cards = '';
+    day.exercises.forEach(function(ex) {
+      var pts = exerciseSeries(day.id, ex.id).filter(function(p) { return p.weight > 0; });
+      var key = day.id + '|' + ex.id;
+      var body;
+      if (!pts.length) {
+        body = '<div class="pov-val" style="color:var(--text3);font-size:12px;font-weight:400">brak danych</div>';
+      } else {
+        var last = pts[pts.length - 1];
+        var prev = pts.length > 1 ? pts[pts.length - 2] : null;
+        var delta = prev ? Math.round((last.weight - prev.weight) * 10) / 10 : 0;
+        var dHtml = prev && delta !== 0
+          ? '<span class="pov-delta" style="color:' + (delta > 0 ? 'var(--green)' : 'var(--accent)') + '">' + (delta > 0 ? '▲ +' : '▼ ') + delta + '</span>'
+          : (prev ? '<span class="pov-delta" style="color:var(--text3)">→</span>' : '');
+        var tail = pts.slice(-8);
+        var vmax = Math.max.apply(null, tail.map(function(p) { return p.weight; }));
+        var vmin = Math.min.apply(null, tail.map(function(p) { return p.weight; }));
+        var rng = (vmax - vmin) || 1;
+        var W = 110, H = 30;
+        var poly = tail.map(function(p, i) {
+          var x = tail.length > 1 ? (i / (tail.length - 1)) * (W - 6) + 3 : W / 2;
+          var y = H - 3 - ((p.weight - vmin) / rng) * (H - 6);
+          return x.toFixed(1) + ',' + y.toFixed(1);
+        }).join(' ');
+        var lastPt = poly.split(' ').pop().split(',');
+        body = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:30px;display:block;margin-bottom:4px">'
+          + '<polyline points="' + poly + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+          + '<circle cx="' + lastPt[0] + '" cy="' + lastPt[1] + '" r="2.5" fill="var(--accent)"/></svg>'
+          + '<div class="pov-val">' + last.weight + ' kg ' + dHtml + '<span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:auto">T' + last.week + '</span></div>';
+      }
+      cards += '<div class="pov-card' + (cur === key ? ' active' : '') + '" onclick="progPick(\'' + key + '\')">'
+        + '<div class="pov-name">' + esc(ex.name) + '</div>' + body + '</div>';
+    });
+    html += '<div class="pov-day">' + esc(day.name) + '</div><div class="pov-grid">' + cards + '</div>';
+  });
+  c.innerHTML = html;
+}
+
+function progPick(v) {
+  var sel = document.getElementById('prog-ex-select');
+  if (!sel) return;
+  sel.value = v;
+  renderProgress();
+  var ctl = document.getElementById('prog-controls');
+  if (ctl) setTimeout(function() { try { ctl.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch(e) {} }, 50);
+}
+
+function renderProgress() {
+  renderPRRecords();
+  renderProgOverview();
+  var sel = document.getElementById('prog-ex-select');
+  var statsEl = document.getElementById('prog-stats');
+  var chartEl = document.getElementById('prog-chart');
+  if (!sel.value || !plan) { chartEl.innerHTML = '<div class="chart-empty">Wybierz ćwiczenie</div>'; statsEl.innerHTML = ''; return; }
+
+  var parts = sel.value.split('|');
+  var dayId = parts[0]; var exId = parts[1];
+  var dataPoints = exerciseSeries(dayId, exId);
 
   if (!dataPoints.length) {
     chartEl.innerHTML = '<div class="chart-empty">Brak danych dla tego ćwiczenia</div>';
@@ -3563,31 +3643,26 @@ function renderProgress() {
     return;
   }
 
-  // Sortuj po tygodniu
-  dataPoints.sort(function(a, b) { return a.week - b.week; });
-
-  // Zakres
-  var filtered = dataPoints;
-  if (_progRange > 0) {
-    var maxWeek = dataPoints[dataPoints.length - 1].week;
-    filtered = dataPoints.filter(function(p) { return p.week >= maxWeek - _progRange + 1; });
-  }
+  // Zakres = ostatnie N WYKONANYCH treningów (nie tygodni kalendarza — pominięte tygodnie nie zjadają zakresu)
+  var filtered = _progRange > 0 ? dataPoints.slice(-_progRange) : dataPoints;
   if (!filtered.length) filtered = dataPoints.slice(-1);
 
   var metric = _progTab;
   var vals = filtered.map(function(p) { return p[metric]; });
   var labels = filtered.map(function(p) { return 'T' + p.week; });
 
-  // Statystyki
+  // Statystyki — jasno: co z czym jest porównywane
   var first = vals[0]; var last = vals[vals.length - 1];
   var diff = last - first;
   var pct = first > 0 ? ((diff / first) * 100).toFixed(1) : '—';
   var sign = diff >= 0 ? '+' : '';
   var unit = metric === 'reps' ? ' powt.' : (metric === 'volume' ? ' kg·r' : ' kg');
+  var lastLbl = labels[labels.length - 1];
+  var cmpLbl = vals.length > 1 ? (labels[0] + ' → ' + lastLbl) : 'jeden trening';
 
-  statsEl.innerHTML = '<div class="pstat"><div class="pstat-val">' + last.toFixed(metric==='reps'?0:1) + '</div><div class="pstat-lbl">Ostatni</div></div>'
-    + '<div class="pstat"><div class="pstat-val" style="color:' + (diff>=0?'var(--green)':'var(--accent)') + '">' + sign + diff.toFixed(metric==='reps'?0:1) + unit + '</div><div class="pstat-lbl">Zmiana</div></div>'
-    + '<div class="pstat"><div class="pstat-val" style="color:' + (diff>=0?'var(--green)':'var(--accent)') + '">' + (pct !== '—' ? sign + pct + '%' : '—') + '</div><div class="pstat-lbl">Procent</div></div>';
+  statsEl.innerHTML = '<div class="pstat"><div class="pstat-val">' + last.toFixed(metric==='reps'?0:1) + unit + '</div><div class="pstat-lbl">Ostatnio (' + lastLbl + ')</div></div>'
+    + '<div class="pstat"><div class="pstat-val" style="color:' + (diff>=0?'var(--green)':'var(--accent)') + '">' + (vals.length > 1 ? sign + diff.toFixed(metric==='reps'?0:1) + unit : '—') + '</div><div class="pstat-lbl">Zmiana ' + cmpLbl + '</div></div>'
+    + '<div class="pstat"><div class="pstat-val" style="color:' + (diff>=0?'var(--green)':'var(--accent)') + '">' + (vals.length > 1 && pct !== '—' ? sign + pct + '%' : '—') + '</div><div class="pstat-lbl">Procentowo</div></div>';
 
   // Wykres SVG
   var maxVal = Math.max.apply(null, vals);
@@ -4061,6 +4136,19 @@ var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1, '_exTypes':1,
 // v5.0: klucze bonus (_bonus) i notatki są metadanymi — nie są seriami ćwiczeń
 function isExKey(k) { return !LOG_META[k] && k.indexOf('note_') !== 0 && k.indexOf('_bonus') < 0; }
 
+// v7.0: seria pominięta = powtórzenia "0" (świadome ominięcie w pośpiechu) — liczy się jako
+// załatwiona w postępie, nie wchodzi do podpowiedzi/sugestii, w historii i raportach pokazana jako ⏭
+function isSkippedSet(s) { return !!s && String(s.r == null ? '' : s.r).trim() === '0'; }
+function toggleSkipSet(exId, i) {
+  var r = document.getElementById('r_' + exId + '_' + i);
+  if (!r) return;
+  r.value = (r.value.trim() === '0') ? '' : '0';
+  var nowSkipped = (r.value === '0');
+  saveWorkout(true);
+  renderWorkout();
+  toast(nowSkipped ? '⏭ Seria pominięta' : '↩ Seria przywrócona');
+}
+
 // v6.2: typ schematu / liczba dropów ze snapshotu — dla ćwiczeń usuniętych z aktualnego planu
 function snapType(dl, exId) { var s = dl && dl._exTypes && dl._exTypes[exId]; return (s && s.t) ? s.t : 'standard'; }
 function snapDrops(dl, exId) { var s = dl && dl._exTypes && dl._exTypes[exId]; return (s && s.d) ? s.d : 1; }
@@ -4501,6 +4589,7 @@ function exportHTMLReport(mode) {
           setsCells = exSets.map(function(s, i) {
             var lbl = (sType === 'backoff' && i === boIdx2) ? 'BO' : 'S'+(i+1);
             var style = (sType === 'backoff' && i === boIdx2) ? ' style="color:#e9c46a"' : '';
+            if (isSkippedSet(s)) return '<td style="color:#aaa;font-style:italic;font-size:11px">'+lbl+': ⏭ pominięta</td>';
             if (!s.w && !s.r) return '<td style="color:#c0392b;font-style:italic;font-size:11px">'+lbl+': brak</td>';
             return '<td'+style+'>'+lbl+': '+(s.w||'—')+' kg × '+(s.r||'—')+'</td>';
           });
@@ -4938,8 +5027,28 @@ function init() {
     restoreUiState();
   }
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(function(){});
+    navigator.serviceWorker.register('sw.js').then(function(reg) {
+      // v7.0: aktualizator — nowa wersja zainstalowana w tle → baner z przyciskiem Odśwież
+      function watchWorker(w) {
+        if (!w) return;
+        w.addEventListener('statechange', function() {
+          if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner();
+        });
+      }
+      watchWorker(reg.installing);
+      reg.addEventListener('updatefound', function() { watchWorker(reg.installing); });
+      // sprawdzaj aktualizację przy każdym powrocie do apki
+      document.addEventListener('visibilitychange', function() { if (!document.hidden) reg.update().catch(function(){}); });
+    }).catch(function(){});
   }
+}
+function showUpdateBanner() {
+  var b = document.getElementById('update-banner');
+  if (b) b.classList.add('show');
+}
+function applyUpdate() {
+  if (currentView === 'workout') saveWorkout(true);
+  location.reload();
 }
 window.addEventListener('load', init);
 </script>
