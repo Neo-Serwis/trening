@@ -600,7 +600,11 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
     </div>
     <div class="sct">
       <div class="sct-title">Informacje</div>
-      <div class="sinfo">Wersja 7.0 · 2026-09-07 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <button class="sbtn" onclick="checkForUpdate()">
+        <span class="sbtn-ico">🔄</span>
+        <div class="sbtn-txt"><div class="sbtn-name">Sprawdź aktualizację</div><div class="sbtn-desc">Apka sprawdza sama przy każdym otwarciu; nowa wersja = baner „Odśwież" na dole</div></div>
+      </button>
+      <div class="sinfo">Wersja 7.1 · 2026-09-07 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -665,7 +669,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '7.0';
+var APP_VERSION = '7.1';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -682,6 +686,10 @@ var _progTab = 'weight';
 var _progRange = 4;
 var _modalCtx = null;
 var _modalClosing = false; // blokada podwójnego history.back() zanim przyjdzie popstate
+// v7.1: wartownik historii — pod wszystkimi widokami leży wpis 'root', nad nim 'home'. Wstecz nigdy
+// nie wypada z apki przez przypadek (rozjechany stos, szybkie 2× Wstecz w treningu); wyjście = 2× Wstecz
+// na ekranie głównym w ciągu 2 s (po zejściu na 'root' wartownik wraca po 2 s)
+var _guardTimer = null;
 // v6.8: sesje zapisane na poprzednim planie — podgląd zamiast formularza
 var _workoutReadOnly = false;
 var _legacyEdit = {}; // klucze logów, dla których user świadomie włączył edycję
@@ -941,7 +949,7 @@ function handleWakeLock() {
 function showView(name, fromPop) {
   // Powrót na home z zakładki konsumuje wpis historii (history.back -> popstate dokończy),
   // żeby Wstecz nie zbierał potem martwych kliknięć "w próżnię"
-  if (name === 'home' && !fromPop && currentView !== 'home' && history.state && history.state.view) {
+  if (name === 'home' && !fromPop && currentView !== 'home' && history.state && history.state.view && history.state.view !== 'home' && history.state.view !== 'root') {
     history.back();
     return;
   }
@@ -976,10 +984,20 @@ function showView(name, fromPop) {
   // fromPop = wywołanie z popstate — wtedy NIE dokładamy wpisu (historia by puchła);
   // prevView !== name — ponowny tap w aktywną zakładkę nie dubluje wpisu;
   // zakładka -> zakładka PODMIENIA wpis (replaceState) — Wstecz zawsze wraca prosto na home
-  if (name !== 'home' && !fromPop && prevView !== name) {
+  if (name !== 'home' && !fromPop) {
     var TAB_VIEWS = { history: 1, progress: 1, measurements: 1 };
-    if (TAB_VIEWS[name] && TAB_VIEWS[prevView]) history.replaceState({ view: name }, '');
-    else history.pushState({ view: name }, '');
+    var hs0 = history.state;
+    var st0 = { view: name };
+    if (name === 'workout') st0.dayId = currentDayId;
+    if (prevView === name) {
+      // ten sam widok (np. „→ Otwórz" następnej sesji z karty treningu) — podmień dane wpisu, bez dublowania
+      if (name === 'workout' && hs0 && hs0.view === 'workout') history.replaceState(st0, '');
+    } else if (TAB_VIEWS[name] && TAB_VIEWS[prevView] && hs0 && TAB_VIEWS[hs0.view]) {
+      history.replaceState(st0, '');
+    } else {
+      ensureHomeGuard();
+      history.pushState(st0, '');
+    }
   }
   handleWakeLock();
 
@@ -1003,6 +1021,22 @@ function navBack() {
   history.back();
 }
 
+// v7.1: wartownik — bieżący wpis 'root' (albo bez stanu) dostaje nad sobą 'home', zanim dołożymy podwidok
+function ensureHomeGuard() {
+  var s = history.state;
+  if (!s || !s.view || s.view === 'root') {
+    if (!s || !s.view) history.replaceState({ view: 'root' }, '');
+    history.pushState({ view: 'home' }, '');
+  }
+  if (_guardTimer) { clearTimeout(_guardTimer); _guardTimer = null; }
+}
+function initHistoryGuard() {
+  var s = history.state;
+  if (!s || !s.view) { history.replaceState({ view: 'root' }, ''); history.pushState({ view: 'home' }, ''); }
+  else if (s.view === 'root') history.pushState({ view: 'home' }, '');
+  else if (s.view === 'modal') history.replaceState({ view: 'home' }, ''); // reload z otwartym modalem — modal nie wraca
+}
+
 function openDay(id, fromPop) {
   currentDayId = id;
   _lastProgressPct = -1; // nie odpalaj efektu ukończenia przy wejściu w gotowy trening
@@ -1015,34 +1049,55 @@ function openDay(id, fromPop) {
 
 function showEditorView() { showView('editor'); }
 
-// Przycisk Wstecz Android
+// Przycisk Wstecz Android — v7.1: cel nawigacji bierzemy z wpisu historii, na którym WYLĄDOWALIŚMY
+// (history.state), nie z „poprzedniego widoku” — ekran i stos nie mogą się już rozjechać
 window.addEventListener('popstate', function() {
   // Pełnoekranowy timer: Wstecz zamyka odliczanie, nie nawiguje pod overlayem
   var tOv = document.getElementById('timer-overlay');
   if (tOv && tOv.classList.contains('show')) {
     timerStop();
-    history.pushState({ view: currentView }, ''); // odłóż zdjęty wpis
+    var back = { view: currentView };
+    if (currentView === 'workout') back.dayId = currentDayId;
+    history.pushState(back, ''); // odłóż zdjęty wpis
     return;
   }
-  // Jeśli modal jest otwarty — zamknij go (równoznaczne z Anuluj)
+  // Jeśli modal jest otwarty — zamknij go (równoznaczne z Anuluj); jego wpis właśnie zszedł
   var modal = document.getElementById('modal-overlay');
   if (modal.classList.contains('show')) {
     closeModal(true);
     return;
   }
-  // Guard blokuje tylko skutki uboczne (zapis, toast) — przełączenie widoku wykonuje się
-  // ZAWSZE, inaczej szybki podwójny Wstecz rozjeżdżał widok ze stosem historii
+  var hs = history.state;
+  var target = (hs && hs.view) ? hs.view : 'root';
+  if (target === 'modal') { history.back(); return; } // osierocony wpis modala — zejdź niżej
+  // Guard blokuje tylko skutki uboczne (zapis, toast) — przełączenie widoku wykonuje się ZAWSZE
   var guarded = _saveGuard;
   _saveGuard = true;
-  if (currentView === 'workout') {
-    if (!guarded) { saveWorkout(true); toast('✅ Zapisano!'); }
-    showView('home', true);
-  } else if (currentView === 'editor') {
-    showView('settings', true);
-  } else if (currentView !== 'home') {
+  if (currentView === 'workout' && target !== 'workout' && !guarded) { saveWorkout(true); toast('✅ Zapisano!'); }
+  if (target === 'root') {
+    // Zeszliśmy pod ekran główny: pokaż home i daj 2 s na drugi Wstecz (wtedy wartownika nie ma —
+    // system zamyka apkę natywnie); po 2 s wartownik 'home' wraca i Wstecz znów jest bezpieczny
+    if (currentView !== 'home') showView('home', true);
+    toast('↩ Wstecz jeszcze raz = wyjście z apki');
+    if (_guardTimer) clearTimeout(_guardTimer);
+    _guardTimer = setTimeout(function() {
+      _guardTimer = null;
+      var s = history.state;
+      if (!s || !s.view || s.view === 'root') {
+        if (!s || !s.view) history.replaceState({ view: 'root' }, '');
+        history.pushState({ view: 'home' }, '');
+      }
+    }, 2000);
+  } else if (target === 'home') {
+    if (currentView !== 'home') showView('home', true); else renderHome();
+  } else if (target === 'workout') {
+    if (hs.dayId && plan && plan.days && plan.days.some(function(d) { return d.id === hs.dayId; })) openDay(hs.dayId, true);
+    else showView('home', true);
+  } else if (target === 'settings' || target === 'editor' || target === 'history' || target === 'progress' || target === 'measurements') {
+    showView(target, true);
+  } else {
     showView('home', true);
   }
-  // Na home — pozwól wyjść z apki normalnie
   setTimeout(function() { _saveGuard = false; }, 300);
 });
 
@@ -1305,14 +1360,20 @@ document.addEventListener('visibilitychange', function() {
 function restoreUiState() {
   var st = null;
   try { st = JSON.parse(localStorage.getItem('trening_uistate')); } catch(e) {}
+  // v7.1: miękki reload (np. „Odśwież" z banera aktualizacji) — przeglądarka zachowała wpis podwidoku
+  // w historii: wracamy dokładnie tam BEZ dokładania wpisu (inaczej Wstecz miałby martwe kliknięcie)
+  var hs = history.state;
+  var fromHist = !!(hs && hs.view && hs.view !== 'home' && hs.view !== 'root' && hs.view !== 'modal');
+  if (fromHist) st = { view: hs.view, dayId: hs.dayId || (st && st.dayId), scroll: (st && st.view === hs.view) ? st.scroll : 0, ts: Date.now() };
   if (!st || !st.view || st.view === 'home') return;
   if (!st.ts || (Date.now() - st.ts) > 12 * 3600 * 1000) return; // nowy dzień = start od home
-  // jeśli przeglądarka ZACHOWAŁA wpis historii (miękki reload) — nie dokładaj drugiego,
-  // inaczej Wstecz miałby martwe kliknięcie
-  var keepHist = !!(history.state && history.state.view);
-  if (st.week && st.week >= 1) { currentWeek = st.week; saveWeek(); renderHome(); }
+  var keepHist = fromHist;
+  if (!fromHist && st.week && st.week >= 1) { currentWeek = st.week; saveWeek(); renderHome(); }
   if (st.view === 'workout' && st.dayId && plan && plan.days && plan.days.some(function(d) { return d.id === st.dayId; })) {
     openDay(st.dayId, keepHist);
+  } else if (fromHist && st.view === 'workout') {
+    history.replaceState({ view: 'home' }, ''); // wpis treningu bez znanego dnia — zostań na home
+    return;
   } else if (st.view === 'editor') {
     showView('settings', keepHist); showView('editor', keepHist);
   } else if (st.view === 'history' || st.view === 'progress' || st.view === 'measurements' || st.view === 'settings') {
@@ -5013,6 +5074,7 @@ function toast(msg) {
 // ═══════════════════════════════════════════════
 function init() {
   loadAll();
+  initHistoryGuard();
   applySettings();
   applyEnterHints();
   // Auto-wczytanie plan.json tylko przy PIERWSZYM uruchomieniu (brak klucza w localStorage);
@@ -5027,7 +5089,12 @@ function init() {
     restoreUiState();
   }
   if ('serviceWorker' in navigator) {
+    // v7.1: nowy SW przejmuje stronę (skipWaiting+claim) — controllerchange to najpewniejszy sygnał
+    // „nowa wersja gotowa”, niezależny od tego, czy zdążyliśmy podpiąć nasłuch instalacji
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function() { if (hadController) showUpdateBanner(); });
     navigator.serviceWorker.register('sw.js').then(function(reg) {
+      _swReg = reg;
       // v7.0: aktualizator — nowa wersja zainstalowana w tle → baner z przyciskiem Odśwież
       function watchWorker(w) {
         if (!w) return;
@@ -5036,19 +5103,35 @@ function init() {
         });
       }
       watchWorker(reg.installing);
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner();
       reg.addEventListener('updatefound', function() { watchWorker(reg.installing); });
       // sprawdzaj aktualizację przy każdym powrocie do apki
       document.addEventListener('visibilitychange', function() { if (!document.hidden) reg.update().catch(function(){}); });
     }).catch(function(){});
   }
 }
+var _swReg = null;
+var _updateReady = false;
 function showUpdateBanner() {
+  _updateReady = true;
   var b = document.getElementById('update-banner');
   if (b) b.classList.add('show');
 }
 function applyUpdate() {
   if (currentView === 'workout') saveWorkout(true);
   location.reload();
+}
+// v7.1: ręczne sprawdzenie aktualizacji (⚙️ Ustawienia → Informacje) — bez ubijania apki
+function checkForUpdate() {
+  if (!('serviceWorker' in navigator) || !_swReg) { toast('⚠️ Aktualizacje niedostępne w tej przeglądarce'); return; }
+  if (_updateReady) { showUpdateBanner(); toast('⬇️ Nowa wersja już czeka — dotknij Odśwież'); return; }
+  toast('🔎 Sprawdzam…');
+  _swReg.update().then(function(r) {
+    r = r || _swReg;
+    if (_updateReady) return;
+    if (r.installing || r.waiting) toast('⬇️ Pobieram nową wersję — za chwilę pojawi się Odśwież');
+    else toast('✅ Masz najnowszą wersję (' + APP_VERSION + ')');
+  }).catch(function() { toast('⚠️ Nie udało się sprawdzić — brak internetu?'); });
 }
 window.addEventListener('load', init);
 </script>
