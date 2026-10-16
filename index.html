@@ -145,6 +145,13 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .set-lbl{font-size:12px;color:var(--text3);font-weight:600;text-align:center}
 .set-lbl.skip-toggle{cursor:pointer}
 .set-row.skipped .sinput{opacity:.4;text-decoration:line-through}
+.sub-cat{max-height:46vh;overflow-y:auto;margin-top:8px;-webkit-overflow-scrolling:touch}
+.sub-sec{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 5px}
+.sub-item{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:10px;margin-bottom:5px;cursor:pointer;font-family:inherit}
+.sub-item small{color:var(--text3);font-size:10px;flex-shrink:0}
+.sub-item.recent{border-color:var(--drop)}
+.sub-item.sub-new{margin-top:8px;border-style:dashed;border-color:var(--accent)}
+.sub-item[hidden],.sub-sec[hidden]{display:none}
 #update-banner{position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom,0px));background:var(--card);border:1px solid var(--accent);border-radius:var(--radius);padding:10px 12px;display:none;align-items:center;justify-content:space-between;gap:10px;font-size:13px;z-index:998;box-shadow:0 6px 20px rgba(0,0,0,.35)}
 #update-banner.show{display:flex}
 #update-banner button{background:var(--accent);border:none;border-radius:8px;color:var(--accent-fg);font-weight:600;font-size:13px;padding:8px 14px;cursor:pointer;flex-shrink:0}
@@ -155,7 +162,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 .pov-val{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:baseline;gap:6px}
 .pov-delta{font-size:11px;font-weight:600}
 .pov-day{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px}
-.sinput{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:9px 6px;width:100%;text-align:center;-webkit-appearance:none;appearance:none;}.sinput:focus{outline:none;border-color:var(--accent)}.sinput::placeholder{color:var(--text3);font-size:11px}
+.sinput{background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:9px 6px;width:100%;text-align:center;-webkit-appearance:none;appearance:none;}.sinput:focus{outline:none;border-color:var(--accent)}.sinput::placeholder{color:var(--text3);font-size:11px;font-style:italic;opacity:.75}
 .btn-timer{background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:16px;width:36px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}.btn-timer:active{background:var(--border)}.btn-timer.running{color:var(--accent);border-color:var(--accent);}
 
 /* NOTATKA */
@@ -604,7 +611,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <span class="sbtn-ico">🔄</span>
         <div class="sbtn-txt"><div class="sbtn-name">Sprawdź aktualizację</div><div class="sbtn-desc">Apka sprawdza sama przy każdym otwarciu; nowa wersja = baner „Odśwież" na dole</div></div>
       </button>
-      <div class="sinfo">Wersja 7.1 · 2026-09-07 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 7.2 · 2026-10-16 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -669,7 +676,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '7.1';
+var APP_VERSION = '7.2';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -723,7 +730,7 @@ function cleanEmptyLogs() {
   var changed = false;
   // Klucze metadanych które nie są danymi użytkownika.
   // Notatki (_note/note_*) i serie bonus SĄ danymi — spójnie z saveWorkout.
-  var META_KEYS = { '_date':1, '_dayName':1, '_exNames':1, '_exTypes':1, '_subs':1 };
+  var META_KEYS = { '_date':1, '_dayName':1, '_exNames':1, '_exTypes':1, '_subs':1, '_subsOff':1 };
   Object.keys(logs).forEach(function(key) {
     var dl = logs[key];
     var hasData = Object.keys(dl).some(function(k) {
@@ -1467,7 +1474,8 @@ function dayProgress(week, dayId) {
   Object.keys(subsP).forEach(function(p) { subVals[subsP[p]] = 1; });
   var exKeysData = Object.keys(dl).filter(function(k) { return isExKey(k) && Array.isArray(dl[k]) && dl[k].length; });
   var isLegacySession = exKeysData.some(function(k) {
-    return !subVals[k] && !day.exercises.some(function(e) { return e.id === k; });
+    // zamiennik (także cofnięty „↩ planowe”) nie jest śladem starego planu
+    return !subVals[k] && k.indexOf('zam_') !== 0 && !day.exercises.some(function(e) { return e.id === k; });
   });
   if (isLegacySession) {
     exKeysData.forEach(function(k) {
@@ -1516,10 +1524,18 @@ function isPR(dayId, exId, weight, uptoWeek) {
 
 // v5.8: to samo ćwiczenie (po nazwie) w innych dniach planu — opcjonalne źródło podpowiedzi
 // Zwraca listę {dayId, exId}; przy wyłączonym toggle'u tylko bieżące ćwiczenie
-function exRefsFor(dayId, exId) {
+// v7.2: porównanie nazw ćwiczeń odporne na drobne różnice zapisu — wielkość liter, polskie znaki,
+// nawiasy, ukośniki, spacje i znak stopnia („Uginanie nóg (siedząc / leżąc)” = „uginanie nog siedzac/lezac”)
+function normExName(s) {
+  var t = String(s || '').toLowerCase();
+  if (t.normalize) t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return t.replace(/ł/g, 'l').replace(/[^a-z0-9]+/g, '');
+}
+
+function exRefsFor(dayId, exId, force) {
   var refs = [{ dayId: dayId, exId: exId }];
   // v5.9: domyślnie WŁĄCZONE — wyłączane jawnie toggle'em w ustawieniach
-  if (settings.crossDaySuggest === false || !plan || !plan.days) return refs;
+  if ((settings.crossDaySuggest === false && !force) || !plan || !plan.days) return refs;
   // nazwa: z planu, a dla zamienników / ćwiczeń spoza planu — ze snapshotów logów (v6.4)
   var name = '';
   var day = plan.days.find(function(d) { return d.id === dayId; });
@@ -1533,14 +1549,15 @@ function exRefsFor(dayId, exId) {
     });
   }
   if (!name) return refs;
-  var norm = String(name).trim().toLowerCase();
+  var norm = normExName(name);
+  if (!norm) return refs;
   function addRef(did, eid) {
     if (did === dayId && eid === exId) return;
     if (!refs.some(function(r) { return r.dayId === did && r.exId === eid; })) refs.push({ dayId: did, exId: eid });
   }
   plan.days.forEach(function(d) {
     d.exercises.forEach(function(e2) {
-      if (e2.name && String(e2.name).trim().toLowerCase() === norm) addRef(d.id, e2.id);
+      if (e2.name && normExName(e2.name) === norm) addRef(d.id, e2.id);
     });
   });
   // v6.4: dopasowanie po nazwie także w snapshotach logów — zamienniki i ćwiczenia
@@ -1549,7 +1566,7 @@ function exRefsFor(dayId, exId) {
     var en = logs[k]._exNames; if (!en) return;
     var did = parseLogKey(k)[1];
     Object.keys(en).forEach(function(eid) {
-      if (en[eid] && String(en[eid]).trim().toLowerCase() === norm) addRef(did, eid);
+      if (en[eid] && normExName(en[eid]) === norm) addRef(did, eid);
     });
   });
   return refs;
@@ -1862,13 +1879,60 @@ function findNextInfo() {
       bestDate = dt; bestW = pk[0]; bestIdx = idx;
     }
   });
-  if (bestIdx < 0) return { dayId: plan.days[0].id, lastWeek: 0 }; // brak historii
-  return { dayId: plan.days[(bestIdx + 1) % plan.days.length].id, lastWeek: bestW };
+  if (bestIdx < 0) return { dayId: plan.days[0].id, lastWeek: 0, lastDate: 0 }; // brak historii
+  return { dayId: plan.days[(bestIdx + 1) % plan.days.length].id, lastWeek: bestW, lastDate: bestDate > 0 ? bestDate : 0 };
+}
+
+// v7.2: w którym tygodniu wypada NASTĘPNA sesja. Rotacja dni bez zmian (dzień po ostatnio
+// wykonanym), a numer tygodnia idzie razem z kalendarzem (tydzień od poniedziałku): gdy od ostatniego
+// treningu zaczął się nowy tydzień kalendarzowy, następna sesja wypada o tyle tygodni dalej;
+// tydzień bez treningu zostaje pusty (pominięty). Przy komplecie sesji, albo gdy ten dzień jest już
+// zrobiony w tygodniu ostatniego treningu — najwcześniej w tygodniu następnym.
+function mondayOf(ts) {
+  var d = new Date(ts); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getTime();
+}
+function calWeeksBetween(a, b) { return Math.round((mondayOf(b) - mondayOf(a)) / 604800000); }
+function calendarWeekNow(info) {
+  if (!info || !(info.lastWeek >= 1)) return Math.max(currentWeek, 1);
+  var passed = info.lastDate > 0 ? calWeeksBetween(info.lastDate, Date.now()) : 0;
+  return info.lastWeek + Math.max(passed, 0);
+}
+function nextTargetWeek(info) {
+  if (!info || !(info.lastWeek >= 1) || !plan || !plan.days) return Math.max(currentWeek, 1);
+  var front = info.lastWeek;
+  var complete = plan.days.every(function(d) { return Object.keys(getLog(front, d.id)).some(isExKey); });
+  var dayTaken = Object.keys(getLog(front, info.dayId)).some(isExKey);
+  var t = (complete || dayTaken) ? front + 1 : front;
+  return Math.max(t, calendarWeekNow(info));
+}
+function goNextTarget() {
+  currentWeek = nextTargetWeek(findNextInfo());
+  saveWeek(); renderHome();
+  toast('➡️ Tydzień ' + currentWeek);
+}
+function openNextSession() {
+  var info = findNextInfo();
+  if (!info) return;
+  var t = nextTargetWeek(info);
+  if (t !== currentWeek) { currentWeek = t; saveWeek(); }
+  openDay(info.dayId);
+}
+// pusta sesja otwarta w nieaktualnym tygodniu — przeniesienie do właściwego jednym dotknięciem
+function moveSessionToWeek(t) {
+  if (currentView === 'workout') saveWorkout(true);
+  var oldK = logKey(currentWeek, currentDayId), newK = logKey(t, currentDayId);
+  if (logs[oldK] && !logs[newK]) { logs[newK] = logs[oldK]; delete logs[oldK]; saveLogs(); }
+  currentWeek = t; saveWeek();
+  _lastProgressPct = -1;
+  renderWorkout();
+  toast('➡️ Trening w Tygodniu ' + t);
 }
 function findNextDayId() { var i = findNextInfo(); return i ? i.dayId : null; }
 
 function startNextWeek() {
-  currentWeek++; saveWeek(); renderHome();
+  currentWeek = Math.max(currentWeek + 1, nextTargetWeek(findNextInfo())); saveWeek(); renderHome();
   toast('➡️ Tydzień ' + currentWeek);
 }
 
@@ -1876,7 +1940,7 @@ function startNextWeek() {
 function goCurrentWeek() {
   var info = findNextInfo();
   if (!info) return;
-  currentWeek = Math.max(info.lastWeek, 1);
+  currentWeek = Math.max(nextTargetWeek(info), 1);
   saveWeek();
   if (currentView === 'workout') { showView('home'); }
   else renderHome();
@@ -1885,7 +1949,7 @@ function goCurrentWeek() {
 
 // v6.5: nowy cykl z poziomu treningu — zostajemy w tym samym dniu, świeży tydzień
 function startNextWeekHere() {
-  currentWeek++; saveWeek();
+  currentWeek = Math.max(currentWeek + 1, nextTargetWeek(findNextInfo())); saveWeek();
   _lastProgressPct = -1;
   renderWorkout();
   toast('➡️ Tydzień ' + currentWeek + ' — nowy cykl tego dnia');
@@ -1931,12 +1995,13 @@ function renderHome() {
   var nextInfo = findNextInfo();
   var atFrontier = nextInfo ? currentWeek >= nextInfo.lastWeek : true;
   var isArchive = !atFrontier;
+  var targetW = nextInfo ? nextTargetWeek(nextInfo) : currentWeek;
   // v6.7: tryb archiwum — wyraźny baner z powrotem do bieżącego tygodnia
   var completeBanner = '';
   if (isArchive) {
     completeBanner += '<div style="background:rgba(69,123,157,0.14);border:1px solid var(--blue);border-radius:var(--radius);padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--blue);display:flex;align-items:center;justify-content:space-between;gap:8px">'
       + '<span>📖 Przeglądasz historię (Tydz. ' + currentWeek + ')</span>'
-      + '<button onclick="goCurrentWeek()" style="background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Bieżący: T' + nextInfo.lastWeek + ' →</button>'
+      + '<button onclick="goCurrentWeek()" style="background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Bieżący: T' + targetW + ' →</button>'
       + '</div>';
   }
   // v6.5: komplet tygodnia — zaproponuj przejście do następnego jednym przyciskiem
@@ -1944,20 +2009,29 @@ function renderHome() {
   if (allDone && atFrontier) {
     completeBanner += '<div style="background:rgba(82,183,136,0.12);border:1px solid var(--green);border-radius:var(--radius);padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--green);display:flex;align-items:center;justify-content:space-between;gap:8px">'
       + '<span>🎉 Komplet tygodnia ' + currentWeek + '!</span>'
-      + '<button onclick="startNextWeek()" style="background:var(--green);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Zacznij Tydzień ' + (currentWeek + 1) + ' →</button>'
+      + '<button onclick="startNextWeek()" style="background:var(--green);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">Zacznij Tydzień ' + Math.max(currentWeek + 1, targetW) + ' →</button>'
+      + '</div>';
+  }
+  // v7.2: następna sesja wypada w innym tygodniu niż oglądany (nowy tydzień kalendarzowy,
+  // tydzień bez treningu albo podgląd pustego tygodnia „do przodu”) — propozycja przejścia
+  if (nextInfo && atFrontier && !allDone && nextInfo.lastWeek >= 1 && currentWeek !== targetW) {
+    var ndB = plan.days.find(function(d) { return d.id === nextInfo.dayId; });
+    var calNow = calendarWeekNow(nextInfo);
+    var why = '';
+    if (currentWeek < targetW && calNow > nextInfo.lastWeek) {
+      why = 'Od ostatniego treningu (' + new Date(nextInfo.lastDate).toLocaleDateString('pl-PL') + ') zaczął się nowy tydzień'
+        + (calNow - nextInfo.lastWeek > 1 ? ' — Tydz. ' + (nextInfo.lastWeek + 1) + (calNow - nextInfo.lastWeek > 2 ? '–' + (calNow - 1) : '') + ' bez treningu' : '') + '. ';
+    }
+    completeBanner += '<div style="background:rgba(69,123,157,0.14);border:1px solid var(--blue);border-radius:var(--radius);padding:10px 13px;margin-bottom:10px;font-size:12px;color:var(--blue);display:flex;align-items:center;justify-content:space-between;gap:8px;line-height:1.5">'
+      + '<span>' + why + '▶ Następny trening: <b>' + esc(ndB ? ndB.name : '') + '</b> w Tygodniu ' + targetW + '</span>'
+      + '<button onclick="goNextTarget()" style="background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;flex-shrink:0">' + (currentWeek < targetW ? 'Tydzień ' + targetW + ' →' : '← Tydzień ' + targetW) + '</button>'
       + '</div>';
   }
   // v6.9: "▶ następny" tylko w JEDNYM tygodniu — tam, gdzie następna sesja faktycznie
   // wyląduje (front; a gdy front ma komplet sesji — tydzień następny)
+  // v7.2: „▶ następny” w tygodniu, w którym następna sesja faktycznie wypada (kalendarz + rotacja)
   var nextDayId = null;
-  if (nextInfo && atFrontier) {
-    var badgeWeek = Math.max(nextInfo.lastWeek, 1);
-    var frontComplete = nextInfo.lastWeek >= 1 && plan.days.every(function(d0) {
-      return Object.keys(getLog(nextInfo.lastWeek, d0.id)).some(isExKey);
-    });
-    if (frontComplete) badgeWeek = nextInfo.lastWeek + 1;
-    if (currentWeek === badgeWeek) nextDayId = nextInfo.dayId;
-  }
+  if (nextInfo && atFrontier && currentWeek === targetW) nextDayId = nextInfo.dayId;
   c.innerHTML = completeBanner + plan.days.map(function(day, i) {
     var prog = dayProgress(currentWeek, day.id);
     var badgeCls, badgeTxt;
@@ -2013,6 +2087,31 @@ function legacyEditHere() {
 }
 
 // v6.4: panel "↑ Ostatnie wyniki" — wspólny dla ćwiczeń planowych i zamienników
+// v7.2: ostatni zapis danej serii (ten sam wybór co chipy „Ostatnie wyniki”) — nowszy tydzień
+// wygrywa, przy remisie ten sam dzień; służy też jako podpowiedź w pustym polu serii
+function lastSetPick(exRefs, srcOk, si) {
+  var best = null; var bestScore = -1;
+  exRefs.forEach(function(ref) {
+    Object.keys(logs).forEach(function(k) {
+      var pk2 = parseLogKey(k);
+      if (pk2[1] !== ref.dayId) return;
+      if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
+      var s = logs[k][ref.exId] && logs[k][ref.exId][si];
+      if (s && (s.w || s.r) && !isSkippedSet(s)) {
+        var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
+        if (score > bestScore) { bestScore = score; best = { s: s, week: pk2[0], dayId: ref.dayId }; }
+      }
+    });
+  });
+  return best;
+}
+function setHintPh(exId, si, field, def) {
+  var info = getLastSetsRef(currentDayId, exId);
+  if (!info) return def;
+  var b = lastSetPick(exRefsFor(currentDayId, exId), info.relaxed ? isAnySource : isSuggestSource, si);
+  return (b && b.s[field]) ? esc(b.s[field]) : def;
+}
+
 function buildPrevPanel(exId, setsCount) {
   var exRefs = exRefsFor(currentDayId, exId);
   var prevInfo = getLastSetsRef(currentDayId, exId);
@@ -2022,19 +2121,8 @@ function buildPrevPanel(exId, setsCount) {
   if (prev && prev.length) {
       // v5.0: podpowiedź per seria — dla każdej serii szukamy ostatniego tygodnia gdzie ta seria była wpisana
       var chips = Array.from({ length: setsCount }, function(_, si) {
-        var bestW = -1; var bestSets = null; var bestScore = -1; var bestSrcDay = null;
-        exRefs.forEach(function(ref) {
-          Object.keys(logs).forEach(function(k) {
-            var pk2 = parseLogKey(k);
-            if (pk2[1] !== ref.dayId) return;
-            if (!srcOk(pk2[0], ref.dayId, currentDayId)) return;
-            var dl2 = logs[k];
-            if (dl2[ref.exId] && dl2[ref.exId][si] && (dl2[ref.exId][si].w || dl2[ref.exId][si].r) && !isSkippedSet(dl2[ref.exId][si])) {
-              var score = pk2[0] * 2 + (ref.dayId === currentDayId ? 1 : 0);
-              if (score > bestScore) { bestScore = score; bestW = pk2[0]; bestSets = dl2[ref.exId][si]; bestSrcDay = ref.dayId; }
-            }
-          });
-        });
+        var pick = lastSetPick(exRefs, srcOk, si);
+        var bestW = pick ? pick.week : -1; var bestSets = pick ? pick.s : null; var bestSrcDay = pick ? pick.dayId : null;
         if (!bestSets) return '<span class="ref-chip nd">S' + (si+1) + ': brak</span>';
         // 🏆 tylko dla danych z TEGO dnia — isPR porównuje z historią bieżącego dnia
         var prMark = (bestSrcDay === currentDayId && isPR(currentDayId, exId, bestSets.w, bestW)) ? ' 🏆' : '';
@@ -2087,8 +2175,8 @@ function buildSubCard(ex, idx, subId, dl) {
       ? ' oninput="handleAfterLastSetInput(this,\'' + subId + '\',' + idx + ')"' : '';
     inp += '<div class="set-row">'
       + '<span class="set-lbl">S' + (i+1) + '</span>'
-      + '<input class="sinput" type="text" inputmode="decimal" id="w_' + subId + '_' + i + '" value="' + esc(cw) + '" placeholder="kg">'
-      + '<input class="sinput" type="text" inputmode="numeric" id="r_' + subId + '_' + i + '" value="' + esc(cr) + '" placeholder="powt."' + afterAttrS + '>'
+      + '<input class="sinput" type="text" inputmode="decimal" id="w_' + subId + '_' + i + '" value="' + esc(cw) + '" placeholder="' + setHintPh(subId, i, 'w', 'kg') + '">'
+      + '<input class="sinput" type="text" inputmode="numeric" id="r_' + subId + '_' + i + '" value="' + esc(cr) + '" placeholder="' + setHintPh(subId, i, 'r', 'powt.') + '"' + afterAttrS + '>'
       + timerBtn + '</div>';
   }
   var safePlanId = String(ex.id).replace(/[^\w-]/g, '');
@@ -2159,7 +2247,7 @@ function renderWorkout() {
   }
   if (isArchiveW) {
     archBanner.innerHTML = '📖 Tydzień ' + currentWeek + ' to archiwum — edytujesz STARE dane.'
-      + ' <button onclick="goCurrentWeek()" style="background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">Bieżący: T' + infoW.lastWeek + ' →</button>';
+      + ' <button onclick="goCurrentWeek()" style="background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">Bieżący: T' + nextTargetWeek(infoW) + ' →</button>';
     archBanner.style.display = 'block';
   } else {
     archBanner.style.display = 'none';
@@ -2173,17 +2261,25 @@ function renderWorkout() {
     var weekAllDone = plan.days.every(function(d3) { return dayProgress(currentWeek, d3.id).pct >= 100; });
     if (weekAllDone) {
       doneBanner.innerHTML = '✓ Ta sesja jest już ukończona' + dateTxt + '. Komplet tygodnia — zaczynasz nowy cykl?'
-        + ' <button onclick="startNextWeekHere()" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Tydzień ' + (currentWeek + 1) + '</button>';
+        + ' <button onclick="startNextWeekHere()" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Tydzień ' + Math.max(currentWeek + 1, nextTargetWeek(findNextInfo())) + '</button>';
     } else {
       var ni3 = findNextInfo();
       var nd3 = ni3 && plan.days.find(function(d3) { return d3.id === ni3.dayId; });
       doneBanner.innerHTML = '✓ Ta sesja jest już ukończona' + dateTxt + '.'
-        + (nd3 ? ' Następny w kolejce: <strong>' + esc(nd3.name) + '</strong>'
-          + ' <button onclick="openDay(\'' + String(nd3.id).replace(/[^\w-]/g, '') + '\')" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Otwórz</button>' : '');
+        + (nd3 ? ' Następny w kolejce: <strong>' + esc(nd3.name) + '</strong>' + (nextTargetWeek(ni3) !== currentWeek ? ' (Tydzień ' + nextTargetWeek(ni3) + ')' : '')
+          + ' <button onclick="openNextSession()" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Otwórz</button>' : '');
     }
     doneBanner.style.display = 'block';
   } else {
-    doneBanner.style.display = 'none';
+    // v7.2: pusta sesja otwarta w tygodniu ostatniego treningu, a kalendarz poszedł dalej
+    var calW = (!isArchiveW && infoW) ? calendarWeekNow(infoW) : currentWeek;
+    if (infoW && infoW.lastWeek >= 1 && !isArchiveW && currentWeek < calW && !Object.keys(dl).some(isExKey)) {
+      doneBanner.innerHTML = '📅 Od ostatniego treningu zaczął się nowy tydzień — ten trening wypada w Tygodniu ' + calW + '.'
+        + ' <button onclick="moveSessionToWeek(' + calW + ')" style="background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;margin-left:4px">→ Tydzień ' + calW + '</button>';
+      doneBanner.style.display = 'block';
+    } else {
+      doneBanner.style.display = 'none';
+    }
   }
 
   // Wczytaj notatkę ogólną do pola
@@ -2205,7 +2301,7 @@ function renderWorkout() {
   if (dl._subs) Object.keys(dl._subs).forEach(function(p) { subValsW[dl._subs[p]] = 1; });
   var exKeysW = Object.keys(dl).filter(function(k) { return isExKey(k) && Array.isArray(dl[k]) && dl[k].length; });
   var isLegacyW = exKeysW.some(function(k) {
-    return !subValsW[k] && !day.exercises.some(function(e) { return e.id === k; });
+    return !subValsW[k] && k.indexOf('zam_') !== 0 && !day.exercises.some(function(e) { return e.id === k; });
   });
   if (isLegacyW && !_legacyEdit[key]) {
     _workoutReadOnly = true;
@@ -2404,8 +2500,8 @@ function renderWorkout() {
         var skippedRow = String(cr).trim() === '0';
         inp += '<div class="set-row' + (skippedRow ? ' skipped' : '') + '">'
           + '<span class="set-lbl skip-toggle" style="' + lblStyle + '" onclick="toggleSkipSet(\'' + ex.id + '\',' + i + ')" title="Tap = pomiń / przywróć serię">' + (skippedRow ? '⏭' : lbl) + '</span>'
-          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="np. 30"' + (dlAuto ? ' data-dl="1"' : '') + onInputAttr + '>'
-          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="np. 8"' + afterAttr + '>'
+          + '<input class="sinput" type="text" inputmode="decimal" id="w_' + ex.id + '_' + i + '" value="' + cw + '" placeholder="' + setHintPh(ex.id, i, 'w', 'np. 30') + '"' + (dlAuto ? ' data-dl="1"' : '') + onInputAttr + '>'
+          + '<input class="sinput" type="text" inputmode="numeric" id="r_' + ex.id + '_' + i + '" value="' + cr + '" placeholder="' + setHintPh(ex.id, i, 'r', 'np. 8') + '"' + afterAttr + '>'
           + timerBtn + '</div>';
       }
     }
@@ -2466,6 +2562,21 @@ function renderWorkout() {
       return (s.w || s.r) ? '<span class="ref-chip">S' + (i2+1) + ': ' + (s.w||'—') + ' kg×' + (s.r||'—') + '</span>' : '';
     }).filter(Boolean).join('');
     if (!oChips) return;
+    if (oid.indexOf('zam_') === 0) {
+      // v7.2: cofnięty zamiennik („↩ planowe”) — dane zostają, jednym dotknięciem wraca na swoje miejsce
+      var offPid = null;
+      if (dl._subsOff) Object.keys(dl._subsOff).forEach(function(p) { if (dl._subsOff[p] === oid) offPid = p; });
+      var offEx = offPid ? day.exercises.find(function(e) { return e.id === offPid; }) : null;
+      var canRestore = offEx && !(dl._subs && dl._subs[offPid]);
+      orphanHtml += '<div class="ex-card" style="opacity:.85;border-left:3px solid var(--drop)">'
+        + '<div class="ex-head"><span class="ex-name" style="color:var(--text2)">🔁 ' + esc(getExName(dl, currentDayId, oid))
+        + '<span style="display:block;font-size:10px;color:var(--text3);font-weight:400">cofnięty zamiennik' + (offEx ? ' za: ' + esc(offEx.name) : '') + ' — dane z tej sesji zostają</span></span>'
+        + (canRestore ? '<button onclick="subRestore(\'' + String(offPid).replace(/[^\w-]/g, '') + '\')" style="background:none;border:1px solid var(--drop);border-radius:6px;color:var(--drop);font-size:11px;padding:5px 9px;cursor:pointer;flex-shrink:0">🔁 Przywróć</button>' : '')
+        + '</div>'
+        + '<div class="sets-wrap"><div class="ref-chips" style="margin-bottom:0">' + oChips + '</div></div>'
+        + '</div>';
+      return;
+    }
     orphanHtml += '<div class="ex-card" style="opacity:.78;border-left:3px solid var(--text3)">'
       + '<div class="ex-head"><span class="ex-name" style="color:var(--text2)">📦 ' + esc(getExName(dl, currentDayId, oid))
       + '<span style="display:block;font-size:10px;color:var(--text3);font-weight:400">zapis z poprzedniego planu — podgląd (pełne dane w Historii)</span></span></div>'
@@ -2483,28 +2594,110 @@ function renderWorkout() {
 // v6.4: ZAMIENNIKI — inne ćwiczenie w miejsce planowego (np. zajęte stanowisko).
 // Zamiennik ma własne id pochodzące z nazwy ('zam_...'), własną historię, podpowiedzi
 // i rekordy (po nazwie); dane ćwiczenia planowego nie są ruszane.
+// v7.2: katalog zamienników — lista do dotknięcia (Android nie pokazuje podpowiedzi <datalist>):
+// najpierw zamienniki używane już za to ćwiczenie (najnowsze na górze, także cofnięty w tej sesji),
+// potem pozostałe zamienniki, potem ćwiczenia z aktualnego i poprzednich planów; pole filtruje listę
+// i pozwala wpisać nową nazwę
 function subModal(plannedId) {
   if (!plan || !currentDayId) return;
   var day = plan.days.find(function(d) { return d.id === currentDayId; });
   var ex = day && day.exercises.find(function(e) { return e.id === plannedId; });
   if (!ex) return;
-  // poprzednio używane zamienniki — podpowiedzi z snapshotów logów
-  var seen = {}; var opts = '';
+  var plannedNorm = normExName(ex.name);
+  var curKey = logKey(currentWeek, currentDayId);
+  var forThis = {}, otherSubs = {}, planEx = {};
+  function put(map, name, rank, info) {
+    var n = normExName(name);
+    if (!n || n === plannedNorm) return;
+    if (!map[n] || rank > map[n].rank) map[n] = { name: String(name), rank: rank, info: info || '' };
+  }
   Object.keys(logs).forEach(function(k) {
-    var en = logs[k]._exNames; if (!en) return;
+    var pk = parseLogKey(k); var dl = logs[k]; var en = dl._exNames || {};
+    [dl._subs || {}, dl._subsOff || {}].forEach(function(m) {
+      Object.keys(m).forEach(function(pid) {
+        var nm = en[m[pid]];
+        if (nm && normExName(getExName(dl, pk[1], pid)) === plannedNorm) {
+          put(forThis, nm, k === curKey ? 1e9 : pk[0], k === curKey ? 'ta sesja' : 'T' + pk[0]);
+        }
+      });
+    });
     Object.keys(en).forEach(function(eid) {
-      if (eid.indexOf('zam_') === 0 && en[eid] && !seen[en[eid]]) { seen[en[eid]] = 1; opts += '<option value="' + esc(en[eid]) + '"></option>'; }
+      if (eid.indexOf('zam_') === 0) put(otherSubs, en[eid], pk[0], 'T' + pk[0]);
+      else put(planEx, en[eid], pk[0], 'poprzedni plan');
     });
   });
+  plan.days.forEach(function(d) {
+    d.exercises.forEach(function(e) {
+      var n = normExName(e.name);
+      if (n && n !== plannedNorm) planEx[n] = { name: e.name, rank: 1e9, info: d.name };
+    });
+  });
+  Object.keys(forThis).forEach(function(n) { delete otherSubs[n]; delete planEx[n]; });
+  Object.keys(otherSubs).forEach(function(n) { delete planEx[n]; });
+  function byRank(map) { return Object.keys(map).sort(function(a, b) { return map[b].rank - map[a].rank; }); }
+  var kPlan = Object.keys(planEx).sort(function(a, b) { return planEx[a].name.localeCompare(planEx[b].name, 'pl'); });
+  function items(map, keys, cls) {
+    return keys.map(function(n) {
+      var it = map[n];
+      return '<button type="button" class="sub-item' + (cls ? ' ' + cls : '') + '" data-k="' + n + '" data-n="' + esc(it.name) + '" onclick="subPick(this)">'
+        + '<span>' + esc(it.name) + '</span><small>' + esc(it.info) + '</small></button>';
+    }).join('');
+  }
+  var kThis = byRank(forThis), kOther = byRank(otherSubs);
+  var list = '';
+  if (kThis.length) list += '<div class="sub-sec">Ostatnio zamiast tego ćwiczenia</div>' + items(forThis, kThis, 'recent');
+  if (kOther.length) list += '<div class="sub-sec">Inne zamienniki</div>' + items(otherSubs, kOther);
+  if (kPlan.length) list += '<div class="sub-sec">Ćwiczenia z planu i poprzednich planów</div>' + items(planEx, kPlan);
   _modalCtx = { type: 'sub', plannedId: plannedId };
   document.getElementById('modal-title').textContent = '🔁 Zamiennik ćwiczenia';
   document.getElementById('modal-content').innerHTML =
     '<div class="modal-field"><div class="modal-label">Zamiast: ' + esc(ex.name) + '</div>'
-    + '<input class="modal-input" id="sub-name-input" list="sub-name-list" placeholder="np. Wznosy hantlami na boki" autocomplete="off">'
-    + '<datalist id="sub-name-list">' + opts + '</datalist>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">Zamiennik ma własną historię ciężarów i podpowiedzi (dopasowanie po nazwie). Dane ćwiczenia z planu zostają nietknięte, a raport pokaże zastąpienie.</div></div>';
+    + '<input class="modal-input" id="sub-name-input" placeholder="Szukaj albo wpisz nową nazwę" autocomplete="off" oninput="subFilter()">'
+    + '<button type="button" class="sub-item sub-new" id="sub-new" onclick="subApply(\'' + String(plannedId).replace(/[^\w-]/g, '') + '\')" hidden></button>'
+    + '<div class="sub-cat" id="sub-cat">' + (list || '<div style="font-size:12px;color:var(--text3);padding:8px 0">Brak zapisanych ćwiczeń — wpisz nazwę powyżej.</div>') + '</div>'
+    + '<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">Dotknij ćwiczenia z listy albo wpisz nową nazwę i Zapisz. Zamiennik ma własną historię ciężarów (dopasowanie po nazwie), dane ćwiczenia z planu zostają nietknięte.</div></div>';
   openModal();
-  setTimeout(function() { var el = document.getElementById('sub-name-input'); if (el) el.focus(); }, 100);
+}
+function subFilter() {
+  var inp = document.getElementById('sub-name-input');
+  var cat = document.getElementById('sub-cat');
+  if (!inp || !cat) return;
+  var q = normExName(inp.value);
+  var exact = false;
+  Array.prototype.forEach.call(cat.querySelectorAll('.sub-item'), function(b) {
+    var k = b.getAttribute('data-k') || '';
+    b.hidden = !!q && k.indexOf(q) < 0;
+    if (q && k === q) exact = true;
+  });
+  Array.prototype.forEach.call(cat.querySelectorAll('.sub-sec'), function(h) {
+    var el = h.nextElementSibling; var any = false;
+    while (el && !el.classList.contains('sub-sec')) { if (!el.hidden) any = true; el = el.nextElementSibling; }
+    h.hidden = !any;
+  });
+  var nb = document.getElementById('sub-new');
+  if (nb) {
+    nb.hidden = !inp.value.trim() || exact;
+    nb.innerHTML = '<span>➕ Nowe ćwiczenie: ' + esc(inp.value.trim()) + '</span><small>użyj</small>';
+  }
+}
+function subPick(btn) {
+  var inp = document.getElementById('sub-name-input');
+  if (!inp || !_modalCtx || _modalCtx.type !== 'sub') return;
+  inp.value = btn.getAttribute('data-n') || '';
+  subApply(_modalCtx.plannedId);
+}
+function subRestore(plannedId) {
+  var key = logKey(currentWeek, currentDayId);
+  var dl = logs[key];
+  if (!dl || !dl._subsOff || !dl._subsOff[plannedId]) return;
+  saveWorkout(true);
+  var subs = dl._subs || {};
+  subs[plannedId] = dl._subsOff[plannedId];
+  dl._subs = subs;
+  delete dl._subsOff[plannedId];
+  if (!Object.keys(dl._subsOff).length) delete dl._subsOff;
+  saveLogs(); renderWorkout();
+  toast('🔁 Przywrócono zamiennik');
 }
 
 function subApply(plannedId) {
@@ -2536,6 +2729,10 @@ function subApply(plannedId) {
   }
   subs[plannedId] = sid;
   logs[key]._subs = subs;
+  if (logs[key]._subsOff) {
+    delete logs[key]._subsOff[plannedId];
+    if (!Object.keys(logs[key]._subsOff).length) delete logs[key]._subsOff;
+  }
   var exN = logs[key]._exNames || {}; exN[sid] = name; logs[key]._exNames = exN;
   var exT = logs[key]._exTypes || {}; exT[sid] = { t: 'standard', d: 1 }; logs[key]._exTypes = exT;
   saveLogs(); closeModal(); renderWorkout();
@@ -2547,8 +2744,15 @@ function subRemove(plannedId) {
   saveWorkout(true); // utrwal wpisane dane zamiennika zanim zniknie z DOM
   var key = logKey(currentWeek, currentDayId);
   if (logs[key] && logs[key]._subs) {
+    var wasSid = logs[key]._subs[plannedId];
     delete logs[key]._subs[plannedId];
     if (!Object.keys(logs[key]._subs).length) delete logs[key]._subs;
+    // v7.2: dane zamiennika zostają w zapisie sesji — zapamiętaj, za co był, żeby dało się wrócić
+    if (wasSid && Array.isArray(logs[key][wasSid]) && logs[key][wasSid].length) {
+      var off = logs[key]._subsOff || {};
+      off[plannedId] = wasSid;
+      logs[key]._subsOff = off;
+    }
     saveLogs();
   }
   renderWorkout();
@@ -3124,6 +3328,81 @@ function measNoteToggle(btn) {
 }
 
 // Wykres obwodów SVG
+// v7.2: wykres liniowy z osią wartości. Zakres osi nie jest ciasnym min–max danych: obejmuje
+// co najmniej minRel średniej wartości (i minAbs jednostek), więc 1 kg przy 90 kg wygląda jak
+// niewielka zmiana, a nie jak skok przez cały wykres
+function niceStep(raw) {
+  if (!(raw > 0)) return 1;
+  var p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+  var n = raw / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+function chartDomain(vals, minRel, minAbs) {
+  var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+  var mid = (mn + mx) / 2;
+  var span = Math.max(mx - mn, Math.abs(mid) * (minRel || 0), minAbs || 1);
+  var lo = mid - span * 0.6, hi = mid + span * 0.6;
+  if (mn >= 0 && lo < 0) { hi -= lo; lo = 0; }
+  var step = niceStep((hi - lo) / 4);
+  lo = Math.floor(lo / step + 1e-9) * step;
+  hi = Math.ceil(hi / step - 1e-9) * step;
+  if (hi - lo < step) hi = lo + step;
+  return { lo: lo, hi: hi, step: step };
+}
+function fmtChartVal(v) { return String(Math.round(v * 10) / 10); }
+function fmtAxis(v, step, signed) {
+  var dec = step >= 1 ? (step % 1 === 0 ? 0 : 1) : (Math.abs(Math.round(step * 10) - step * 10) < 1e-9 ? 1 : 2);
+  var r = Math.round(v * 100) / 100;
+  if (Math.abs(r) < 1e-9) r = 0;
+  return (signed && r > 0 ? '+' : '') + r.toFixed(dec);
+}
+// series: [{ vals: [liczba|null, ...], color }], labels: podpisy osi X (jeden na punkt)
+function lineChartSVG(series, labels, o) {
+  o = o || {};
+  var all = [];
+  series.forEach(function(s) { s.vals.forEach(function(v) { if (typeof v === 'number' && !isNaN(v)) all.push(v); }); });
+  if (!all.length) return '<div class="chart-empty">Brak danych</div>';
+  var dom = chartDomain(all, o.minRel, o.minAbs);
+  var W = 320, H = o.H || 180, L = 38, R = 14, T = 18, B = 24;
+  var n = labels.length, pw = W - L - R, ph = H - T - B;
+  function X(i) { return L + (n > 1 ? i * pw / (n - 1) : pw / 2); }
+  function Y(v) { return T + ph * (1 - (v - dom.lo) / (dom.hi - dom.lo)); }
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:560px;display:block;margin:0 auto">';
+  var steps = Math.round((dom.hi - dom.lo) / dom.step);
+  for (var si = 0; si <= steps; si++) {
+    var tv = dom.lo + si * dom.step; var ty = Y(tv);
+    svg += '<line x1="' + L + '" y1="' + ty.toFixed(1) + '" x2="' + (W - R) + '" y2="' + ty.toFixed(1) + '" stroke="var(--border)" stroke-width="1"' + ((o.signed && Math.abs(tv) < 1e-9) ? '' : ' stroke-dasharray="2 3"') + '/>';
+    svg += '<text x="' + (L - 5) + '" y="' + (ty + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--text3)">' + fmtAxis(tv, dom.step, o.signed) + '</text>';
+  }
+  if (o.unit) svg += '<text x="' + (L - 5) + '" y="' + (T - 8) + '" text-anchor="end" font-size="8" fill="var(--text3)">' + esc(o.unit) + '</text>';
+  var every = Math.max(1, Math.ceil(n / 7));
+  labels.forEach(function(lb, i) {
+    if ((n - 1 - i) % every !== 0) return;
+    svg += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle" font-size="8.5" fill="var(--text3)">' + esc(lb) + '</text>';
+  });
+  series.forEach(function(s) {
+    var pts = [];
+    s.vals.forEach(function(v, i) { if (typeof v === 'number' && !isNaN(v)) pts.push([X(i), Y(v), v]); });
+    if (!pts.length) return;
+    var col = s.color || 'var(--accent)';
+    var line = pts.map(function(p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    if (series.length === 1 && pts.length > 1) {
+      svg += '<polygon points="' + pts[0][0].toFixed(1) + ',' + (T + ph) + ' ' + line + ' ' + pts[pts.length - 1][0].toFixed(1) + ',' + (T + ph) + '" fill="' + col + '" opacity="0.10"/>';
+    }
+    if (pts.length > 1) svg += '<polyline points="' + line + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    var iMax = 0, iMin = 0;
+    pts.forEach(function(p, k) { if (p[2] > pts[iMax][2]) iMax = k; if (p[2] < pts[iMin][2]) iMin = k; });
+    pts.forEach(function(p, k) {
+      var isLast = (k === pts.length - 1);
+      svg += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="' + (isLast ? 4 : 2.6) + '" fill="' + col + '"/>';
+      if (o.showVals && (pts.length <= 10 || isLast || k === iMax || k === iMin)) {
+        svg += '<text x="' + p[0].toFixed(1) + '" y="' + (p[1] - 7).toFixed(1) + '" text-anchor="middle" font-size="9" fill="var(--text2)"' + (isLast ? ' font-weight="700"' : '') + '>' + fmtChartVal(p[2]) + '</text>';
+      }
+    });
+  });
+  return svg + '</svg>';
+}
+
 function renderCircChart() {
   var mode = settings.circChartMode || 'single';
   var allFields = loadMeasFields().filter(function(f) { return f.active; });
@@ -3144,65 +3423,58 @@ function renderCircChart() {
     var field = chartFields.find(function(f) { return f.id === selVal; }) || chartFields[0];
     var vals = sorted.map(function(m) { return field.id === '_bmi' ? (parseFloat(m.bmi)||null) : (parseFloat(m[field.id])||null); });
     var labels = sorted.map(function(m) { return m.date.split('.').slice(0,2).join('.'); });
-    return renderSingleCircChart(field.label, vals, labels, selId, chartFields, selVal);
+    return renderSingleCircChart(field.label, vals, labels, selId, chartFields, selVal, field.unit || (field.id === 'waga' ? 'kg' : (field.id === '_bmi' ? '' : 'cm')));
   } else {
     return renderAllCircChart(chartFields, sorted);
   }
 }
 
-function renderSingleCircChart(label, vals, labels, selId, fields, selVal) {
+function renderSingleCircChart(label, vals, labels, selId, fields, selVal, unit) {
   var validVals = vals.filter(function(v) { return v !== null; });
   if (!validVals.length) return '<div class="chart-empty">Brak danych dla tego pola</div>';
-  var maxVal = Math.max.apply(null, validVals);
-  var minVal = Math.min.apply(null, validVals);
-  var range = maxVal - minVal || 1;
-  var W = 320; var H = 130; var PAD = 28; var BAR_W = Math.max(6, Math.floor((W-PAD*2)/vals.length)-3);
   var sel = '<select onchange="renderMeasurements()" id="' + selId + '" style="background:var(--input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:5px 8px;width:100%;margin-bottom:8px;-webkit-appearance:none">'
     + fields.map(function(f){return '<option value="'+f.id+'"'+(f.id===selVal?' selected':'')+'>'+esc(f.label)+'</option>';}).join('')+'</select>';
-  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px;display:block;margin:0 auto">';
-  for (var li=0;li<=3;li++){var ly=PAD+(H-PAD*2)*li/3;svg+='<line x1="'+PAD+'" y1="'+ly+'" x2="'+(W-PAD)+'" y2="'+ly+'" stroke="var(--border)" stroke-width="1"/>';}
-  vals.forEach(function(v,i){
-    if(v===null)return;
-    var barH=Math.max(4,((v-minVal)/range)*(H-PAD*2-16));
-    var x=PAD+i*((W-PAD*2)/vals.length)+((W-PAD*2)/vals.length-BAR_W)/2;
-    var y=H-PAD-barH;
-    svg+='<rect x="'+x+'" y="'+y+'" width="'+BAR_W+'" height="'+barH+'" rx="3" fill="var(--blue)" opacity="0.85"/>';
-    svg+='<text x="'+(x+BAR_W/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="8" fill="var(--text3)">'+labels[i]+'</text>';
-    svg+='<text x="'+(x+BAR_W/2)+'" y="'+(y-3)+'" text-anchor="middle" font-size="9" fill="var(--text2)">'+v.toFixed(1)+'</text>';
-  });
-  svg+='</svg>';
-  return sel+svg;
+  var u = unit || '';
+  var svg = lineChartSVG([{ vals: vals, color: 'var(--blue)' }], labels, { unit: u, minRel: 0.10, minAbs: u === 'kg' ? 3 : 2, showVals: true });
+  var info = '';
+  if (validVals.length > 1) {
+    var first = validVals[0], last = validVals[validVals.length - 1], prevV = validVals[validVals.length - 2];
+    var sg = function(d) { d = Math.round(d * 10) / 10; return (d > 0 ? '+' : '') + d; };
+    var us = u ? ' ' + u : '';
+    info = '<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:6px;line-height:1.5">Ostatnio <b style="color:var(--text2)">' + fmtChartVal(last) + us + '</b> · od poprzedniego ' + sg(last - prevV) + us
+      + ' · od pierwszego ' + sg(last - first) + us + (first ? ' (' + sg((last - first) / first * 100) + '%)' : '') + '</div>';
+  }
+  return sel + svg + info;
 }
 
+// v7.2: wszystkie pola na wspólnej skali — zmiana w % od pierwszego pomiaru danego pola
+// (kg i cm mają różne jednostki, więc tylko procent porównuje je uczciwie)
 function renderAllCircChart(fields, sorted) {
   // Na jasnych motywach pastelowe stałe byłyby niewidoczne — ciemniejszy wariant
   var lightUI = document.body.classList.contains('light') || document.body.classList.contains('blush');
   var colors = lightUI
     ? ['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#2a7f8a','#2e7d52','#b45309']
     : ['var(--accent)','var(--blue)','var(--yellow)','var(--green)','#a8dadc','#95d5b2','#f4a261'];
-  var W=320;var H=150;var PAD=28;
-  var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:'+W+'px;display:block;margin:0 auto">';
-  for(var li=0;li<=3;li++){var ly=PAD+(H-PAD*2-20)*li/3;svg+='<line x1="'+PAD+'" y1="'+ly+'" x2="'+(W-PAD)+'" y2="'+ly+'" stroke="var(--border)" stroke-width="1"/>';}
-  var legendY=H-12;
-  fields.forEach(function(f,fi){
-    var vals=sorted.map(function(m){return f.id==='_bmi'?(parseFloat(m.bmi)||null):(parseFloat(m[f.id])||null);});
-    var vv=vals.filter(function(v){return v!==null;});
-    if(!vv.length)return;
-    var maxV=Math.max.apply(null,vv);var minV=Math.min.apply(null,vv);var rng=maxV-minV||1;
-    var col=colors[fi%colors.length];var pts=[];
-    vals.forEach(function(v,i){
-      if(v===null)return;
-      var x=PAD+i*(W-PAD*2)/Math.max(vals.length-1,1);
-      var y=PAD+(H-PAD*2-20)*(1-(v-minV)/rng);
-      pts.push(x+','+y);
-      svg+='<circle cx="'+x+'" cy="'+y+'" r="3" fill="'+col+'"/>';
-    });
-    if(pts.length>1)svg+='<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+col+'" stroke-width="1.5" opacity="0.8"/>';
-    svg+='<rect x="'+(PAD+fi*44)+'" y="'+(legendY-6)+'" width="8" height="8" rx="2" fill="'+col+'"/>';
-    svg+='<text x="'+(PAD+fi*44+10)+'" y="'+legendY+'" font-size="8" fill="var(--text3)">'+esc(f.label.substring(0,5))+'</text>';
+  var labels = sorted.map(function(m) { return m.date.split('.').slice(0,2).join('.'); });
+  var series = []; var legend = '';
+  fields.forEach(function(f) {
+    var raw = sorted.map(function(m) { var v = f.id === '_bmi' ? parseFloat(m.bmi) : parseFloat(m[f.id]); return (isNaN(v) || !v) ? null : v; });
+    var base = null;
+    raw.forEach(function(v) { if (base === null && v !== null) base = v; });
+    if (!base) return;
+    var pct = raw.map(function(v) { return v === null ? null : Math.round((v - base) / base * 1000) / 10; });
+    var col = colors[series.length % colors.length];
+    series.push({ vals: pct, color: col });
+    var lastP = 0;
+    pct.forEach(function(v) { if (v !== null) lastP = v; });
+    legend += '<span style="display:inline-flex;align-items:center;gap:4px;margin:4px 10px 0 0;font-size:11px;color:var(--text2)">'
+      + '<span style="width:9px;height:9px;border-radius:2px;background:' + col + '"></span>' + esc(f.label)
+      + ' <b>' + (lastP > 0 ? '+' : '') + lastP + '%</b></span>';
   });
-  svg+='</svg>';
-  return svg;
+  if (!series.length) return '<div class="chart-empty">Brak danych</div>';
+  return '<div style="font-size:11px;color:var(--text3);margin-bottom:6px">Zmiana w % od pierwszego pomiaru — wszystkie pola na jednej skali</div>'
+    + lineChartSVG(series, labels, { unit: '%', minAbs: 4, signed: true })
+    + '<div style="margin-top:4px">' + legend + '</div>';
 }
 
 // Eksport pomiarów CSV
@@ -3557,7 +3829,7 @@ function renderPRRecords() {
     Object.keys(dl).filter(isExKey).forEach(function(exId) {
       if (!Array.isArray(dl[exId])) return;
       var nm = getExName(dl, pk[1], exId);
-      var norm = String(nm).trim().toLowerCase();
+      var norm = normExName(nm);
       dl[exId].forEach(function(s) {
         var w = parseFloat(s.w);
         if (isNaN(w) || w <= 0) return;
@@ -3580,8 +3852,7 @@ function renderPRRecords() {
 }
 
 // v7.0: seria danych ćwiczenia (per wykonany tydzień) — wspólna dla przeglądu i szczegółów
-function exerciseSeries(dayId, exId) {
-  var dataPoints = [];
+function exerciseSeriesOne(dayId, exId, dataPoints) {
   Object.keys(logs).forEach(function(key) {
     var pk = parseLogKey(key);
     if (pk[1] !== dayId) return;
@@ -3624,9 +3895,14 @@ function exerciseSeries(dayId, exId) {
         totalVol += w * r; totalReps += r;
       }
     });
-    dataPoints.push({ week: week, date: date, weight: maxW, volume: totalVol, reps: totalReps });
+    dataPoints.push({ week: week, date: date, dayId: dayId, weight: maxW, volume: totalVol, reps: totalReps });
   });
-  dataPoints.sort(function(a, b) { return a.week - b.week; });
+}
+// v7.2: jedna linia postępu dla ćwiczenia — wszystkie dni i poprzednie plany z tą samą nazwą
+function exerciseSeries(dayId, exId) {
+  var dataPoints = [];
+  exRefsFor(dayId, exId, true).forEach(function(ref) { exerciseSeriesOne(ref.dayId, ref.exId, dataPoints); });
+  dataPoints.sort(function(a, b) { return (a.week - b.week) || (a.date - b.date); });
   return dataPoints;
 }
 
@@ -3654,9 +3930,8 @@ function renderProgOverview() {
           ? '<span class="pov-delta" style="color:' + (delta > 0 ? 'var(--green)' : 'var(--accent)') + '">' + (delta > 0 ? '▲ +' : '▼ ') + delta + '</span>'
           : (prev ? '<span class="pov-delta" style="color:var(--text3)">→</span>' : '');
         var tail = pts.slice(-8);
-        var vmax = Math.max.apply(null, tail.map(function(p) { return p.weight; }));
-        var vmin = Math.min.apply(null, tail.map(function(p) { return p.weight; }));
-        var rng = (vmax - vmin) || 1;
+        var domS = chartDomain(tail.map(function(p) { return p.weight; }), 0.10, 5);
+        var vmin = domS.lo; var rng = domS.hi - domS.lo;
         var W = 110, H = 30;
         var poly = tail.map(function(p, i) {
           var x = tail.length > 1 ? (i / (tail.length - 1)) * (W - 6) + 3 : W / 2;
@@ -3726,28 +4001,13 @@ function renderProgress() {
     + '<div class="pstat"><div class="pstat-val" style="color:' + (diff>=0?'var(--green)':'var(--accent)') + '">' + (vals.length > 1 && pct !== '—' ? sign + pct + '%' : '—') + '</div><div class="pstat-lbl">Procentowo</div></div>';
 
   // Wykres SVG
-  var maxVal = Math.max.apply(null, vals);
-  var minVal = Math.min.apply(null, vals);
-  var range = maxVal - minVal || 1;
-  var W = 300; var H = 140; var PAD = 30; var BAR_W = Math.max(8, Math.floor((W - PAD * 2) / vals.length) - 4);
-
-  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:' + W + 'px;display:block;margin:0 auto">';
-  // Linie pomocnicze
-  for (var li = 0; li <= 4; li++) {
-    var ly = PAD + (H - PAD * 2) * li / 4;
-    svg += '<line x1="' + PAD + '" y1="' + ly + '" x2="' + (W - PAD) + '" y2="' + ly + '" stroke="var(--border)" stroke-width="1"/>';
-  }
-
-  vals.forEach(function(v, i) {
-    var barH = Math.max(4, ((v - minVal) / range) * (H - PAD * 2 - 20));
-    var x = PAD + i * ((W - PAD * 2) / vals.length) + ((W - PAD * 2) / vals.length - BAR_W) / 2;
-    var y = H - PAD - barH;
-    svg += '<rect x="' + x + '" y="' + y + '" width="' + BAR_W + '" height="' + barH + '" rx="3" fill="var(--accent)" opacity="0.85"/>';
-    svg += '<text x="' + (x + BAR_W/2) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="9" fill="var(--text3)">' + labels[i] + '</text>';
-    svg += '<text x="' + (x + BAR_W/2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="9" fill="var(--text2)">' + v.toFixed(metric==='reps'?0:1) + '</text>';
+  // v7.2: wykres liniowy z osią wartości — skala nie mniejsza niż 10–15% wartości
+  chartEl.innerHTML = lineChartSVG([{ vals: vals, color: 'var(--accent)' }], labels, {
+    unit: metric === 'reps' ? 'powt.' : (metric === 'volume' ? 'kg×powt.' : 'kg'),
+    minRel: metric === 'weight' ? 0.10 : 0.15,
+    minAbs: metric === 'weight' ? 5 : (metric === 'reps' ? 4 : 100),
+    showVals: true
   });
-  svg += '</svg>';
-  chartEl.innerHTML = svg;
 }
 
 // ═══════════════════════════════════════════════
@@ -4193,7 +4453,7 @@ function trendBadge(val, prev, goodDown) {
 }
 
 // v3.10: pomocnicze — klucze metadanych w logu
-var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1, '_exTypes':1, '_subs':1 };
+var LOG_META = { '_date':1, '_note':1, '_dayName':1, '_exNames':1, '_exTypes':1, '_subs':1, '_subsOff':1 };
 // v5.0: klucze bonus (_bonus) i notatki są metadanymi — nie są seriami ćwiczeń
 function isExKey(k) { return !LOG_META[k] && k.indexOf('note_') !== 0 && k.indexOf('_bonus') < 0; }
 
