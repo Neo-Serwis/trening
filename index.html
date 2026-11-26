@@ -618,7 +618,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
         <span class="sbtn-ico">🔄</span>
         <div class="sbtn-txt"><div class="sbtn-name">Sprawdź aktualizację</div><div class="sbtn-desc">Apka sprawdza sama przy każdym otwarciu; nowa wersja = baner „Odśwież" na dole</div></div>
       </button>
-      <div class="sinfo">Wersja 7.4 · 2026-11-19 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
+      <div class="sinfo">Wersja 7.5 · 2026-11-26 · Dane w localStorage · Tylko Ty masz dostęp do wyników</div>
     </div>
   </div>
 
@@ -683,7 +683,7 @@ header h1{flex:1;text-align:center;font-size:16px;font-weight:600;white-space:no
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-var APP_VERSION = '7.4';
+var APP_VERSION = '7.5';
 var currentWeek = 1;
 var currentDayId = null;
 var currentView = 'home';
@@ -4343,7 +4343,8 @@ function openVideo(ev, a) {
   var v = ytParse(a.href);
   if (!v) return true; // nie YouTube albo nierozpoznany link — otwórz normalnie
   if (ev) ev.preventDefault();
-  var src = 'https://www.youtube-nocookie.com/embed/' + v.id + '?autoplay=1&playsinline=1&rel=0&modestbranding=1' + (v.start ? '&start=' + v.start : '');
+  // Start bez dźwięku: wyciszony film nie przejmuje dźwięku telefonu, więc muzyka z innej aplikacji gra dalej
+  var src = 'https://www.youtube-nocookie.com/embed/' + v.id + '?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1' + (v.start ? '&start=' + v.start : '');
   _modalCtx = { type: 'video' };
   document.getElementById('modal-box').classList.add('video');
   document.getElementById('modal-title').textContent = '▶ ' + (a.getAttribute('data-name') || 'Film');
